@@ -92,7 +92,7 @@ nearling/
 ├── packages/shared/             # TS types shared by brain and web
 ├── art/                         # sprite sheets (PNG) + sprite JSON
 ├── scripts/                     # deploy-testnet.sh, seed-demo.sh
-└── docs/                        # DEMO.md, ARCHITECTURE.md
+└── docs/                        # DEMO.md, ARCHITECTURE.md, MILESTONES.md (contract milestones)
 ```
 
 **Team split (4 people):**
