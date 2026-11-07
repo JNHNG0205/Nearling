@@ -47,11 +47,11 @@ Goal: a pet exists on-chain and its stats live and decay without any tick.
 
 Goal: the brain can bill a thought, and care grows the pet.
 
-- [ ] `charge(...)`: credit first, then food at `near_usd_rate_micro`; food spent to treasury
-- [ ] Clamping: $0.005/call, $0.10/pet/day, xp ≤ 5/call and ≤ 50/day, mood ±10, traits ±2/trait/day
-- [ ] `credit(...)` capped correction
-- [ ] Daily check-in (+2 xp, `streak`), stages at 10 / 100 / 500 xp
-- [ ] `dormant` / `revived` emitted on the next write; `thought`, `credited`, `stage_up` events
+- [x] `charge(...)`: credit first, then food at `near_usd_rate_micro`; food spent to treasury
+- [x] Clamping: $0.005/call, $0.10/pet/day, xp ≤ 5/call and ≤ 50/day, mood ±10, traits ±2/trait/day
+- [x] `credit(...)` capped correction
+- [x] Daily check-in (+2 xp, `streak`), stages at 10 / 100 / 500 xp
+- [x] `dormant` / `revived` emitted on the next write; `thought`, `credited`, `stage_up` events
 
 **Pass (unit tests):**
 - `charge` from a non-brain account panics; from brain it **never** panics on low funds or over-cap values

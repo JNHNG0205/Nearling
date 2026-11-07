@@ -242,14 +242,14 @@ Pet {
   mood: u8, energy: u8,
   asleep_since_ns: Option<u64>,             // auto-wakes when energy reaches 100
   xp: u32, stage: u8, traits: [u8; 5],
-  trait_day: u32, trait_moved_today: [i8; 5],   // ±2 per trait per day
   starving_since_ns: Option<u64>,           // exact moment the budget reached 0 (computed, not "first seen")
   last_life_state: LifeState,               // lets the next write emit `dormant` / `revived`
   items: Vec<u16>,                          // max 5, no duplicates; stays with the pet on transfer
   persona_hash: String,                     // sha256 of the base persona prompt
-  spend_day: u32, spent_today_micro: u64, xp_today: u32,
-  avg_daily_spend_micro: u64,               // EMA, updated on day rollover; drives self_sustaining
-  last_checkin_day: u32, streak: u16,
+  today: u32,                               // UTC day index (now / 1 day); the counters below reset when it rolls
+  spent_today_micro: u64, xp_today: u32, traits_moved_today: [i8; 5],   // daily caps; traits ±2 per trait per day
+  avg_daily_spend_micro: u64,               // on rollover: (avg × 3 + yesterday) / 4, then × 3/4 per extra idle day; adds to daily burn (fullness) and drives self_sustaining
+  last_checkin_day: Option<u32>, streak: u16,
   last_pet_ns: u64, last_play_ns: u64,      // cooldowns
   device_pk: Option<PublicKey>,             // one device per pet, one pet per device
   approval_mode: bool,
@@ -300,10 +300,10 @@ Device (signer is the pet's registered device key, checked with `env::signer_acc
 - `approve_action(action_id)`: approves and executes a pending action in the same transaction (7.3).
 
 Brain only:
-- `charge(pet_id, cost_micro_usd: u64, usage_ref: String, trait_deltas: Option<[i8;5]>, xp_gain: u32, mood_delta: i8)`: settles, then spends credit first, then food (converted at `near_usd_rate_micro`); food spent goes to `treasury`. **Never panics for lack of funds or caps:** cost is clamped to the per-call cap ($0.005), the daily cap ($0.10 per pet) and what is left; if short, the pet becomes starving. Deltas are clamped: xp ≤ 5 per call and ≤ 50 per day, mood ±10, traits ±2 per trait per day. Emits `thought` with the amount actually charged.
-- `credit(pet_id, micro_usd: u64, ref: String)`: capped correction only (credit normally accrues lazily).
+- `charge(pet_id, cost_micro_usd: u64, usage_ref: String, trait_deltas: Option<[i8;5]>, xp_gain: u32, mood_delta: i8)`: settles, then spends credit first, then food (converted at `near_usd_rate_micro`); food spent goes to `treasury`. **Never panics for lack of funds or caps:** cost is clamped to the per-call cap ($0.005), the daily cap ($0.10 per pet) and what is left; if short, the pet becomes starving. Deltas are clamped: xp ≤ 5 per call and ≤ 50 per day (the check-in bonus is on top), mood ±10, traits ±2 per trait per day (0 to 100). Each chat also costs 3 energy (5.2). Emits `thought { pet_id, cost_micro, usage_ref }` with the amount actually charged. Only thought spending goes to the treasury; food burnt by metabolism stays in the contract.
+- `credit(pet_id, micro_usd: u64, ref: String)`: capped correction only (credit normally accrues lazily). Above `credit_correction_max_micro` it panics (a correction that large is a bug, not a retry). Clears starving if the budget is now above 0. Emits `credited`.
 
-**Care XP [FIXED, tune numbers]:** the first owner interaction per UTC day (feed, play, chat via `charge`) gives +2 xp and extends `streak` (resets after a missed day). Chat xp comes from `charge`. Any write that crosses a stage threshold (5.4) emits `stage_up`.
+**Care XP [FIXED, tune numbers]:** the first owner interaction per UTC day (feed by the owner, play, chat via `charge`; a stranger feeding does not count) gives +2 xp and extends `streak` (resets after a missed day). Chat xp comes from `charge`. Any write that crosses a stage threshold (5.4) emits `stage_up`.
 
 Views: `get_pet(pet_id) -> PetView` settled to current block time: `id, owner, name, born_at_ns, food_yocto, credit_micro, budget_micro, fullness, mood, energy, asleep_since_ns, xp, stage, traits, starving_since_ns, life_state` (u64 timestamps and u128 amounts are JSON strings), plus `self_sustaining` (M3) (daily credit accrual ≥ `avg_daily_spend_micro` + metabolism); `get_pending_actions(pet_id)`; `nft_tokens_for_owner`; `config()`.
 

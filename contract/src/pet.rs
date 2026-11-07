@@ -14,6 +14,12 @@ const MOOD_NS_PER_POINT: u64 = 30 * MINUTE_NS;
 const ENERGY_NS_PER_POINT: u64 = 450 * 1_000_000_000;
 const DORMANT_AFTER_NS: u64 = 72 * HOUR_NS;
 
+/// XP needed for Baby, Teen, Adult (CLAUDE.md 5.4).
+const STAGE_XP: [u32; 3] = [10, 100, 500];
+const CHECKIN_XP: u32 = 2;
+const ENERGY_PER_CHAT: u8 = 3;
+const TRAIT_MOVE_PER_DAY: i8 = 2;
+
 pub const START_MOOD: u8 = 80;
 pub const START_ENERGY: u8 = 100;
 
@@ -49,6 +55,35 @@ pub struct Pet {
     pub traits: [u8; 5],
     pub starving_since_ns: Option<u64>,
     pub last_life_state: LifeState,
+    /// UTC day index (`now / DAY_NS`) the daily counters below belong to.
+    pub today: u32,
+    pub spent_today_micro: u64,
+    pub xp_today: u32,
+    pub traits_moved_today: [i8; 5],
+    /// EMA of daily thought spend, updated on day rollover.
+    pub avg_daily_spend_micro: u64,
+    pub last_checkin_day: Option<u32>,
+    pub streak: u16,
+}
+
+/// What the brain asks `charge` to apply; all values are clamped (CLAUDE.md 7.2).
+pub struct Thought {
+    pub cost_micro: u64,
+    pub xp_gain: u32,
+    pub mood_delta: i8,
+    pub trait_deltas: [i8; 5],
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ThoughtOutcome {
+    pub charged_micro: u64,
+    /// Food spent on this thought; goes to the treasury.
+    pub food_yocto: u128,
+    pub stage_up: Option<u8>,
+}
+
+pub fn day_of(now: u64) -> u32 {
+    (now / DAY_NS) as u32
 }
 
 impl Pet {
@@ -69,6 +104,115 @@ impl Pet {
             traits,
             starving_since_ns: None,
             last_life_state: LifeState::Happy,
+            today: day_of(now),
+            spent_today_micro: 0,
+            xp_today: 0,
+            traits_moved_today: [0; 5],
+            avg_daily_spend_micro: 0,
+            last_checkin_day: None,
+            streak: 0,
+        }
+    }
+
+    /// Spends up to `micro`, credit first, then food. Returns (micro spent, food yocto spent).
+    pub fn spend(&mut self, micro: u64, cfg: &Config) -> (u64, u128) {
+        let micro = micro.min(self.budget_micro(cfg));
+        let from_credit = micro.min(self.credit_micro);
+        self.credit_micro -= from_credit;
+        let from_food = (micro - from_credit) as u128;
+        if from_food == 0 {
+            return (micro, 0);
+        }
+        let yocto = (from_food * YOCTO_PER_NEAR)
+            .div_ceil(cfg.near_usd_rate_micro as u128)
+            .min(self.food_yocto);
+        self.food_yocto -= yocto;
+        (micro, yocto)
+    }
+
+    /// Resets daily counters on a new UTC day and folds the old day into the spend EMA.
+    pub fn roll_day(&mut self, today: u32) {
+        if today <= self.today {
+            return;
+        }
+        let mut avg = (self.avg_daily_spend_micro * 3 + self.spent_today_micro) / 4;
+        for _ in 1..(today - self.today).min(30) {
+            avg = avg * 3 / 4;
+        }
+        self.avg_daily_spend_micro = avg;
+        self.today = today;
+        self.spent_today_micro = 0;
+        self.xp_today = 0;
+        self.traits_moved_today = [0; 5];
+    }
+
+    /// First owner interaction of a UTC day: extends the streak. Returns the check-in xp.
+    pub fn check_in(&mut self, today: u32) -> u32 {
+        match self.last_checkin_day {
+            Some(day) if day == today => return 0,
+            Some(day) if day + 1 == today => self.streak = self.streak.saturating_add(1),
+            _ => self.streak = 1,
+        }
+        self.last_checkin_day = Some(today);
+        CHECKIN_XP
+    }
+
+    /// Adds xp; returns the new stage if a threshold was crossed.
+    pub fn add_xp(&mut self, xp: u32) -> Option<u8> {
+        self.xp = self.xp.saturating_add(xp);
+        let stage = STAGE_XP.iter().filter(|&&t| self.xp >= t).count() as u8;
+        if stage > self.stage {
+            self.stage = stage;
+            return Some(stage);
+        }
+        None
+    }
+
+    /// One billed chat from the brain. Call after `settle(now)`.
+    pub fn apply_thought(&mut self, t: Thought, now: u64, cfg: &Config) -> ThoughtOutcome {
+        let today = day_of(now);
+        self.roll_day(today);
+
+        let day_left = cfg
+            .charge_max_per_day_micro
+            .saturating_sub(self.spent_today_micro);
+        let cost = t
+            .cost_micro
+            .min(cfg.charge_max_per_call_micro)
+            .min(day_left);
+        let (charged_micro, food_yocto) = self.spend(cost, cfg);
+        self.spent_today_micro += charged_micro;
+        if self.budget_micro(cfg) == 0 && self.starving_since_ns.is_none() {
+            self.starving_since_ns = Some(now);
+        }
+
+        self.energy = self.energy.saturating_sub(ENERGY_PER_CHAT);
+        let max = cfg.mood_delta_max as i16;
+        let mood = self.mood as i16 + (t.mood_delta as i16).clamp(-max, max);
+        self.mood = mood.clamp(0, 100) as u8;
+
+        for (i, delta) in t.trait_deltas.iter().enumerate() {
+            let moved = self.traits_moved_today[i];
+            let target = moved
+                .saturating_add(*delta)
+                .clamp(-TRAIT_MOVE_PER_DAY, TRAIT_MOVE_PER_DAY);
+            let value = (self.traits[i] as i16 + (target - moved) as i16).clamp(0, 100);
+            self.traits_moved_today[i] += value as i8 - self.traits[i] as i8;
+            self.traits[i] = value as u8;
+        }
+
+        let xp = t
+            .xp_gain
+            .min(cfg.xp_max_per_call)
+            .min(cfg.xp_max_per_day.saturating_sub(self.xp_today));
+        self.xp_today += xp;
+        let checkin_xp = self.check_in(today);
+        let stage_up = self.add_xp(xp + checkin_xp);
+
+        ThoughtOutcome {
+            charged_micro,
+            food_yocto,
+            stage_up,
         }
     }
 
@@ -105,13 +249,7 @@ impl Pet {
             self.budget_at_ns = now;
             return;
         }
-        let from_credit = cost.min(self.credit_micro as u128);
-        self.credit_micro -= from_credit as u64;
-        let from_food = cost - from_credit;
-        if from_food > 0 {
-            let yocto = (from_food * YOCTO_PER_NEAR).div_ceil(cfg.near_usd_rate_micro as u128);
-            self.food_yocto = self.food_yocto.saturating_sub(yocto);
-        }
+        self.spend(cost as u64, cfg);
         self.budget_at_ns += (cost * DAY_NS as u128 / rate) as u64;
     }
 
@@ -154,7 +292,7 @@ impl Pet {
 
     /// 0 to 100; 100 means 3+ days of budget at the current daily burn.
     pub fn fullness(&self, cfg: &Config) -> u8 {
-        let burn = cfg.metabolism_micro_per_day as u128;
+        let burn = cfg.metabolism_micro_per_day as u128 + self.avg_daily_spend_micro as u128;
         if burn == 0 {
             return 100;
         }
@@ -314,5 +452,169 @@ mod tests {
         let mut p = pet(0, 10_000);
         p.mood = 39;
         assert_eq!(p.life_state(T0, &cfg()), LifeState::Sad);
+    }
+
+    fn thought(cost_micro: u64) -> Thought {
+        Thought {
+            cost_micro,
+            xp_gain: 0,
+            mood_delta: 0,
+            trait_deltas: [0; 5],
+        }
+    }
+
+    #[test]
+    fn spend_takes_credit_then_food_and_caps_at_budget() {
+        let mut p = pet(300, 1_000);
+        assert_eq!(p.spend(500, &cfg()), (500, food(200)));
+        assert_eq!(p.credit_micro, 0);
+        assert_eq!(p.spend(5_000, &cfg()), (800, food(800)));
+        assert_eq!(p.budget_micro(&cfg()), 0);
+    }
+
+    #[test]
+    fn thought_cost_is_clamped_to_per_call_cap() {
+        let mut p = pet(0, 100_000);
+        let out = p.apply_thought(thought(9_000), T0, &cfg());
+        assert_eq!(out.charged_micro, 5_000);
+        assert_eq!(out.food_yocto, food(5_000));
+    }
+
+    #[test]
+    fn thought_cost_is_clamped_to_daily_cap() {
+        let mut p = pet(0, 1_000_000);
+        for _ in 0..20 {
+            p.apply_thought(thought(5_000), T0, &cfg());
+        }
+        assert_eq!(p.apply_thought(thought(5_000), T0, &cfg()).charged_micro, 0);
+        let next_day = p.apply_thought(thought(5_000), T0 + DAY_NS, &cfg());
+        assert_eq!(next_day.charged_micro, 5_000);
+    }
+
+    #[test]
+    fn thought_on_short_budget_charges_what_is_left_and_starves() {
+        let mut p = pet(0, 1_200);
+        let out = p.apply_thought(thought(5_000), T0, &cfg());
+        assert_eq!(out.charged_micro, 1_200);
+        assert_eq!(p.starving_since_ns, Some(T0));
+        assert_eq!(p.life_state(T0, &cfg()), LifeState::Starving);
+    }
+
+    #[test]
+    fn thought_costs_energy() {
+        let mut p = pet(0, 10_000);
+        p.apply_thought(thought(100), T0, &cfg());
+        assert_eq!(p.energy, START_ENERGY - 3);
+    }
+
+    #[test]
+    fn mood_delta_is_clamped() {
+        let mut p = pet(0, 10_000);
+        p.apply_thought(
+            Thought {
+                mood_delta: -50,
+                ..thought(0)
+            },
+            T0,
+            &cfg(),
+        );
+        assert_eq!(p.mood, START_MOOD - 10);
+        p.apply_thought(
+            Thought {
+                mood_delta: 50,
+                ..thought(0)
+            },
+            T0,
+            &cfg(),
+        );
+        assert_eq!(p.mood, START_MOOD);
+    }
+
+    #[test]
+    fn traits_move_at_most_two_per_day() {
+        let mut p = pet(0, 10_000);
+        let up = Thought {
+            trait_deltas: [5, -1, 0, 0, 0],
+            ..thought(0)
+        };
+        p.apply_thought(up, T0, &cfg());
+        let up = Thought {
+            trait_deltas: [5, -5, 0, 0, 0],
+            ..thought(0)
+        };
+        p.apply_thought(up, T0, &cfg());
+        assert_eq!(p.traits, [3, 0, 3, 4, 5], "trait 1 starts at 2, floor 0");
+        let up = Thought {
+            trait_deltas: [1, 0, 0, 0, 0],
+            ..thought(0)
+        };
+        p.apply_thought(up, T0 + DAY_NS, &cfg());
+        assert_eq!(p.traits[0], 4);
+    }
+
+    #[test]
+    fn xp_is_clamped_per_call_and_per_day() {
+        let mut p = pet(0, 10_000);
+        p.apply_thought(
+            Thought {
+                xp_gain: 100,
+                ..thought(0)
+            },
+            T0,
+            &cfg(),
+        );
+        assert_eq!(p.xp, 5 + 2, "per-call cap plus check-in");
+        for _ in 0..20 {
+            p.apply_thought(
+                Thought {
+                    xp_gain: 5,
+                    ..thought(0)
+                },
+                T0,
+                &cfg(),
+            );
+        }
+        assert_eq!(p.xp, 50 + 2);
+    }
+
+    #[test]
+    fn check_in_gives_xp_once_per_day_and_builds_a_streak() {
+        let mut p = pet(0, 10_000);
+        let day = day_of(T0);
+        assert_eq!(p.check_in(day), 2);
+        assert_eq!(p.check_in(day), 0);
+        assert_eq!(p.check_in(day + 1), 2);
+        assert_eq!(p.streak, 2);
+        p.check_in(day + 3);
+        assert_eq!(p.streak, 1, "missed a day");
+    }
+
+    #[test]
+    fn crossing_a_stage_threshold_reports_it_once() {
+        let mut p = pet(0, 10_000);
+        assert_eq!(p.add_xp(9), None);
+        assert_eq!(p.add_xp(1), Some(1));
+        assert_eq!(p.add_xp(1), None);
+        assert_eq!(p.add_xp(500), Some(3), "can skip to Adult");
+    }
+
+    #[test]
+    fn day_rollover_updates_spend_average() {
+        let mut p = pet(0, 1_000_000);
+        p.apply_thought(thought(4_000), T0, &cfg());
+        p.roll_day(day_of(T0) + 1);
+        assert_eq!(p.avg_daily_spend_micro, 1_000);
+        assert_eq!(p.spent_today_micro, 0);
+        p.roll_day(day_of(T0) + 3);
+        assert_eq!(p.avg_daily_spend_micro, 562, "two idle days decay it");
+    }
+
+    #[test]
+    fn fullness_counts_average_spend_in_daily_burn() {
+        let mut p = pet(0, 6_000);
+        p.avg_daily_spend_micro = 1_000; // burn 2_000/day, 3 days = 6_000
+        assert_eq!(p.fullness(&cfg()), 100);
+        p.avg_daily_spend_micro = 3_000; // burn 4_000/day
+        assert_eq!(p.fullness(&cfg()), 50);
     }
 }

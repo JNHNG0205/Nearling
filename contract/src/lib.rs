@@ -470,4 +470,114 @@ mod tests {
         assert_eq!(json["born_at_ns"], DAY.to_string());
         assert!(json["starving_since_ns"].is_null());
     }
+
+    fn as_brain(ts: u64) {
+        ctx(accounts(1), NearToken::from_yoctonear(0), ts);
+    }
+
+    fn chat(contract: &mut Contract, id: &TokenId, cost: u64, xp: u32) {
+        contract.charge(id.clone(), cost, "inf-1".into(), None, xp, 0);
+    }
+
+    fn transfers_to(who: &AccountId) -> Vec<NearToken> {
+        near_sdk::test_utils::get_created_receipts()
+            .into_iter()
+            .filter(|r| &r.receiver_id == who)
+            .flat_map(|r| r.actions)
+            .filter_map(|a| match a {
+                near_sdk::mock::MockAction::Transfer { deposit, .. } => Some(deposit),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    #[should_panic(expected = "Only brain")]
+    fn charge_by_non_brain_is_rejected() {
+        let (mut contract, id) = minted();
+        ctx(accounts(3), NearToken::from_yoctonear(0), DAY);
+        chat(&mut contract, &id, 100, 0);
+    }
+
+    #[test]
+    fn charge_sends_spent_food_to_treasury_and_emits_thought() {
+        let (mut contract, id) = minted();
+        as_brain(DAY);
+        chat(&mut contract, &id, 1_000, 0);
+        // $0.001 at $0.20 per NEAR = 0.005 NEAR
+        assert_eq!(
+            transfers_to(&accounts(2)),
+            vec![NearToken::from_millinear(5)]
+        );
+        assert_eq!(contract.get_pet(id).budget_micro, 19_000);
+        let ev = events();
+        assert!(ev.iter().any(|e| e.contains("\"event\":\"thought\"")
+            && e.contains("\"cost_micro\":1000")
+            && e.contains("\"usage_ref\":\"inf-1\"")));
+    }
+
+    #[test]
+    fn charge_on_a_starving_pet_succeeds_and_costs_nothing() {
+        let (mut contract, id) = minted();
+        as_brain(DAY + 30 * DAY);
+        chat(&mut contract, &id, 5_000, 0);
+        assert!(transfers_to(&accounts(2)).is_empty());
+        assert!(events().iter().any(|e| e.contains("\"cost_micro\":0")));
+    }
+
+    #[test]
+    fn charge_emits_stage_up_when_xp_crosses_a_threshold() {
+        let (mut contract, id) = minted();
+        as_brain(DAY);
+        chat(&mut contract, &id, 0, 5); // 5 + 2 check-in
+        chat(&mut contract, &id, 0, 5); // 12
+        let view = contract.get_pet(id);
+        assert_eq!((view.xp, view.stage), (12, 1));
+        let ups = events().iter().filter(|e| e.contains("stage_up")).count();
+        assert_eq!(ups, 1);
+    }
+
+    #[test]
+    fn credit_adds_to_budget_and_revives_a_starving_pet() {
+        let (mut contract, id) = minted();
+        as_brain(DAY + 22 * DAY);
+        contract.credit(id.clone(), 3_000, "reconcile-1".into());
+        let view = contract.get_pet(id);
+        assert_eq!(view.credit_micro, 3_000);
+        assert_eq!(view.starving_since_ns, None);
+        assert!(events()
+            .iter()
+            .any(|e| e.contains("\"event\":\"credited\"")));
+    }
+
+    #[test]
+    #[should_panic(expected = "Only brain")]
+    fn credit_by_non_brain_is_rejected() {
+        let (mut contract, id) = minted();
+        ctx(accounts(3), NearToken::from_yoctonear(0), DAY);
+        contract.credit(id, 1, "x".into());
+    }
+
+    #[test]
+    #[should_panic(expected = "Credit above correction cap")]
+    fn credit_above_cap_is_rejected() {
+        let (mut contract, id) = minted();
+        as_brain(DAY);
+        contract.credit(id, 100_001, "x".into());
+    }
+
+    #[test]
+    fn owner_feeding_counts_as_daily_check_in() {
+        let (mut contract, id) = minted();
+        ctx(accounts(4), NearToken::from_near(1), DAY);
+        contract.feed(id.clone());
+        assert_eq!(
+            contract.get_pet(id.clone()).xp,
+            0,
+            "stranger feeding is not a check-in"
+        );
+        ctx(accounts(3), NearToken::from_near(1), DAY);
+        contract.feed(id.clone());
+        assert_eq!(contract.get_pet(id).xp, 2);
+    }
 }
