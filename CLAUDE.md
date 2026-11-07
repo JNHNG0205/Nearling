@@ -160,9 +160,12 @@ Daily burn = metabolism (passive, default $0.001/day [TBD]) + recent average tho
 |---|---|---|
 | Happy | fullness ≥ 40 and mood ≥ 40 | Normal chat, idle animation |
 | Hungry | fullness < 40 | Mentions food, shorter replies |
+| Sad | fed and awake, mood < 40 | Asks to be petted or played with |
 | Sleepy | energy < 15, or night mode | Short replies, recovers energy. Night mode is brain/client only; on-chain sleep is `play("sleep")` and auto-wakes at energy 100 |
 | Starving | budget = 0 | No inference; canned "zzz... I'm hungry", costs nothing |
 | Dormant | starving for 72 h | Curled-up sprite; revived by feeding or staking. **Pets never die** |
+
+Precedence (first match wins): Dormant > Starving > Sleepy (also while asleep) > Hungry > Sad > Happy. A new pet starts at mood 80, energy 100.
 
 ### 5.4 Growth [FIXED, tune thresholds]
 - Stages **Egg → Baby → Teen → Adult** by `xp` (10 / 100 / 500).
@@ -230,19 +233,18 @@ Start from **near-contract-standards**: NEP-171 (core), NEP-177 (metadata), NEP-
 ### 7.1 State
 ```
 Pet {
-  id, name, owner,
-  born_at_ns,
-  last_tick_ns: u64,                        // budget, credit accrual, mood and energy are all settled to this time on every write
+  name, born_at_ns,                         // id is the map key; owner comes from the NFT core (owner_by_id), never copied
+  budget_at_ns, mood_at_ns, energy_at_ns,   // each lazy value has its own as-of time, advanced only by the time it used (frequent writes never round decay away)
   food_yocto: u128,                         // from feeding (anyone can feed)
   credit_micro: u64,                        // micro-USD of CREDIT accrued to this pet (lazy, section 6)
   staked: u128,                             // owner's NEARON stake for this pet (owner-only staking)
   pending_unstake: Option<{ amount: u128, unlock_epoch: u64 }>,  // at most one
-  mood: u8, energy: u8,                     // values as of last_tick_ns
+  mood: u8, energy: u8,
   asleep_since_ns: Option<u64>,             // auto-wakes when energy reaches 100
   xp: u32, stage: u8, traits: [u8; 5],
   trait_day: u32, trait_moved_today: [i8; 5],   // ±2 per trait per day
   starving_since_ns: Option<u64>,           // exact moment the budget reached 0 (computed, not "first seen")
-  last_life_state: u8,                      // lets the next write emit `dormant` / `revived`
+  last_life_state: LifeState,               // lets the next write emit `dormant` / `revived`
   items: Vec<u16>,                          // max 5, no duplicates; stays with the pet on transfer
   persona_hash: String,                     // sha256 of the base persona prompt
   spend_day: u32, spent_today_micro: u64, xp_today: u32,
@@ -272,14 +274,14 @@ Config {                                    // set by `admin` via set_config; br
 }
 ```
 
-**Lazy settlement [FIXED]:** every write (and `get_pet`, without saving) first settles from `last_tick_ns` to now, in this order: accrue credit from `staked`; drain metabolism (credit first, then food); decay mood (-2/h awake); energy +8/h while asleep, auto-wake at 100; compute `starving_since_ns` as the exact time the budget hit 0; life state (5.3). If the life state changed since `last_life_state`, the write emits `dormant` or `revived`.
+**Lazy settlement [FIXED]:** every write (and `get_pet`, without saving) first settles each value from its own as-of time to now, in this order: accrue credit from `staked`; drain metabolism (credit first, then food); decay mood (-2/h awake); energy +8/h while asleep, auto-wake at 100; compute `starving_since_ns` as the exact time the budget hit 0; life state (5.3). If the life state changed since `last_life_state`, the write emits `dormant` or `revived`.
 
 ### 7.2 Methods
 Admin:
 - `new(admin, brain, treasury, pool, org_id)`: other config fields start at the 7.1 defaults. `set_config(config)`: admin only; tunes numbers and can rotate the `brain` account.
 
 Owner (wallet key):
-- `nft_mint_pet(name) -> TokenId` payable exactly `mint_storage + starter_food` (0.2 NEAR): storage part to treasury, rest is food; random traits from `env::random_seed()`.
+- `nft_mint_pet(name) -> TokenId` payable exactly `mint_storage + starter_food` (0.2 NEAR): `mint_storage` **stays in the contract** to pay for the pet's storage (NEAR locks balance for storage; asserted on every mint), `starter_food` becomes food; random traits from `env::random_seed()`; name 1 to 32 bytes.
 - `stake(pet_id)` payable ≥ `min_stake`, `unstake(pet_id, amount)`, `withdraw(pet_id)`: section 6. Owner only. Gated by approval mode (7.3).
 - `play(pet_id, action: "pet" | "play" | "sleep" | "wake")`: no deposit; callable by owner, including via the device key. Cooldowns: pet 5 min, play 1 min (rejected inside the cooldown).
 - `buy_item(pet_id, item_id)` payable exactly the catalog price: price to treasury; max 5 items, no duplicates; adds `mood_bonus`.
@@ -303,7 +305,7 @@ Brain only:
 
 **Care XP [FIXED, tune numbers]:** the first owner interaction per UTC day (feed, play, chat via `charge`) gives +2 xp and extends `streak` (resets after a missed day). Chat xp comes from `charge`. Any write that crosses a stage threshold (5.4) emits `stage_up`.
 
-Views: `get_pet(pet_id)` settled to current block time, plus `life_state` and `self_sustaining` (daily credit accrual ≥ `avg_daily_spend_micro` + metabolism); `get_pending_actions(pet_id)`; `nft_tokens_for_owner`; `config()`.
+Views: `get_pet(pet_id) -> PetView` settled to current block time: `id, owner, name, born_at_ns, food_yocto, credit_micro, budget_micro, fullness, mood, energy, asleep_since_ns, xp, stage, traits, starving_since_ns, life_state` (u64 timestamps and u128 amounts are JSON strings), plus `self_sustaining` (M3) (daily credit accrual ≥ `avg_daily_spend_micro` + metabolism); `get_pending_actions(pet_id)`; `nft_tokens_for_owner`; `config()`.
 
 ### 7.3 Device approval flow [FIXED design, VERIFY S5]
 "What you see is what you sign" on the pet's body.

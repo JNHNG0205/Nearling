@@ -27,12 +27,12 @@ Goal: a contract crate that builds and deploys, and S6 answered before we depend
 Goal: a pet exists on-chain and its stats live and decay without any tick.
 
 - [x] `Config`, `new`, `set_config` (admin only) (done early in M0, 3 unit tests)
-- [ ] NEP-171/177/181 via near-contract-standards; token ids `"0"`, `"1"`, ...
-- [ ] `nft_mint_pet(name)`: exactly 0.2 NEAR (0.1 storage to treasury, 0.1 starter food), random traits
-- [ ] `feed(pet_id)` by anyone
-- [ ] Lazy settlement (7.1): metabolism drain, mood decay, energy and auto-wake, `starving_since_ns`, life states
-- [ ] `get_pet` view with `life_state` and `self_sustaining`
-- [ ] Events: `fed`, NEP-256 mint
+- [x] NEP-171/177/181 via near-contract-standards; token ids `"0"`, `"1"`, ...
+- [x] `nft_mint_pet(name)`: exactly 0.2 NEAR (0.1 storage to treasury, 0.1 starter food), random traits
+- [x] `feed(pet_id)` by anyone
+- [x] Lazy settlement (7.1): metabolism drain, mood decay, energy and auto-wake, `starving_since_ns`, life states
+- [x] `get_pet` view with `life_state` (`self_sustaining` moves to M3, it needs stake)
+- [x] Events: `fed`, NEP-256 mint
 
 **Pass (unit tests):**
 - Wrong mint deposit rejected; storage used by a new pet ≤ `mint_storage`
