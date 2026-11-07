@@ -10,10 +10,10 @@ Each milestone is done only when its **Pass** checks run green (tests) or are se
 
 Goal: a contract crate that builds and deploys, and S6 answered before we depend on Option A.
 
-- [ ] `contract/` crate: near-sdk 5.x + near-contract-standards, `cargo fmt`, `clippy -D warnings`
-- [ ] `scripts/deploy-testnet.sh`: creates `pets-vN.<team>.testnet`, deploys, calls `new(config)`
-- [ ] S6 spike (throwaway contract or the real one): from a contract account, call `deposit_and_stake`, `unstake`, `withdraw`, `claim_and_topup` on `mw-pool-1024.testnet`
-- [ ] Record in `CLAUDE.md` section 14: max gas per tx vs the 400+ Tgas pool calls plus callback, unlock epoch per queued unstake, real testnet farm rate
+- [x] `contract/` crate: near-sdk 5.x + near-contract-standards, `cargo fmt`, `clippy -D warnings`
+- [x] `scripts/deploy-testnet.sh`: creates `pets-vN.<team>.testnet`, deploys, calls `new(config)`
+- [x] S6 spike (throwaway contract or the real one): from a contract account, call `deposit_and_stake`, `unstake`, `withdraw`, `claim_and_topup` on `mw-pool-1024.testnet`
+- [ ] Record in `CLAUDE.md` section 14 (gas, stake, unstake, toolchain done; withdraw after epoch 5424, farm rate, `claim_and_topup` still open): max gas per tx vs the 400+ Tgas pool calls plus callback, unlock epoch per queued unstake, real testnet farm rate
 
 **Pass:**
 - `cargo check --target wasm32-unknown-unknown` and `cargo near build` succeed
@@ -26,7 +26,7 @@ Goal: a contract crate that builds and deploys, and S6 answered before we depend
 
 Goal: a pet exists on-chain and its stats live and decay without any tick.
 
-- [ ] `Config`, `new`, `set_config` (admin only)
+- [x] `Config`, `new`, `set_config` (admin only) (done early in M0, 3 unit tests)
 - [ ] NEP-171/177/181 via near-contract-standards; token ids `"0"`, `"1"`, ...
 - [ ] `nft_mint_pet(name)`: exactly 0.2 NEAR (0.1 storage to treasury, 0.1 starter food), random traits
 - [ ] `feed(pet_id)` by anyone

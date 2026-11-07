@@ -1,0 +1,5 @@
+target/
+node_modules/
+.env
+firmware/include/secrets.h
+.DS_Store

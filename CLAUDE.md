@@ -92,6 +92,7 @@ nearling/
 ├── packages/shared/             # TS types shared by brain and web
 ├── art/                         # sprite sheets (PNG) + sprite JSON
 ├── scripts/                     # deploy-testnet.sh, seed-demo.sh
+├── spikes/                      # throwaway spike code (e.g. s6-nearon), results go to section 14
 └── docs/                        # DEMO.md, ARCHITECTURE.md, MILESTONES.md (contract milestones)
 ```
 
@@ -196,7 +197,7 @@ NEARON is a **testnet prototype** that turns staked NEAR into NEAR AI credit (`h
 | Method | Caller | Notes |
 |---|---|---|
 | `deposit_and_stake()` | anyone | Attach NEAR (≥ 0.1, plus first-deposit storage fee), 400+ Tgas. Mints iNEAR 1:1. Under 1 NEAR it waits in a buffer until `flush_buffer()` |
-| `unstake(amount)` | holder | iNEAR amount, 400+ Tgas. Queues NEAR with unlock epoch = current + farm delay (1 on testnet) + 1 |
+| `unstake(amount)` | holder | iNEAR amount, exactly 1 yocto attached, 400+ Tgas. Pays at once if the pool buffer covers it, else queues NEAR with unlock epoch = current + farm delay (1 on testnet) + 1 (S6) |
 | `withdraw()` | holder | 400+ Tgas. Pays out **all** matured withdrawals of the holder; returns 0 if none |
 | `claim_and_topup(org_id)` | holder | Turns all claimable CREDIT into a top-up for that NEAR AI org (lowercase UUID) |
 | `get_account(account_id)` | view | Balance, claimable, claimed, queued withdrawals |
@@ -208,8 +209,8 @@ Docs confirm a contract can be holder and router. Sub-pool beneficiaries need an
 2. `stake(pet_id)`: owner only, ≥ `config.min_stake` (1 NEAR, so nothing idles in the buffer). Contract calls `deposit_and_stake` with the attached NEAR; the callback adds to `pet.staked`, or refunds the owner on failure.
 3. **Per-pet credit accrues lazily in the contract:** `credit_micro += staked × config.farm_rate × elapsed`, computed in `get_pet` and settled on every write. The UI sees credit grow live.
 4. `sweep_credit()`: **anyone** can call; it calls `claim_and_topup(config.org_id)`. The org is fixed in config, so a caller cannot redirect CREDIT. The brain calls it hourly. Emits `credit_swept { amount }`.
-5. `unstake(pet_id, amount)`: one pending unstake per pet; a second one while one is pending is rejected. Calls pool `unstake`; records `pending_unstake { amount, unlock_epoch }`.
-6. `withdraw(pet_id)`: after `unlock_epoch`, calls pool `withdraw()` (pays all matured NEAR to the contract), then pays the owner only that pet's pending amount. Emits `unstake_withdrawn`.
+5. `unstake(pet_id, amount)`: one pending unstake per pet; a second one while one is pending is rejected. Calls pool `unstake` (1 yocto attached); records `pending_unstake { amount, unlock_epoch = current + 2 }`. **Always treated as pending** [FIXED after S6]: the pool may pay at once from its buffer or queue it, and the return value does not say which, so the owner always waits for `unlock_epoch`.
+6. `withdraw(pet_id)`: after `unlock_epoch`, calls pool `withdraw()` (pays all matured NEAR to the contract; returns 0 if the buffer already paid it), then pays the owner only that pet's pending amount. Emits `unstake_withdrawn`.
 7. `credit(pet_id, micro_usd, ref)` stays only as a brain-only, capped correction.
 
 **Option B (fallback only if Option A fails S6):** owner stakes directly in NEARON from their wallet and binds their account to the brain's org; the brain tracks which pet it belongs to.
@@ -275,7 +276,7 @@ Config {                                    // set by `admin` via set_config; br
 
 ### 7.2 Methods
 Admin:
-- `new(config)`, `set_config(config)`: admin only. Admin can rotate the `brain` account.
+- `new(admin, brain, treasury, pool, org_id)`: other config fields start at the 7.1 defaults. `set_config(config)`: admin only; tunes numbers and can rotate the `brain` account.
 
 Owner (wallet key):
 - `nft_mint_pet(name) -> TokenId` payable exactly `mint_storage + starter_food` (0.2 NEAR): storage part to treasury, rest is food; random traits from `env::random_seed()`.
@@ -473,6 +474,20 @@ Pixel art, 64×64 base sprite, 4 stages × about 12 states. One palette that rea
 
 Record results here.
 
+### S6 results (2026-11-07, spike contract `s6-spike.nearling.testnet`, code in `spikes/s6-nearon/`)
+| Question | Result |
+|---|---|
+| Max gas per tx | **1000 Tgas** (testnet protocol 88, `max_total_prepaid_gas`). 400+ Tgas pool calls plus callback fit, also from the device key |
+| Contract as holder: `deposit_and_stake` | **Works.** 1.1 NEAR minted 1.0945 iNEAR: one-time first-deposit storage fee ≈ 0.0055 NEAR per holder, then 1:1. Inner gas 100 and 300 Tgas both worked; whole tx burnt ≈ 22 Tgas. We still attach the documented 400 Tgas (unburnt gas is refunded) |
+| `unstake(amount)` | **Requires exactly 1 yoctoNEAR attached** (contract attaches it from its own balance). Returns empty. **If the pool buffer covers the amount, NEAR is paid back immediately** (no queued withdrawal); otherwise queued with `unlock_epoch = current + 2` (epoch = 43200 blocks ≈ 12 h, so 12 to 24 h). Decision: always treat as pending (section 6 step 5) |
+| Separate unlock epoch per queued unstake | Open: only one queued entry seen so far (0.5 NEAR, epoch 5424). Recheck with a second unstake in a later epoch |
+| `withdraw()` | Open: run after epoch 5424 |
+| CREDIT accrual | CREDIT has 24 decimals. `claimable` updates after anyone calls `sync_from_farm()`. Baseline: `claimable = 1762347710006040886` at 2026-11-07T14:04:57Z with 0.7945 iNEAR; remeasure later for the real testnet farm rate |
+| `claim_and_topup(org_id)` | Open: needs the brain's org id (Role 2). Note: minimum burn 0.01 CREDIT, so at about 0.000657 CREDIT per NEAR per day a sweep needs ≈ 15 NEAR-days of stake across all pets. The brain should only call `sweep_credit` when `get_account(pets).claimable ≥ 0.01 CREDIT` |
+| Wasm toolchain | Rust 1.99 + cargo-near 0.23 output deploys and runs; no toolchain pin needed |
+
+Evidence: stake tx `FLjbh7CA1tRw9TknMGRctba4DjFnQr9dCKQgmiFF9sT6`; failed unstake without 1 yocto `5GpH91VtbhCdVXF4mTyceBwDsdSmoQWwb7b4LA1PPHBq`.
+
 ---
 
 ## 15. Commands
@@ -481,7 +496,7 @@ Record results here.
 # contract
 cargo check --target wasm32-unknown-unknown        # near-sdk 5.x refuses plain host builds
 cargo test
-cargo near build                                   # [VERIFY flags]
+cargo near build non-reproducible-wasm             # cargo-near 0.23; output in target/near/ [VERIFY on first deploy]
 ./scripts/deploy-testnet.sh
 
 # brain
