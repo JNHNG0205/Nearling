@@ -209,9 +209,9 @@ Docs confirm a contract can be holder and router. Sub-pool beneficiaries need an
 
 **Our design (Option A, chosen) [FIXED, VERIFY S6]:**
 1. The **pets contract is the plain iNEAR holder.** No sub-pools, no beneficiary binding, no contract key in the brain.
-2. `stake(pet_id)`: owner only, ≥ `config.min_stake` (1 NEAR, so nothing idles in the buffer). Contract calls `deposit_and_stake` with the attached NEAR; the callback adds to `pet.staked`, or refunds the owner on failure.
-3. **Per-pet credit accrues lazily in the contract:** `credit_micro += staked × config.farm_rate × elapsed`, computed in `get_pet` and settled on every write. The UI sees credit grow live.
-4. `sweep_credit()`: **anyone** can call; it calls `claim_and_topup(config.org_id)`. The org is fixed in config, so a caller cannot redirect CREDIT. The brain calls it hourly. Emits `credit_swept { amount }`.
+2. `stake(pet_id)`: owner only, ≥ `config.min_stake` (1 NEAR, so nothing idles in the buffer). Contract calls `deposit_and_stake` with the attached NEAR (pool calls need ≥ 430 Tgas prepaid); the callback adds to `pet.staked`, or refunds the owner on failure. The pool keeps a one-time first-deposit fee (`config.pool_first_deposit_fee`, 0.0055 NEAR, S6) from the contract's first deposit ever, so the first stake is recorded as `amount - fee` and `pet.staked` always equals iNEAR actually held (checked on testnet).
+3. **Per-pet credit accrues lazily in the contract:** `credit_micro += staked × config.farm_rate × elapsed`, computed in `get_pet` and settled on every write (own as-of time `credit_at_ns`). The UI sees credit grow live. **A starving pet is revived by stake only when it is self-sustaining** (daily credit ≥ metabolism + average spend); a smaller accrual is eaten by metabolism, so the 72 h dormant clock keeps running.
+4. `sweep_credit()`: **anyone** can call; it calls `claim_and_topup(config.org_id)`. The org is fixed in config, so a caller cannot redirect CREDIT. The brain calls it hourly. `claim_and_topup` returns no value (with 0 claimable it succeeds and does nothing, seen on testnet), so `credit_swept { org_id, result }` cannot report an amount; the brain reads the org balance to see what arrived.
 5. `unstake(pet_id, amount)`: one pending unstake per pet; a second one while one is pending is rejected. Calls pool `unstake` (1 yocto attached); records `pending_unstake { amount, unlock_epoch = current + 2 }`. **Always treated as pending** [FIXED after S6]: the pool may pay at once from its buffer or queue it, and the return value does not say which, so the owner always waits for `unlock_epoch`.
 6. `withdraw(pet_id)`: after `unlock_epoch`, calls pool `withdraw()` (pays all matured NEAR to the contract; returns 0 if the buffer already paid it), then pays the owner only that pet's pending amount. Emits `unstake_withdrawn`.
 7. `credit(pet_id, micro_usd, ref)` stays only as a brain-only, capped correction.
@@ -267,7 +267,7 @@ Config {                                    // set by `admin` via set_config; br
   charge_max_per_call_micro: 5_000, charge_max_per_day_micro: 100_000,
   xp_max_per_call: 5, xp_max_per_day: 50, mood_delta_max: 10,
   credit_correction_max_micro: u64,
-  min_stake: 1 NEAR,
+  min_stake: 1 NEAR, pool_first_deposit_fee: 0.0055 NEAR,
   device_stake_min: 1 NEAR, device_stake_max_per_action: 2 NEAR, device_stake_max_per_day: 5 NEAR,
   cooldown_pet_ns: 5 min, cooldown_play_ns: 1 min,
   items: Vec<{ id: u16, price: u128, mood_bonus: u8 }>,
@@ -305,7 +305,7 @@ Brain only:
 
 **Care XP [FIXED, tune numbers]:** the first owner interaction per UTC day (feed by the owner, play, chat via `charge`; a stranger feeding does not count) gives +2 xp and extends `streak` (resets after a missed day). Chat xp comes from `charge`. Any write that crosses a stage threshold (5.4) emits `stage_up`.
 
-Views: `get_pet(pet_id) -> PetView` settled to current block time: `id, owner, name, born_at_ns, food_yocto, credit_micro, budget_micro, fullness, mood, energy, asleep_since_ns, xp, stage, traits, starving_since_ns, life_state` (u64 timestamps and u128 amounts are JSON strings), plus `self_sustaining` (M3) (daily credit accrual ≥ `avg_daily_spend_micro` + metabolism); `get_pending_actions(pet_id)`; `nft_tokens_for_owner`; `config()`.
+Views: `get_pet(pet_id) -> PetView` settled to current block time: `id, owner, name, born_at_ns, food_yocto, credit_micro, budget_micro, fullness, mood, energy, asleep_since_ns, xp, stage, traits, starving_since_ns, life_state, staked, pending_unstake { amount, unlock_epoch }, daily_credit_micro, self_sustaining` (u64 timestamps and u128 amounts are JSON strings; `self_sustaining` = daily credit ≥ metabolism + `avg_daily_spend_micro`); `get_pending_actions(pet_id)`; `nft_tokens_for_owner`; `config()`.
 
 ### 7.3 Device approval flow [FIXED design, VERIFY S5]
 "What you see is what you sign" on the pet's body.
@@ -482,11 +482,13 @@ Record results here.
 | Max gas per tx | **1000 Tgas** (testnet protocol 88, `max_total_prepaid_gas`). 400+ Tgas pool calls plus callback fit, also from the device key |
 | Contract as holder: `deposit_and_stake` | **Works.** 1.1 NEAR minted 1.0945 iNEAR: one-time first-deposit storage fee ≈ 0.0055 NEAR per holder, then 1:1. Inner gas 100 and 300 Tgas both worked; whole tx burnt ≈ 22 Tgas. We still attach the documented 400 Tgas (unburnt gas is refunded) |
 | `unstake(amount)` | **Requires exactly 1 yoctoNEAR attached** (contract attaches it from its own balance). Returns empty. **If the pool buffer covers the amount, NEAR is paid back immediately** (no queued withdrawal); otherwise queued with `unlock_epoch = current + 2` (epoch = 43200 blocks ≈ 12 h, so 12 to 24 h). Decision: always treat as pending (section 6 step 5) |
-| Separate unlock epoch per queued unstake | Open: only one queued entry seen so far (0.5 NEAR, epoch 5424). Recheck with a second unstake in a later epoch |
-| `withdraw()` | Open: run after epoch 5424 |
+| Separate unlock epoch per queued unstake | Open: only same-epoch entries seen so far (all unlock at 5424). Matters little: each pet has at most one pending unstake |
+| `withdraw()` | Open: run after epoch 5424 (spike 0.5 NEAR and `pets-v4` pet #0 0.5 NEAR both queued) |
 | CREDIT accrual | CREDIT has 24 decimals. `claimable` updates after anyone calls `sync_from_farm()`. Baseline: `claimable = 1762347710006040886` at 2026-11-07T14:04:57Z with 0.7945 iNEAR; remeasure later for the real testnet farm rate |
-| `claim_and_topup(org_id)` | Open: needs the brain's org id (Role 2). Note: minimum burn 0.01 CREDIT, so at about 0.000657 CREDIT per NEAR per day a sweep needs ≈ 15 NEAR-days of stake across all pets. The brain should only call `sweep_credit` when `get_account(pets).claimable ≥ 0.01 CREDIT` |
+| `claim_and_topup(org_id)` | From `pets-v4` with 0 claimable and a placeholder org: succeeds, returns empty, does nothing. Real top-up still open: needs the brain's org id (Role 2) and ≥ 0.01 CREDIT. Note: minimum burn 0.01 CREDIT, so at about 0.000657 CREDIT per NEAR per day a sweep needs ≈ 15 NEAR-days of stake across all pets. The brain should only call `sweep_credit` when `get_account(pets).claimable ≥ 0.01 CREDIT` |
 | Wasm toolchain | Rust 1.99 + cargo-near 0.23 output deploys and runs; no toolchain pin needed |
+
+M3 on testnet (2026-11-07, `pets-v4`, player `nearling-player1.testnet`): stake 2 NEAR recorded 1.9945 = pool iNEAR balance; `self_sustaining: true` at 1310 µ$/day; unstake 0.5 NEAR queued at epoch 5424 in both the pet and the pool; early withdraw rejected. Stake tx `6btDMVHSYj5P3koLiGQP33WBKRqbE5i2EqWbf1VAyFfL`.
 
 Evidence: stake tx `FLjbh7CA1tRw9TknMGRctba4DjFnQr9dCKQgmiFF9sT6`; failed unstake without 1 yocto `5GpH91VtbhCdVXF4mTyceBwDsdSmoQWwb7b4LA1PPHBq`.
 

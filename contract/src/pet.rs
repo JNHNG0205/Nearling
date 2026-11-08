@@ -1,6 +1,7 @@
 //! Pet state and lazy settlement (CLAUDE.md 5.2, 5.3, 7.1). Pure: no env calls.
 
 use crate::Config;
+use near_sdk::json_types::{U128, U64};
 use near_sdk::near;
 
 const MINUTE_NS: u64 = 60 * 1_000_000_000;
@@ -64,6 +65,17 @@ pub struct Pet {
     pub avg_daily_spend_micro: u64,
     pub last_checkin_day: Option<u32>,
     pub streak: u16,
+    /// Owner's NEARON stake for this pet (yocto). Credit accrues on it from `credit_at_ns`.
+    pub staked: u128,
+    pub credit_at_ns: u64,
+    pub pending_unstake: Option<PendingUnstake>,
+}
+
+#[near(serializers = [borsh, json])]
+#[derive(Clone, Debug, PartialEq)]
+pub struct PendingUnstake {
+    pub amount: U128,
+    pub unlock_epoch: U64,
 }
 
 /// What the brain asks `charge` to apply; all values are clamped (CLAUDE.md 7.2).
@@ -111,6 +123,9 @@ impl Pet {
             avg_daily_spend_micro: 0,
             last_checkin_day: None,
             streak: 0,
+            staked: 0,
+            credit_at_ns: now,
+            pending_unstake: None,
         }
     }
 
@@ -222,15 +237,42 @@ impl Pet {
         self.credit_micro.saturating_add(food_micro as u64)
     }
 
+    /// CREDIT earned per day by this pet's stake, in micro-USD.
+    pub fn daily_credit_micro(&self, cfg: &Config) -> u64 {
+        (self.staked * cfg.farm_rate_micro_per_near_day as u128 / YOCTO_PER_NEAR) as u64
+    }
+
+    /// Daily credit covers metabolism plus average thought spend.
+    pub fn self_sustaining(&self, cfg: &Config) -> bool {
+        let daily = self.daily_credit_micro(cfg);
+        daily > 0 && daily >= cfg.metabolism_micro_per_day + self.avg_daily_spend_micro
+    }
+
     /// Brings every lazy value forward to `now` (CLAUDE.md 7.1 lazy settlement).
     pub fn settle(&mut self, now: u64, cfg: &Config) {
+        self.settle_credit(now, cfg);
         self.settle_budget(now, cfg);
         let awake_from = self.settle_energy(now);
         self.settle_mood(now, awake_from);
     }
 
-    /// Metabolism: credit first, then food.
+    fn settle_credit(&mut self, now: u64, cfg: &Config) {
+        let daily = self.daily_credit_micro(cfg) as u128;
+        if daily == 0 {
+            self.credit_at_ns = now;
+            return;
+        }
+        let points = now.saturating_sub(self.credit_at_ns) as u128 * daily / DAY_NS as u128;
+        self.credit_micro = self.credit_micro.saturating_add(points as u64);
+        self.credit_at_ns += (points * DAY_NS as u128 / daily) as u64;
+    }
+
+    /// Metabolism: credit first, then food. A starving pet is revived only by a stake that
+    /// covers its burn; smaller accruals are eaten by metabolism (CLAUDE.md 6).
     fn settle_budget(&mut self, now: u64, cfg: &Config) {
+        if self.starving_since_ns.is_some() && self.self_sustaining(cfg) {
+            self.starving_since_ns = None;
+        }
         let rate = cfg.metabolism_micro_per_day as u128;
         let budget = self.budget_micro(cfg) as u128;
         if rate == 0 {
@@ -616,5 +658,63 @@ mod tests {
         assert_eq!(p.fullness(&cfg()), 100);
         p.avg_daily_spend_micro = 3_000; // burn 4_000/day
         assert_eq!(p.fullness(&cfg()), 50);
+    }
+
+    #[test]
+    fn stake_accrues_credit_over_time() {
+        let mut p = pet(0, 100_000);
+        p.staked = 10 * YOCTO_PER_NEAR; // 6_570 micro per day at the default farm rate
+        assert_eq!(p.daily_credit_micro(&cfg()), 6_570);
+        p.settle(T0 + DAY_NS, &cfg());
+        assert_eq!(
+            p.credit_micro,
+            6_570 - 1_000,
+            "accrued, then metabolism spent credit first"
+        );
+    }
+
+    #[test]
+    fn frequent_settles_lose_no_credit() {
+        let mut every_min = pet(0, 100_000);
+        every_min.staked = 3 * YOCTO_PER_NEAR;
+        let mut once = every_min.clone();
+        for m in 1..=(24 * 60) {
+            every_min.settle(T0 + m * MINUTE_NS, &cfg());
+        }
+        once.settle(T0 + DAY_NS, &cfg());
+        assert_eq!(every_min.budget_micro(&cfg()), once.budget_micro(&cfg()));
+    }
+
+    #[test]
+    fn self_sustaining_when_credit_covers_daily_burn() {
+        let mut p = pet(0, 10_000);
+        p.staked = YOCTO_PER_NEAR; // 657 < 1_000
+        assert!(!p.self_sustaining(&cfg()));
+        p.staked = 2 * YOCTO_PER_NEAR; // 1_314
+        assert!(p.self_sustaining(&cfg()));
+        p.avg_daily_spend_micro = 500; // burn 1_500
+        assert!(!p.self_sustaining(&cfg()));
+    }
+
+    #[test]
+    fn small_stake_does_not_revive_a_starving_pet() {
+        let mut p = pet(0, 0);
+        p.settle(T0, &cfg());
+        p.staked = YOCTO_PER_NEAR;
+        p.credit_at_ns = T0;
+        p.settle(T0 + 72 * HOUR_NS, &cfg());
+        assert_eq!(p.starving_since_ns, Some(T0));
+        assert_eq!(p.life_state(T0 + 72 * HOUR_NS, &cfg()), LifeState::Dormant);
+    }
+
+    #[test]
+    fn self_sustaining_stake_revives_a_starving_pet() {
+        let mut p = pet(0, 0);
+        p.settle(T0, &cfg());
+        p.staked = 10 * YOCTO_PER_NEAR;
+        p.credit_at_ns = T0;
+        p.settle(T0 + DAY_NS, &cfg());
+        assert_eq!(p.starving_since_ns, None);
+        assert!(p.credit_micro > 0);
     }
 }

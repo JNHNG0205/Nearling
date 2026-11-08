@@ -66,17 +66,18 @@ Goal: the brain can bill a thought, and care grows the pet.
 
 Goal: stake to live works for real on testnet.
 
-- [ ] `stake(pet_id)`: owner only, ≥ 1 NEAR, `deposit_and_stake` + callback (refund on failure)
-- [ ] Lazy credit accrual: `staked × farm_rate × elapsed`
-- [ ] `unstake(pet_id, amount)`: one pending per pet; `withdraw(pet_id)` after `unlock_epoch` pays only that pet's amount
-- [ ] `sweep_credit()`: anyone, always to `config.org_id`
-- [ ] Mock pool contract under `contract/tests/` for near-workspaces (sandbox cannot reach testnet)
-- [ ] Events: `staked`, `unstaked`, `unstake_withdrawn`, `credit_swept`
+- [x] `stake(pet_id)`: owner only, ≥ 1 NEAR, `deposit_and_stake` + callback (refund on failure)
+- [x] Lazy credit accrual: `staked × farm_rate × elapsed`
+- [x] `unstake(pet_id, amount)`: one pending per pet; `withdraw(pet_id)` after `unlock_epoch` pays only that pet's amount
+- [x] `sweep_credit()`: anyone, always to `config.org_id`
+- [x] ~~Mock pool for near-workspaces~~ replaced by unit tests that drive each callback with mocked promise results, plus the real NEARON pool on testnet (stronger than a mock, no sandbox download)
+- [x] Events: `staked`, `unstaked`, `unstake_withdrawn`, `credit_swept`
 
 **Pass:**
 - Integration tests (mock pool): stake, unstake, withdraw happy path; failed pool call refunds and leaves pet state unchanged; second unstake while pending rejected; non-owner stake rejected
 - Unit test: credit grows linearly with time and stake; `self_sustaining` flips at the expected stake
 - On testnet: stake 10 NEAR for a pet, `get_pet` shows credit growing, `sweep_credit()` tops up the brain's org (Role 2 confirms balance)
+- Status 2026-11-07: stake 2 NEAR, self-sustaining and unstake verified on `pets-v4`. Still open: withdraw after epoch 5424; real sweep needs the org id and ≥ 0.01 CREDIT
 
 ---
 

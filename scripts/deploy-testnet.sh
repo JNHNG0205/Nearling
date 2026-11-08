@@ -7,7 +7,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 set -a; source "$ROOT/.env"; set +a
 
 CONTRACT="pets-v${PETS_VERSION}.${NEAR_PARENT_ACCOUNT}"
-FUND="${FUND:-3 NEAR}"
+FUND="${FUND:-3.5 NEAR}"   # wasm ~300 KB locks ~3 NEAR of storage
 
 echo "Building..."
 (cd "$ROOT/contract" && cargo near build non-reproducible-wasm)

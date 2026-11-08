@@ -4,6 +4,7 @@ mod budget;
 mod events;
 mod nft;
 mod pet;
+mod stake;
 
 use near_contract_standards::non_fungible_token::events::NftMint;
 use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
@@ -12,7 +13,7 @@ use near_sdk::json_types::{U128, U64};
 use near_sdk::serde_json::json;
 use near_sdk::store::LookupMap;
 use near_sdk::{env, near, require, AccountId, BorshStorageKey, NearToken, PanicOnDefault};
-use pet::{LifeState, Pet};
+use pet::{LifeState, PendingUnstake, Pet};
 
 const MINUTE_NS: u64 = 60 * 1_000_000_000;
 
@@ -45,6 +46,8 @@ pub struct Config {
     pub mood_delta_max: u8,
     pub credit_correction_max_micro: u64,
     pub min_stake: NearToken,
+    /// Taken once by the pool on the contract's first deposit (S6: 0.0055 NEAR).
+    pub pool_first_deposit_fee: NearToken,
     pub device_stake_min: NearToken,
     pub device_stake_max_per_action: NearToken,
     pub device_stake_max_per_day: NearToken,
@@ -80,6 +83,7 @@ impl Config {
             mood_delta_max: 10,
             credit_correction_max_micro: 100_000,
             min_stake: NearToken::from_near(1),
+            pool_first_deposit_fee: NearToken::from_micronear(5_500),
             device_stake_min: NearToken::from_near(1),
             device_stake_max_per_action: NearToken::from_near(2),
             device_stake_max_per_day: NearToken::from_near(5),
@@ -97,6 +101,8 @@ pub struct Contract {
     tokens: NonFungibleToken,
     pets: LookupMap<TokenId, Pet>,
     next_id: u64,
+    /// The pool has taken its first-deposit fee from this contract.
+    pool_registered: bool,
 }
 
 #[near]
@@ -128,6 +134,10 @@ pub struct PetView {
     pub traits: [u8; 5],
     pub starving_since_ns: Option<U64>,
     pub life_state: LifeState,
+    pub staked: U128,
+    pub pending_unstake: Option<PendingUnstake>,
+    pub daily_credit_micro: u64,
+    pub self_sustaining: bool,
 }
 
 #[near]
@@ -151,6 +161,7 @@ impl Contract {
             ),
             pets: LookupMap::new(StorageKey::Pets),
             next_id: 0,
+            pool_registered: false,
         }
     }
 
@@ -207,11 +218,14 @@ impl Contract {
         let now = env::block_timestamp();
         let mut pet = self.stored_pet(&pet_id);
         pet.settle(now, &self.config);
+        let cfg = &self.config;
         PetView {
             owner: self.owner_of(&pet_id),
-            life_state: pet.life_state(now, &self.config),
-            fullness: pet.fullness(&self.config),
-            budget_micro: pet.budget_micro(&self.config),
+            life_state: pet.life_state(now, cfg),
+            fullness: pet.fullness(cfg),
+            budget_micro: pet.budget_micro(cfg),
+            daily_credit_micro: pet.daily_credit_micro(cfg),
+            self_sustaining: pet.self_sustaining(cfg),
             id: pet_id,
             name: pet.name,
             born_at_ns: pet.born_at_ns.into(),
@@ -224,6 +238,8 @@ impl Contract {
             stage: pet.stage,
             traits: pet.traits,
             starving_since_ns: pet.starving_since_ns.map(U64),
+            staked: pet.staked.into(),
+            pending_unstake: pet.pending_unstake,
         }
     }
 
@@ -285,6 +301,7 @@ impl Contract {
 mod tests {
     use super::*;
     use near_contract_standards::non_fungible_token::core::NonFungibleTokenCore;
+    use near_sdk::json_types::U128;
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::testing_env;
 
@@ -579,5 +596,230 @@ mod tests {
         ctx(accounts(3), NearToken::from_near(1), DAY);
         contract.feed(id.clone());
         assert_eq!(contract.get_pet(id).xp, 2);
+    }
+
+    const NEAR: u128 = 1_000_000_000_000_000_000_000_000;
+    const FEE: u128 = 5_500_000_000_000_000_000_000;
+
+    fn pool() -> AccountId {
+        "mw-pool-1024.testnet".parse().unwrap()
+    }
+
+    fn ctx_full(who: AccountId, deposit: NearToken, ts: u64, epoch: u64) {
+        testing_env!(VMContextBuilder::new()
+            .predecessor_account_id(who)
+            .attached_deposit(deposit)
+            .block_timestamp(ts)
+            .epoch_height(epoch)
+            .prepaid_gas(near_sdk::Gas::from_tgas(450))
+            .build());
+    }
+
+    /// Context for a `#[private]` callback seeing one promise result.
+    fn callback(ok: bool) {
+        let result = if ok {
+            near_sdk::PromiseResult::Successful(b"null".to_vec())
+        } else {
+            near_sdk::PromiseResult::Failed
+        };
+        testing_env!(
+            VMContextBuilder::new()
+                .predecessor_account_id(accounts(0))
+                .block_timestamp(DAY)
+                .epoch_height(10)
+                .build(),
+            near_sdk::test_vm_config(),
+            near_sdk::RuntimeFeesConfig::test(),
+            Default::default(),
+            vec![result],
+        );
+    }
+
+    /// (method, args, deposit yocto, gas Tgas) of each call to the pool.
+    fn pool_calls() -> Vec<(String, String, u128, u64)> {
+        near_sdk::test_utils::get_created_receipts()
+            .into_iter()
+            .filter(|r| r.receiver_id == pool())
+            .flat_map(|r| r.actions)
+            .filter_map(|a| match a {
+                near_sdk::mock::MockAction::FunctionCallWeight {
+                    method_name,
+                    args,
+                    attached_deposit,
+                    prepaid_gas,
+                    ..
+                } => Some((
+                    String::from_utf8(method_name).unwrap(),
+                    String::from_utf8(args).unwrap(),
+                    attached_deposit.as_yoctonear(),
+                    prepaid_gas.as_tgas(),
+                )),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Minted pet with `near` NEAR staked (first stake pays the pool fee).
+    fn staked(near: u128) -> (Contract, TokenId) {
+        let (mut contract, id) = minted();
+        callback(true);
+        contract.on_stake(id.clone(), accounts(3), U128(near * NEAR));
+        (contract, id)
+    }
+
+    #[test]
+    #[should_panic(expected = "Only the owner")]
+    fn stake_by_non_owner_is_rejected() {
+        let (mut contract, id) = minted();
+        ctx_full(accounts(4), NearToken::from_near(2), DAY, 10);
+        let _ = contract.stake(id);
+    }
+
+    #[test]
+    #[should_panic(expected = "Stake at least")]
+    fn stake_below_minimum_is_rejected() {
+        let (mut contract, id) = minted();
+        ctx_full(accounts(3), NearToken::from_millinear(999), DAY, 10);
+        let _ = contract.stake(id);
+    }
+
+    #[test]
+    fn stake_deposits_into_the_pool() {
+        let (mut contract, id) = minted();
+        ctx_full(accounts(3), NearToken::from_near(10), DAY, 10);
+        let _ = contract.stake(id);
+        assert_eq!(
+            pool_calls(),
+            vec![("deposit_and_stake".into(), "{}".into(), 10 * NEAR, 400)]
+        );
+    }
+
+    #[test]
+    fn successful_stake_is_recorded_less_the_one_time_pool_fee() {
+        let (mut contract, id) = staked(10);
+        assert_eq!(contract.get_pet(id.clone()).staked.0, 10 * NEAR - FEE);
+        assert!(events().iter().any(|e| e.contains("\"event\":\"staked\"")));
+        callback(true);
+        contract.on_stake(id.clone(), accounts(3), U128(NEAR));
+        assert_eq!(
+            contract.get_pet(id).staked.0,
+            11 * NEAR - FEE,
+            "fee only once"
+        );
+    }
+
+    #[test]
+    fn failed_stake_refunds_the_owner() {
+        let (mut contract, id) = minted();
+        callback(false);
+        assert!(!contract.on_stake(id.clone(), accounts(3), U128(10 * NEAR)));
+        assert_eq!(transfers_to(&accounts(3)), vec![NearToken::from_near(10)]);
+        assert_eq!(contract.get_pet(id).staked.0, 0);
+    }
+
+    #[test]
+    fn get_pet_shows_self_sustaining_with_enough_stake() {
+        let (contract, id) = staked(10);
+        let view = contract.get_pet(id);
+        assert_eq!(
+            view.daily_credit_micro, 6_566,
+            "9.9945 NEAR after the pool fee"
+        );
+        assert!(view.self_sustaining);
+    }
+
+    #[test]
+    fn unstake_calls_the_pool_with_one_yocto_and_locks_the_amount() {
+        let (mut contract, id) = staked(10);
+        ctx_full(accounts(3), NearToken::from_yoctonear(0), DAY, 10);
+        let _ = contract.unstake(id.clone(), U128(2 * NEAR));
+        let args = format!("{{\"amount\":\"{}\"}}", 2 * NEAR);
+        assert_eq!(pool_calls(), vec![("unstake".into(), args, 1, 400)]);
+        let view = contract.get_pet(id);
+        assert_eq!(view.staked.0, 8 * NEAR - FEE);
+        let pending = view.pending_unstake.unwrap();
+        assert_eq!((pending.amount.0, pending.unlock_epoch.0), (2 * NEAR, 12));
+    }
+
+    #[test]
+    #[should_panic(expected = "Unstake already pending")]
+    fn second_unstake_while_pending_is_rejected() {
+        let (mut contract, id) = staked(10);
+        ctx_full(accounts(3), NearToken::from_yoctonear(0), DAY, 10);
+        let _ = contract.unstake(id.clone(), U128(NEAR));
+        let _ = contract.unstake(id, U128(NEAR));
+    }
+
+    #[test]
+    #[should_panic(expected = "Not enough stake")]
+    fn unstake_more_than_staked_is_rejected() {
+        let (mut contract, id) = staked(1);
+        ctx_full(accounts(3), NearToken::from_yoctonear(0), DAY, 10);
+        let _ = contract.unstake(id, U128(NEAR));
+    }
+
+    #[test]
+    fn failed_unstake_restores_stake() {
+        let (mut contract, id) = staked(10);
+        ctx_full(accounts(3), NearToken::from_yoctonear(0), DAY, 10);
+        let _ = contract.unstake(id.clone(), U128(2 * NEAR));
+        callback(false);
+        contract.on_unstake(id.clone(), U128(2 * NEAR));
+        let view = contract.get_pet(id);
+        assert_eq!(view.staked.0, 10 * NEAR - FEE);
+        assert!(view.pending_unstake.is_none());
+    }
+
+    fn unstaked_2() -> (Contract, TokenId) {
+        let (mut contract, id) = staked(10);
+        ctx_full(accounts(3), NearToken::from_yoctonear(0), DAY, 10);
+        let _ = contract.unstake(id.clone(), U128(2 * NEAR));
+        callback(true);
+        contract.on_unstake(id.clone(), U128(2 * NEAR));
+        (contract, id)
+    }
+
+    #[test]
+    #[should_panic(expected = "Unstake still locked")]
+    fn withdraw_before_unlock_is_rejected() {
+        let (mut contract, id) = unstaked_2();
+        ctx_full(accounts(3), NearToken::from_yoctonear(0), DAY, 11);
+        let _ = contract.withdraw(id);
+    }
+
+    #[test]
+    fn withdraw_after_unlock_pays_the_owner() {
+        let (mut contract, id) = unstaked_2();
+        ctx_full(accounts(3), NearToken::from_yoctonear(0), DAY, 12);
+        let _ = contract.withdraw(id.clone());
+        assert_eq!(pool_calls(), vec![("withdraw".into(), "{}".into(), 0, 400)]);
+        callback(true);
+        contract.on_withdraw(id.clone(), accounts(3), U128(2 * NEAR));
+        assert_eq!(transfers_to(&accounts(3)), vec![NearToken::from_near(2)]);
+        assert!(contract.get_pet(id).pending_unstake.is_none());
+        assert!(events().iter().any(|e| e.contains("unstake_withdrawn")));
+    }
+
+    #[test]
+    fn failed_withdraw_keeps_the_unstake_pending() {
+        let (mut contract, id) = unstaked_2();
+        ctx_full(accounts(3), NearToken::from_yoctonear(0), DAY, 12);
+        let _ = contract.withdraw(id.clone());
+        callback(false);
+        contract.on_withdraw(id.clone(), accounts(3), U128(2 * NEAR));
+        assert!(transfers_to(&accounts(3)).is_empty());
+        assert!(contract.get_pet(id).pending_unstake.is_some());
+    }
+
+    #[test]
+    fn anyone_can_sweep_credit_to_the_configured_org() {
+        let mut contract = setup();
+        ctx_full(accounts(4), NearToken::from_yoctonear(0), DAY, 10);
+        let _ = contract.sweep_credit();
+        let args = "{\"org_id\":\"org\"}".to_string();
+        assert_eq!(pool_calls(), vec![("claim_and_topup".into(), args, 0, 400)]);
+        callback(true);
+        contract.on_sweep();
+        assert!(events().iter().any(|e| e.contains("credit_swept")));
     }
 }
