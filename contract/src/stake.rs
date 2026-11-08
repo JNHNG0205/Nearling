@@ -104,7 +104,7 @@ impl Contract {
             "Unstake still locked"
         );
         self.save_pet(&pet_id, pet);
-        self.pool_call("withdraw", json!({}), NearToken::from_yoctonear(0))
+        self.pool_call("withdraw", json!({}), NearToken::from_yoctonear(1))
             .then(self.callback().on_withdraw(pet_id, owner, pending.amount))
     }
 

@@ -13,7 +13,7 @@ Goal: a contract crate that builds and deploys, and S6 answered before we depend
 - [x] `contract/` crate: near-sdk 5.x + near-contract-standards, `cargo fmt`, `clippy -D warnings`
 - [x] `scripts/deploy-testnet.sh`: creates `pets-vN.<team>.testnet`, deploys, calls `new(config)`
 - [x] S6 spike (throwaway contract or the real one): from a contract account, call `deposit_and_stake`, `unstake`, `withdraw`, `claim_and_topup` on `mw-pool-1024.testnet`
-- [ ] Record in `CLAUDE.md` section 14 (gas, stake, unstake, toolchain done; withdraw after epoch 5424, farm rate, `claim_and_topup` still open): max gas per tx vs the 400+ Tgas pool calls plus callback, unlock epoch per queued unstake, real testnet farm rate
+- [ ] Record in `CLAUDE.md` section 14 (all done except a real `claim_and_topup` into the org): max gas per tx vs the 400+ Tgas pool calls plus callback, unlock epoch per queued unstake, real testnet farm rate
 
 **Pass:**
 - `cargo check --target wasm32-unknown-unknown` and `cargo near build` succeed
@@ -77,7 +77,7 @@ Goal: stake to live works for real on testnet.
 - Integration tests (mock pool): stake, unstake, withdraw happy path; failed pool call refunds and leaves pet state unchanged; second unstake while pending rejected; non-owner stake rejected
 - Unit test: credit grows linearly with time and stake; `self_sustaining` flips at the expected stake
 - On testnet: stake 10 NEAR for a pet, `get_pet` shows credit growing, `sweep_credit()` tops up the brain's org (Role 2 confirms balance)
-- Status 2026-11-07: stake 2 NEAR, self-sustaining and unstake verified on `pets-v4`. Still open: withdraw after epoch 5424; real sweep needs the org id and ≥ 0.01 CREDIT
+- Status 2026-11-07: stake 2 NEAR, self-sustaining and unstake verified on `pets-v4`. Withdraw verified 2026-11-08 at epoch 5425 (after adding the 1 yocto the pool requires). Still open: real sweep needs the org id and ≥ 0.01 CREDIT
 
 ---
 

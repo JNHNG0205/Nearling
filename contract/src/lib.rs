@@ -792,7 +792,7 @@ mod tests {
         let (mut contract, id) = unstaked_2();
         ctx_full(accounts(3), NearToken::from_yoctonear(0), DAY, 12);
         let _ = contract.withdraw(id.clone());
-        assert_eq!(pool_calls(), vec![("withdraw".into(), "{}".into(), 0, 400)]);
+        assert_eq!(pool_calls(), vec![("withdraw".into(), "{}".into(), 1, 400)]);
         callback(true);
         contract.on_withdraw(id.clone(), accounts(3), U128(2 * NEAR));
         assert_eq!(transfers_to(&accounts(3)), vec![NearToken::from_near(2)]);

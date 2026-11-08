@@ -201,7 +201,7 @@ NEARON is a **testnet prototype** that turns staked NEAR into NEAR AI credit (`h
 |---|---|---|
 | `deposit_and_stake()` | anyone | Attach NEAR (≥ 0.1, plus first-deposit storage fee), 400+ Tgas. Mints iNEAR 1:1. Under 1 NEAR it waits in a buffer until `flush_buffer()` |
 | `unstake(amount)` | holder | iNEAR amount, exactly 1 yocto attached, 400+ Tgas. Pays at once if the pool buffer covers it, else queues NEAR with unlock epoch = current + farm delay (1 on testnet) + 1 (S6) |
-| `withdraw()` | holder | 400+ Tgas. Pays out **all** matured withdrawals of the holder; returns 0 if none |
+| `withdraw()` | holder | **Exactly 1 yocto attached** (S6, not in the docs), 400+ Tgas. Pays out **all** matured withdrawals of the holder and returns the amount (string); returns 0 if none |
 | `claim_and_topup(org_id)` | holder | Turns all claimable CREDIT into a top-up for that NEAR AI org (lowercase UUID) |
 | `get_account(account_id)` | view | Balance, claimable, claimed, queued withdrawals |
 
@@ -260,7 +260,7 @@ Config {                                    // set by `admin` via set_config; br
   admin, brain, treasury: AccountId,
   pool: AccountId,                          // mw-pool-1024.testnet
   org_id: String,                           // brain's NEAR AI org (CREDIT sweep target)
-  farm_rate_micro_per_near_day: u64,        // mainnet ≈ 657 (1.97 CREDIT / 100 NEAR / month); real testnet rate [VERIFY S6]
+  farm_rate_micro_per_near_day: u64,        // 657 (1.97 CREDIT / 100 NEAR / month), measured on testnet in S6
   near_usd_rate_micro: u64,                 // "testnet rate", tuned so starter food lasts about 1 day of active chat [TBD, start 200_000 = $0.20/NEAR]
   mint_storage: u128 (0.1 NEAR, to treasury), starter_food: u128 (0.1 NEAR),
   metabolism_micro_per_day: u64,            // 1_000 = $0.001/day [TBD]
@@ -483,8 +483,8 @@ Record results here.
 | Contract as holder: `deposit_and_stake` | **Works.** 1.1 NEAR minted 1.0945 iNEAR: one-time first-deposit storage fee ≈ 0.0055 NEAR per holder, then 1:1. Inner gas 100 and 300 Tgas both worked; whole tx burnt ≈ 22 Tgas. We still attach the documented 400 Tgas (unburnt gas is refunded) |
 | `unstake(amount)` | **Requires exactly 1 yoctoNEAR attached** (contract attaches it from its own balance). Returns empty. **If the pool buffer covers the amount, NEAR is paid back immediately** (no queued withdrawal); otherwise queued with `unlock_epoch = current + 2` (epoch = 43200 blocks ≈ 12 h, so 12 to 24 h). Decision: always treat as pending (section 6 step 5) |
 | Separate unlock epoch per queued unstake | Open: only same-epoch entries seen so far (all unlock at 5424). Matters little: each pet has at most one pending unstake |
-| `withdraw()` | Open: run after epoch 5424 (spike 0.5 NEAR and `pets-v4` pet #0 0.5 NEAR both queued) |
-| CREDIT accrual | CREDIT has 24 decimals. `claimable` updates after anyone calls `sync_from_farm()`. Baseline: `claimable = 1762347710006040886` at 2026-11-07T14:04:57Z with 0.7945 iNEAR; remeasure later for the real testnet farm rate |
+| `withdraw()` | **Requires exactly 1 yoctoNEAR attached** (first try failed without it; the pets contract kept the unstake pending, as designed). Returns the amount paid, e.g. `"500000000000000000000000"`. Verified at epoch 5425: spike got 0.5 NEAR; `pets-v4` pet #0 withdraw paid the player 0.5 NEAR and cleared `pending_unstake` |
+| CREDIT accrual | CREDIT has 24 decimals. `claimable` updates after anyone calls `sync_from_farm()`. Measured: 0.7945 iNEAR earned 0.000444687 CREDIT from 2026-11-07T14:04:57Z to 2026-11-08T10:31:32Z = **657 µ$ per NEAR per day**, same as the mainnet figure and our config default |
 | `claim_and_topup(org_id)` | From `pets-v4` with 0 claimable and a placeholder org: succeeds, returns empty, does nothing. Real top-up still open: needs the brain's org id (Role 2) and ≥ 0.01 CREDIT. Note: minimum burn 0.01 CREDIT, so at about 0.000657 CREDIT per NEAR per day a sweep needs ≈ 15 NEAR-days of stake across all pets. The brain should only call `sweep_credit` when `get_account(pets).claimable ≥ 0.01 CREDIT` |
 | Wasm toolchain | Rust 1.99 + cargo-near 0.23 output deploys and runs; no toolchain pin needed |
 
