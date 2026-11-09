@@ -157,13 +157,16 @@ Goal: the contract pieces the hybrid scope (`CLAUDE.md` 1.1) adds from the Build
 
 Goal: other roles build on a stable deployment; demo pets are ready.
 
-- [ ] Final `Pet` / `Config` shape frozen; `packages/shared` types match `get_pet` (with Role 2)
-- [ ] `scripts/seed-demo.sh`: pets that are Happy, Hungry, Starving, Dormant and Self-sustaining
-- [ ] Fresh deploy `pets-vN`; contract id updated in `.env.example`, brain, web and firmware
+- [x] Interface frozen: `docs/CONTRACT_INTERFACE.md` (who calls what, deposit, gas, events, error codes) + ABIs in `docs/abi/`
+- [ ] `packages/shared` types match `get_pet` (Role 2, from the ABI)
+- [x] `scripts/seed-demo.sh`: pets that are Happy, Hungry, Starving and Self-sustaining on `pets-v8` (#1 to #4, owner `nearling-seed.testnet`), plus one on `pets-demo` that goes Dormant within an hour
+- [x] Deployment for integration: `pets-v8` already runs the frozen code (no new deploy needed); ids in `.env` and `docs/CONTRACT_INTERFACE.md`
+- [ ] Brain, web and firmware point at `pets-v8` / `shirts` (Roles 2 to 4)
 
 **Pass:**
 - `cargo test` (unit + integration) green, `clippy -D warnings` clean
 - Each seeded pet shows its intended `life_state` from `get_pet` on testnet
+- Status 2026-11-09: cargo test green (pets 138, shirts 5), clippy clean; seeded `pets-v8` #1 Happy, #2 Hungry, #3 Starving, #4 Happy + self_sustaining; demo pet checked at 13:50 UTC
 - Brain, web and device all read the same pet from the new deployment
 
 ---

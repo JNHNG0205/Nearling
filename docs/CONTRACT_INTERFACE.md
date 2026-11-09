@@ -1,0 +1,70 @@
+# Contract interface (frozen for integration, 2026-11-09)
+
+Quick reference for the brain, web and device. Full rules: `CLAUDE.md` 6 and 7. Scope: hybrid, `CLAUDE.md` 1.1. Machine-readable ABIs (method names, argument and return types): [`docs/abi/nearling_pets_abi.json`](abi/nearling_pets_abi.json), [`docs/abi/nearling_shirts_abi.json`](abi/nearling_shirts_abi.json).
+
+**Live on testnet:** `pets-v8.nearling.testnet` (current, `PETS_CONTRACT`), `shirts.nearling.testnet` (`SHIRTS_CONTRACT`), `pets-demo.nearling.testnet` (same code, about 100× speed, `config.demo_speed = true`, label it "demo speed"). Seeded pets: run `scripts/seed-demo.sh`.
+
+**Wire format:** u128 amounts and u64 timestamps are JSON strings; micro-USD fields are JSON numbers (1 USD = 1_000_000). Errors are panics starting with a stable code, `E_CODE: message`; map on the code.
+
+**Interface changes after this point** need a heads-up to Role 2 and a note here.
+
+## Pets contract
+
+### Views (anyone, free)
+
+| Method | Returns |
+|---|---|
+| `get_pet(pet_id)` | `PetView`: `id, owner, name, born_at_ns, food_yocto, credit_micro, budget_micro, fullness, mood, energy, asleep_since_ns, xp, stage, traits, starving_since_ns, life_state, staked, pending_unstake, daily_credit_micro, daily_burn_micro, self_sustaining, items, device_pk, approval_mode, soul_version`, settled to the current block time. `life_state`: `Happy`, `Sad`, `Hungry`, `Sleepy`, `Starving`, `Dormant` (Starving and Dormant = Low Fuel) |
+| `get_soul(pet_id)` | `{ version, prompt }`; version 0 = no soul |
+| `get_pending_actions(pet_id)` | `PendingAction[]` (approval flow, not the demo path) |
+| `config()` | `Config`, incl. `fuel_price_micro`, `near_usd_rate_micro`, `farm_rate_micro_per_near_day`, `demo_speed` |
+| `nft_token`, `nft_tokens`, `nft_tokens_for_owner`, `nft_supply_for_owner`, `nft_total_supply`, `nft_metadata` | NEP-171 / 177 / 181 |
+
+### Owner (wallet)
+
+| Method | Deposit | Gas | Notes / events / errors |
+|---|---|---|---|
+| `nft_mint_pet(name, soul?)` | exactly `mint_storage + starter_food` (0.2 NEAR; 0.105 on demo) | 50 Tgas | Returns the token id. `nft_mint`, `soul_updated` if a soul is given. `E_DEPOSIT`, `E_NAME`, `E_SOUL_SIZE` |
+| `set_soul(pet_id, prompt)` | 0 | 30 Tgas | ≤ 1 KB, bumps the version. `soul_updated`. `E_NOT_OWNER`, `E_SOUL_SIZE` |
+| `stake(pet_id)` | ≥ 1 NEAR | **450 Tgas** | Brain Garden. `staked` (in the callback). `E_MIN_STAKE`, `E_GAS`, `E_POOL_NOT_READY`, `E_APPROVAL_MODE` |
+| `unstake(pet_id, amount)` | 0 | 450 Tgas | One pending per pet, unlocks at `pending_unstake.unlock_epoch` (12 to 24 h). `unstaked`. `E_UNSTAKE_PENDING`, `E_NO_STAKE` |
+| `withdraw(pet_id)` | 0 | 450 Tgas | After unlock. May fail with the unstake still pending while NEARON collects it: show "processing, retry later". `unstake_withdrawn` |
+| `nft_transfer(receiver_id, token_id)` | 1 yocto | 30 Tgas | `E_STAKED` while staked, unstaking or a stake is in flight. Clears the device and pending actions |
+
+### Anyone
+
+| Method | Deposit | Gas | Notes |
+|---|---|---|---|
+| `feed(pet_id)` | the food, any amount > 0 | 30 Tgas | Feed the Brain: after a NEAR Intents order settles, the brain calls this with the delivered NEAR, once per order id. Revives a starving pet. `fed`. `E_DEPOSIT` |
+| `sweep_credit()` | 0 | **≥ 600 Tgas** | `sync_from_farm` then `claim_and_topup` into `config.org_id`. Call only when the pool's `get_account(pets).claimable` ≥ 0.01 CREDIT. `credit_swept` |
+
+### Brain only (`config.brain`)
+
+| Method | Gas | Notes |
+|---|---|---|
+| `charge(pet_id, cost_micro_usd = config.fuel_price_micro, usage_ref = inference id, trait_deltas?, xp_gain, mood_delta)` | 50 Tgas | One per completed reply. Never fails for low funds (clamped, the pet goes Starving). A repeated `usage_ref` (last 32 per pet) is a no-op, so retry blindly. `thought { pet_id, cost_micro, usage_ref, source }` with `source` = `credit` / `food` / `mixed` / `none`. `E_NOT_BRAIN` |
+| `credit(pet_id, micro_usd, ref)` | 30 Tgas | Capped correction. `credited`. `E_CREDIT_CAP` |
+
+### Admin (`config.admin`)
+
+`set_config(config)`, `register_pool()` (once at deploy, house deposit; `scripts/deploy-testnet.sh` does it).
+
+### Kept in code, not the demo path (hybrid 1.1)
+
+`play(pet_id, "pet" | "play" | "sleep" | "wake")`, `register_device(pet_id, public_key)`, `stake_from_food(pet_id, amount)` (device key), `set_approval_mode`, `propose_action`, `approve_action` (device key), `cancel_action`, `buy_item`. Semantics in `CLAUDE.md` 7.2 and 7.3.
+
+## Shirts contract
+
+| Method | Caller | Deposit | Gas | Notes |
+|---|---|---|---|---|
+| `claim()` | anyone, once per account | 0.01 NEAR (excess refunded) | 30 Tgas | Returns the token id. `nft_mint`. `E_CLAIMED`, `E_DEPOSIT` |
+| `nft_transfer(receiver_id, token_id)` | owner | 1 yocto | 30 Tgas | Ownership follows the wallet; re-check `nft_tokens_for_owner` when the Closet syncs |
+| `nft_tokens_for_owner(account_id)` and other NEP-171 / 181 views | anyone | | | Token metadata title "Nearling Shirt" |
+
+## Events
+
+NEP-297, standard `nearling`, version `1.0.0`, in `EVENT_JSON:` logs: `fed`, `thought`, `credited`, `credit_swept`, `soul_updated`, `pool_registered`, `staked`, `staked_from_food`, `unstaked`, `unstake_withdrawn`, `played`, `item_bought`, `stage_up`, `dormant`, `revived`, `device_registered`, `device_cleared`, `action_proposed`, `action_approved`, `action_cancelled`; plus NEP-171 `nft_mint` and `nft_transfer`.
+
+## Error codes
+
+`E_NOT_ADMIN`, `E_NOT_BRAIN`, `E_NOT_OWNER`, `E_NOT_DEVICE`, `E_UNKNOWN_PET`, `E_DEPOSIT`, `E_NAME`, `E_GAS`, `E_COOLDOWN`, `E_ASLEEP`, `E_MIN_STAKE`, `E_NO_STAKE`, `E_UNSTAKE_PENDING`, `E_NO_UNSTAKE`, `E_LOCKED`, `E_DEVICE_CAP`, `E_FOOD_RESERVE`, `E_STAKED`, `E_ITEM`, `E_CREDIT_CAP`, `E_STORAGE`, `E_APPROVAL_MODE`, `E_EXPIRED`, `E_SAME_KEY`, `E_NO_ACTION`, `E_TOO_MANY_ACTIONS`, `E_SOUL_SIZE`, `E_POOL_NOT_READY`, `E_POOL_READY`; shirts: `E_CLAIMED`, `E_DEPOSIT`.
