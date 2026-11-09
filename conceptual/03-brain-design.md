@@ -207,7 +207,7 @@ The scheduler calls `POST /v1/billing/costs` with batches of `inference_id` olde
 
 - `thoughts.charge_status = queued` on insert. A worker picks queued rows in order.
 - Calls `charge(pet_id, charge_micro, usage_ref = inference_id, trait_deltas, xp_gain, mood_delta)`, gas 30 Tgas [VERIFY actual], deposit 0.
-- On success: parse the `thought` event from the receipt logs for `charged_micro` (what the contract actually took after clamps), store `charge_tx`, `settled`, SSE `thought_settled`.
+- On success: parse the `thought` event from the receipt logs for `cost_micro` (what the contract actually took after clamps; event is `thought { pet_id, cost_micro, usage_ref }`), store `charge_tx`, `settled`, SSE `thought_settled`.
 - On failure: retry with backoff (1 s, 5 s, 30 s, 5 min), then `failed` and alert in logs. The reply was already delivered (CLAUDE.md 8.3 step 5: "mark unbilled, retry later").
 - Idempotency: the contract should reject a repeated `usage_ref` [ask Role 1]. Without it, a retry after a timeout could double-charge.
 

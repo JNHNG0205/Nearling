@@ -2,7 +2,7 @@
 
 An AI pet that lives on NEAR and pays for its own brain. One pet, two bodies (web app and ESP32 device), one brain service, one on-chain state.
 
-Status: **draft for team review** (2026-11-08). `CLAUDE.md` is the spec and wins on any conflict. Items marked [VERIFY] depend on spikes S1 to S7; items marked [PROPOSAL] need agreement from the owning role. Deep dives for web and brain are in [conceptual/](conceptual/README.md).
+Status: **draft for team review** (2026-11-08). Contract parts updated 2026-11-09 by Role 1 to match the contract as built (milestones M1 to M4, deployed at `pets-v5.nearling.testnet`) and the S5 / S6 spike results in `CLAUDE.md` 14. `CLAUDE.md` is the spec and wins on any conflict. Items marked [VERIFY] depend on spikes S1 to S7; items marked [PROPOSAL] need agreement from the owning role. Deep dives for web and brain are in [conceptual/](conceptual/README.md).
 
 ---
 
@@ -78,8 +78,8 @@ flowchart TB
 |---|---|---|
 | Monorepo | pnpm workspaces | `brain`, `web`, `packages/shared`; Rust and firmware live alongside |
 | **Contract** language | Rust | `near-sdk` 5.x, `near-contract-standards` (NEP-171, 177, 181, 297/256 events) |
-| Contract build / deploy | `cargo-near`, `near-cli-rs` | `cargo near build` [VERIFY flags]; `scripts/deploy-testnet.sh` |
-| Contract tests | `cargo test` (unit), `near-workspaces` (integration) | Sandbox; NEARON calls mocked by a stub pool contract |
+| Contract build / deploy | `cargo-near` 0.23, `near-cli-rs` 0.31 | `cargo near build non-reproducible-wasm` (Rust 1.99 output deploys fine); `scripts/deploy-testnet.sh` |
+| Contract tests | `cargo test` (unit) | Every rule, including each NEARON callback driven with mocked success / failure results; NEARON itself is exercised against the real pool on testnet (no stub pool) |
 | **Brain** runtime | Node.js 22, TypeScript strict | One long-running process |
 | Brain HTTP | Hono 4.x | REST + SSE (`streamSSE`) |
 | Brain storage | SQLite via `better-sqlite3` + `drizzle-orm` | File on a persistent volume |
@@ -142,52 +142,52 @@ classDiagram
     +Config config
     +NonFungibleToken tokens
     +LookupMap~TokenId, Pet~ pets
-    +LookupMap~u64, PendingAction~ actions
-    +u64 next_token_id
-    +u64 next_action_id
+    +u64 next_id
+    +bool pool_registered
+    +LookupMap~u64, PendingAction~ actions (M5)
+    +u64 next_action_id (M5)
   }
 
   class Pet {
-    +TokenId id
     +String name
-    +AccountId owner
     +u64 born_at_ns
-    +u64 last_tick_ns
     +u128 food_yocto
     +u64 credit_micro
-    +u128 staked
-    +Option~PendingUnstake~ pending_unstake
+    +u64 budget_at_ns
+    +u64 credit_at_ns
     +u8 mood
+    +u64 mood_at_ns
     +u8 energy
+    +u64 energy_at_ns
     +Option~u64~ asleep_since_ns
     +u32 xp
     +u8 stage
     +u8[5] traits
-    +u32 trait_day
-    +i8[5] trait_moved_today
     +Option~u64~ starving_since_ns
-    +u8 last_life_state
-    +Vec~u16~ items
-    +String persona_hash
-    +u32 spend_day
+    +LifeState last_life_state
+    +u32 today
     +u64 spent_today_micro
     +u32 xp_today
+    +i8[5] traits_moved_today
     +u64 avg_daily_spend_micro
-    +u32 last_checkin_day
+    +Option~u32~ last_checkin_day
     +u16 streak
-    +u64 last_pet_ns
-    +u64 last_play_ns
+    +u128 staked
+    +Option~PendingUnstake~ pending_unstake
+    +u8 stakes_in_flight
+    +Option~u64~ last_pet_ns
+    +Option~u64~ last_play_ns
+    +Vec~u16~ items
     +Option~PublicKey~ device_pk
-    +bool approval_mode
-    +u32 device_stake_day
     +u128 device_staked_today
-    +settle(now) Pet
-    +life_state() LifeState
+    +bool approval_mode (M5)
+    +settle(now)
+    +life_state(now) LifeState
   }
 
   class PendingUnstake {
-    +u128 amount
-    +u64 unlock_epoch
+    +U128 amount
+    +U64 unlock_epoch
   }
 
   class PendingAction {
@@ -228,6 +228,7 @@ classDiagram
     +u8 mood_delta_max
     +u64 credit_correction_max_micro
     +u128 min_stake
+    +u128 pool_first_deposit_fee
     +u128 device_stake_min
     +u128 device_stake_max_per_action
     +u128 device_stake_max_per_day
@@ -245,6 +246,7 @@ classDiagram
   class LifeState {
     <<enumeration>>
     Happy
+    Sad
     Hungry
     Sleepy
     Starving
@@ -260,13 +262,22 @@ classDiagram
   Pet ..> LifeState
 ```
 
+Notes on the model as built:
+- The pet id is the map key; the **owner is not stored in `Pet`**, it comes from the NFT core (`tokens.owner_by_id`), so it can never go stale after a transfer.
+- Each lazy value has its own as-of time (`budget_at_ns`, `credit_at_ns`, `mood_at_ns`, `energy_at_ns`), advanced only by the time it actually used. A single `last_tick_ns` would round decay away when writes are frequent (caught by a test).
+- `today` is the UTC day index; the daily counters (`spent_today_micro`, `xp_today`, `traits_moved_today`, `device_staked_today`) reset when it rolls, and `avg_daily_spend_micro` becomes `(avg × 3 + yesterday) / 4`.
+- `pool_registered`: NEARON keeps a one-time 0.0055 NEAR fee from the contract's first deposit ever, so that first stake is recorded as `amount - fee`; `staked` always equals iNEAR held.
+- `stakes_in_flight`: stakes sent to the pool whose callback has not run; transfer waits for them.
+- `persona_hash` is not stored yet (who writes it is open, ask C5).
+- `get_pet` returns a separate JSON `PetView` (u64 timestamps and u128 amounts as strings): `id, owner, name, born_at_ns, food_yocto, credit_micro, budget_micro, fullness, mood, energy, asleep_since_ns, xp, stage, traits, starving_since_ns, life_state, staked, pending_unstake, daily_credit_micro, self_sustaining, items, device_pk`.
+
 ### 4.2 Contract methods by caller
 
 | Caller (checked how) | Methods |
 |---|---|
 | Admin (`predecessor == config.admin`) | `new`, `set_config` |
-| Owner wallet (`predecessor == pet.owner`) | `nft_mint_pet` (0.2 NEAR), `stake`, `unstake`, `withdraw`, `play`, `buy_item`, `register_device`, `set_approval_mode`, `propose_action`, `cancel_action`, `nft_transfer` |
-| Device (`predecessor == pet.owner` and `signer_account_pk == pet.device_pk`) | `play`, `stake_from_food`, `approve_action` |
+| Owner wallet (`predecessor ==` NFT owner) | `nft_mint_pet` (0.2 NEAR), `stake`, `unstake`, `withdraw`, `play`, `buy_item`, `register_device`, `set_approval_mode` (M5), `propose_action` (M5), `cancel_action` (M5), `nft_transfer` |
+| Device (`predecessor ==` NFT owner and `signer_account_pk == pet.device_pk`) | `play`, `stake_from_food`, `approve_action` (M5) |
 | Brain (`predecessor == config.brain`) | `charge`, `credit` |
 | Anyone | `feed`, `sweep_credit`, all views |
 | Views | `get_pet` (settled, plus `life_state`, `self_sustaining`), `get_pending_actions`, `nft_tokens_for_owner`, `nft_tokens`, `config` |
@@ -474,6 +485,8 @@ stateDiagram-v2
   state Alive {
     Happy --> Hungry: fullness < 40
     Hungry --> Happy: fed or credit accrues, fullness >= 40 and mood >= 40
+    Happy --> Sad: mood < 40 (fed and awake)
+    Sad --> Happy: pet, play, chat or item lifts mood >= 40
     Happy --> Sleepy: energy < 15 or play(sleep)
     Hungry --> Sleepy: energy < 15
     Sleepy --> Happy: energy reaches 100 (auto-wake) or play(wake)
@@ -481,10 +494,12 @@ stateDiagram-v2
   Egg --> Alive: xp >= 10 (Baby)
   Alive --> Starving: budget = 0 (starving_since_ns set)
   Starving --> Dormant: 72 h after starving_since_ns
-  Starving --> Alive: feed or stake (emits revived)
-  Dormant --> Alive: feed or stake (emits revived)
+  Starving --> Alive: feed, credit, or a self-sustaining stake
+  Dormant --> Alive: feed, credit, or a self-sustaining stake (emits revived)
   note right of Dormant: Pets never die
 ```
+
+Precedence when several hold (first match wins): Dormant > Starving > Sleepy (also while asleep) > Hungry > Sad > Happy. A stake revives a starving pet only when it is **self-sustaining** (daily credit ≥ metabolism + average spend); a smaller accrual is eaten by metabolism, so the 72 h dormant clock keeps running. `dormant` / `revived` are emitted on the next write that observes the change; `revived` only when leaving Dormant. A new pet starts at mood 80, energy 100.
 
 Growth is orthogonal to life state: `Egg -> Baby -> Teen -> Adult` at xp 10 / 100 / 500, emits `stage_up`.
 
@@ -524,7 +539,7 @@ sequenceDiagram
   U->>W: Name egg "Mochi", Adopt
   W->>WL: nft_mint_pet("Mochi"), deposit 0.2 NEAR
   WL->>C: tx
-  C->>C: 0.1 NEAR to treasury, 0.1 NEAR food, random traits
+  C->>C: 0.1 NEAR stays in contract for storage, 0.1 NEAR food, random traits
   C-->>W: token_id (nft_mint event)
   W-->>U: hatch animation, go to /pet/{id}
 ```
@@ -555,7 +570,7 @@ sequenceDiagram
     par billing
       B->>C: charge(7, cost_micro, inference-id, deltas, xp, mood)
       C->>C: settle, spend credit then food, clamp caps, emit thought
-      C-->>B: charged amount
+      C-->>B: thought event { cost_micro } = amount actually taken
       B-->>Cl: SSE thought_settled (tx hash)
     and verification
       B->>AI: GET /signature/{chat_id}
@@ -579,11 +594,11 @@ sequenceDiagram
   participant B as Brain
   participant AI as NEAR AI org
   U->>W: Stake 10 NEAR
-  W->>C: stake(pet_id) deposit 10 NEAR, 400+ Tgas [VERIFY S6]
+  W->>C: stake(pet_id) deposit 10 NEAR, 450 Tgas (needs >= 430; max per tx 1000 Tgas, S6)
   C->>P: deposit_and_stake() with 10 NEAR
   alt success
     P-->>C: ok
-    C->>C: callback: pet.staked += 10, emit staked
+    C->>C: callback: pet.staked += 10 (first deposit ever: minus 0.0055 NEAR pool fee), emit staked
   else failure
     P-->>C: error
     C->>U: callback refunds 10 NEAR
@@ -599,7 +614,7 @@ sequenceDiagram
   Note over W: BudgetCard ticks credit up live, Self-sustaining badge when daily credit >= daily burn
 ```
 
-Unstake: `unstake(pet_id, amount)` queues one pending unstake (about 12 h on testnet); `withdraw(pet_id)` after `unlock_epoch` pays only that pet's amount to the owner.
+Unstake: `unstake(pet_id, amount)` locks the amount at call time (one pending unstake per pet) and calls the pool's `unstake` with **exactly 1 yocto** attached; a failed call restores it. The pool may pay at once from its buffer or queue for `current + 2` epochs (12 to 24 h), and does not say which, so the contract **always treats it as pending** until `unlock_epoch`. `withdraw(pet_id)` after that calls the pool's `withdraw()` (also **exactly 1 yocto**; returns the amount paid, 0 if the buffer already paid) and pays the owner only that pet's amount. `claim_and_topup` returns no value (with 0 claimable it succeeds and does nothing), so the brain reads the org balance to see what a sweep delivered. All verified on testnet, see `CLAUDE.md` 14.
 
 ### 5.6 Device pairing and key registration [PROPOSAL: device shows the code]
 
@@ -717,9 +732,9 @@ stateDiagram-v2
 
 ### 6.1 Contract (`contract/`, Role 1)
 
-**Account:** `pets.<team>.testnet`; breaking changes deploy fresh to `pets-vN.<team>.testnet` (no migrations). Proposed extra: `pets-demo.<team>.testnet` with fast metabolism for judges, labelled "demo speed" [PROPOSAL].
+**Account:** breaking changes deploy fresh to `pets-vN.nearling.testnet` (no migrations); current: `pets-v5.nearling.testnet` (also in `.env` as `PETS_CONTRACT`). Code-only changes redeploy in place. Proposed extra: `pets-demo.<team>.testnet` with fast metabolism for judges, labelled "demo speed" [PROPOSAL].
 
-**Modules** (`src/`): `lib.rs` (init, config), `nft.rs` (NEP-171/177/181 via `near-contract-standards`), `pet.rs` (state, settle, life state, stages, traits), `budget.rs` (feed, charge, credit), `stake.rs` (NEARON calls + callbacks), `play.rs`, `device.rs` (`register_device`, `stake_from_food`, `signer_account_pk` checks), `approvals.rs`, `items.rs`, `transfer.rs`, `events.rs` (NEP-297 standard `nearling` v1.0.0).
+**Modules** (`src/`, as built): `lib.rs` (init, config, `get_pet` / `PetView`, load/save with life-state events), `nft.rs` (NEP-171/177/181 via `near-contract-standards` + transfer rules), `pet.rs` (state, pure settlement, life state, stages, traits, play, thought clamping), `budget.rs` (feed, charge, credit), `stake.rs` (NEARON calls + callbacks, sweep), `play.rs`, `device.rs` (`register_device`, `stake_from_food`, `signer_account_pk` checks), `items.rs`, `events.rs` (NEP-297 standard `nearling` v1.0.0). Coming in M5: `approvals.rs`.
 
 **Units:** NEAR in yocto (`u128`, JSON as string), money in micro-USD (`u64`), time in ns (`u64`). Food converts at `near_usd_rate_micro` (start $0.20 / NEAR, testnet rate).
 
@@ -728,9 +743,9 @@ stateDiagram-v2
 2. `cost = min(cost, per_call_cap 5_000, daily_cap 100_000 - spent_today, credit + food_in_usd)`.
 3. Take from `credit_micro` first, then convert the rest to yocto and take from `food_yocto`; food spent goes to `treasury`.
 4. If short, set starving (exact time).
-5. Clamp deltas: xp ≤ 5 per call and ≤ 50 per day, mood ±10, traits ±2 per trait per day.
+5. Clamp deltas: xp ≤ 5 per call and ≤ 50 per day (check-in bonus on top), mood ±10, traits ±2 per trait per day (0 to 100). Each chat costs 3 energy.
 6. Care XP: first owner interaction per UTC day gives +2 xp and extends the streak.
-7. Emit `thought { pet_id, cost, usage_ref }` with the amount actually charged; `stage_up` if a threshold crossed.
+7. Emit `thought { pet_id, cost_micro, usage_ref }` with the amount actually charged; `stage_up` if a threshold crossed. Only thought spending goes to the treasury; food burnt by metabolism stays in the contract.
 
 Proposed additions [PROPOSAL, Role 1]: reject repeated `usage_ref` (idempotent retries); include `source` (credit / food / mixed) in `thought`; stable panic prefixes (`E_COOLDOWN`, `E_NOT_OWNER`, `E_APPROVAL_MODE`, `E_STAKED`).
 
@@ -738,14 +753,16 @@ Proposed additions [PROPOSAL, Role 1]: reject repeated `usage_ref` (idempotent r
 
 | Pets method | Pool call | Callback |
 |---|---|---|
-| `stake` / approved `Stake` / `stake_from_food` | `deposit_and_stake()` with NEAR, 400+ Tgas | success: `staked +=`; failure: refund owner (or return food) |
-| `unstake` / approved `Unstake` | `unstake(amount)` | success: record `pending_unstake { amount, unlock_epoch }` |
-| `withdraw` / approved `Withdraw` | `withdraw()` (pays all matured to contract) | pay owner only this pet's amount, emit `unstake_withdrawn` |
-| `sweep_credit` | `claim_and_topup(config.org_id)` (maybe `sync_from_farm` first [VERIFY]) | emit `credit_swept { amount }` |
+| `stake` / approved `Stake` / `stake_from_food` | `deposit_and_stake()` with NEAR, 400 Tgas | success: `staked +=` (minus the one-time pool fee on the first deposit ever); failure: refund owner (or return food); `stakes_in_flight` -1 either way |
+| `unstake` / approved `Unstake` | `unstake(amount)`, 1 yocto, 400 Tgas; amount locked before the call | success: emit `unstaked`; failure: restore stake, clear `pending_unstake` |
+| `withdraw` / approved `Withdraw` | `withdraw()`, 1 yocto, 400 Tgas (pays all matured to contract) | success: pay owner only this pet's amount, emit `unstake_withdrawn`; failure: keep it pending |
+| `sweep_credit` | `claim_and_topup(config.org_id)`, 400 Tgas (whether to call `sync_from_farm` first: ask C9) | emit `credit_swept { org_id, result }` (the pool returns no amount) |
 
-Max gas per transaction vs the 400+ Tgas pool call plus callback is spike S6. If it does not fit, Option B (owner stakes directly) or a labelled simulation is the fallback.
+Callers must attach ≥ 430 Tgas (400 for the pool call, 20 for the callback).
 
-**Security invariants:** only brain can `charge` / `credit` (capped); only admin changes config; only owner stakes and receives withdrawals; `sweep_credit` can only target `config.org_id`; device key cannot attach deposits and can only call three methods; proposer key cannot approve its own action; transfer blocked while staked or unstaking; transfer clears device key and pending actions.
+S6 settled Option A: max gas per tx on testnet is 1000 Tgas, so the pool call plus callback fits, also from the device key.
+
+**Security invariants:** only brain can `charge` / `credit` (capped); only admin changes config; only owner stakes and receives withdrawals; `sweep_credit` can only target `config.org_id`; device key cannot attach deposits and can only call three methods; proposer key cannot approve its own action (M5); transfer blocked while staked, unstaking or a stake is in flight; transfer clears device key (and pending actions, M5).
 
 **Storage:** mint price covers pet storage (asserted in tests), no NEP-145.
 
@@ -802,14 +819,14 @@ Full design: [conceptual/04-web-design.md](conceptual/04-web-design.md).
 
 | Action | Method | Deposit | Gas |
 |---|---|---|---|
-| Adopt | `nft_mint_pet(name)` | 0.2 NEAR | 100 Tgas [VERIFY] |
+| Adopt | `nft_mint_pet(name)` | 0.2 NEAR | 50 Tgas (about 3 Tgas burnt on testnet) |
 | Feed (anyone) | `feed(pet_id)` | 0.1 / 0.5 / 1 NEAR | 30 Tgas |
-| Stake | `stake(pet_id)` or `propose_action(Stake)` | ≥ 1 NEAR | 400+ Tgas [VERIFY S6] |
-| Unstake / Withdraw | `unstake` / `withdraw` or proposal | 0 | 400+ Tgas |
+| Stake | `stake(pet_id)` or `propose_action(Stake)` | ≥ 1 NEAR | 450 Tgas (≥ 430 required) |
+| Unstake / Withdraw | `unstake` / `withdraw` or proposal | 0 (the contract attaches the pool's 1 yocto itself) | 450 Tgas |
 | Pet / Play / Sleep / Wake | `play` via session key | 0 | 30 Tgas |
 | Buy item (P1) | `buy_item` | catalog price | 30 Tgas |
 | Device setup | `AddKey` + `register_device` (one batch) | 0 | 30 Tgas |
-| Transfer | `nft_transfer` | 1 yocto | 30 Tgas, disabled while staked |
+| Transfer | `nft_transfer` | 1 yocto | 30 Tgas, disabled while staked, unstaking or a stake is in flight |
 
 **Rendering:** landing, `/p/[id]` (with OpenGraph image) and `/privacy` are server components reading the public brain API; everything wallet related is client side. `PetCanvas` draws the shared sprite sheet on a pixelated canvas with item overlays and particles. `useLiveBudget` interpolates credit accrual and metabolism between fetches so the budget ticks every second. Each pet message shows cost, billing status (queued -> tx link) and a "Verified in TEE" badge with a drawer of checks.
 
@@ -888,7 +905,7 @@ flowchart LR
   subgraph NEAR testnet
     RPC1[test.rpc.fastnear.com]
     RPC2[rpc.testnet.near.org]
-    PETSD[(pets.team.testnet)]
+    PETSD[(pets-v5.nearling.testnet)]
     POOLD[(mw-pool-1024.testnet)]
   end
   AID[cloud-stg-api.near.ai]
@@ -928,7 +945,7 @@ flowchart LR
 | Time | Contract uses block timestamp; brain uses UTC days for caps and the owner timezone for night mode and greetings |
 | Consistency | Web refetches `/state` after each tx; brain `get_pet` cache is 5 s; charges are eventually consistent (reply first, charge after) |
 | Observability | Structured logs (ids, costs, latency, tx, statuses); ops view of thoughts estimated vs billed, charge failures, NEARON top-ups, attestation status |
-| Testing | Contract: unit tests for every rule in CLAUDE.md 16 plus `near-workspaces` integration; brain: vitest with `MOCK_AI=1`, recorded verification fixtures; web: unit tests for formatting and live budget, Playwright smoke on a seeded pet; device: S4 / S5 bench tests and an integration run with the brain |
+| Testing | Contract: unit tests for every rule in CLAUDE.md 16 (NEARON callbacks with mocked results) plus testnet runs against the real pool; brain: vitest with `MOCK_AI=1`, recorded verification fixtures; web: unit tests for formatting and live budget, Playwright smoke on a seeded pet; device: S4 / S5 bench tests and an integration run with the brain |
 | Simulated parts | Any fallback (NEARON simulation, demo-speed contract, brain-relayed play) is labelled "simulated" or "demo speed" in UI and README |
 
 ---
@@ -940,8 +957,8 @@ flowchart LR
 | S1 / S2 | Model latency, cost per reply, JSON output, attestation and signature on staging | Role 2 | Model default, TEE badge |
 | S3 | Wallet testnet + signMessage support, session key flow, Privy funding | Role 2 | Onboarding |
 | S4 | Board: touch, Wi-Fi, HTTPS, I2S WAV | Roles 3 + 4 | Device |
-| S5 | ed25519 + Borsh signing on ESP32, `signer_account_pk` checks | Roles 4 + 1 | Device signing, approvals |
-| S6 | Max gas per tx vs 400+ Tgas pool calls (incl. from device key), testnet farm rate | Role 1 | Stake path, Option A vs B |
+| S5 | ed25519 + Borsh signing on ESP32. Contract side **done** 2026-11-08: `play` and `stake_from_food` signed by a real limited key work, wallet key rejected, deposits rejected | Role 4 (ESP32), Role 1 (`approve_action` in M5) | Device signing, approvals |
+| S6 | **Done** (Option A): max gas 1000 Tgas, first-deposit fee, 1 yocto on unstake / withdraw, farm rate 657 µ$/NEAR/day. Open: real `claim_and_topup` into the org (needs org id and ≥ 0.01 CREDIT) | Roles 1 + 2 | Self-sustaining top-up |
 | S7 | CREDIT top-up into the staging org, whisper on staging | Roles 1 + 2 | Self-sustaining claim |
 | P1 | Pairing direction (device shows code) | Roles 2 + 4 | Pairing |
 | P2 | Idempotent `usage_ref`, `thought.source`, panic codes, `persona_hash` writer, demo-speed deploy | Roles 1 + 2 | Billing, UX, demo |

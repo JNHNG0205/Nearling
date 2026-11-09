@@ -167,13 +167,13 @@ The credit counter visibly ticks up every second when staked. That is the "stake
 |---|---|---|---|---|---|
 | Adopt | wallet | `nft_mint_pet(name)` | exactly 0.2 NEAR (from `config()`) | 100 Tgas [VERIFY] | Read token id from the return value; then hatch |
 | Feed | wallet | `feed(pet_id)` | presets 0.1 / 0.5 / 1 NEAR | 30 Tgas | Anyone, including on `/p/[id]` |
-| Stake | wallet or proposal | `stake(pet_id)` | ≥ 1 NEAR | 400+ Tgas (max per tx is S6) | Under approval mode -> `propose_action(Stake)` |
-| Unstake / Withdraw | wallet or proposal | `unstake(pet_id, amount)` / `withdraw(pet_id)` | 0 | 400+ Tgas | Show "unlocks in about 12 h" |
+| Stake | wallet or proposal | `stake(pet_id)` | ≥ 1 NEAR | 450 Tgas (contract requires ≥ 430; max per tx is 1000 Tgas, S6) | Under approval mode -> `propose_action(Stake)` |
+| Unstake / Withdraw | wallet or proposal | `unstake(pet_id, amount)` / `withdraw(pet_id)` | 0 (contract attaches the pool's 1 yocto) | 450 Tgas | Show "unlocks in 12 to 24 h" (`pending_unstake.unlock_epoch` = current + 2 epochs) |
 | Pet / Play / Sleep / Wake | **session key** | `play(pet_id, action)` | 0 | 30 Tgas | Respect cooldowns client-side (pet 5 min, play 1 min) |
 | Buy item (P1) | wallet | `buy_item(pet_id, item_id)` | exact catalog price | 30 Tgas | |
 | Add device key + register | wallet | tx 1: `AddKey` to own account (FC key, receiver PETS, methods `play`, `stake_from_food`, `approve_action`, allowance 1 NEAR); tx 2: `register_device(pet_id, pk)` | 0 | | `signAndSendTransactions` = one popup where the wallet supports it |
 | Approval mode on | wallet | `set_approval_mode(pet_id, true)` | 0 | 30 Tgas | Needs registered device |
-| Transfer | wallet or proposal | `nft_transfer` | 1 yocto | 30 Tgas | Disabled with tooltip while staked |
+| Transfer | wallet or proposal | `nft_transfer` | 1 yocto | 30 Tgas | Disabled with tooltip while staked, unstaking or a stake is in flight |
 
 Gas and deposits live in `lib/contract.ts` only, read from `config()` where possible.
 

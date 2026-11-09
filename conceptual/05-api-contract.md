@@ -30,7 +30,8 @@ Status: **proposal**. Routes marked NEW are not in CLAUDE.md 8.2 yet; per CLAUDE
 ## 2. Shared types (`packages/shared/src/index.ts`)
 
 ```ts
-export type LifeState = "happy" | "hungry" | "sleepy" | "starving" | "dormant";
+// Contract returns PascalCase ("Happy", "Sad", ...); map to these. Sad = fed and awake, mood < 40.
+export type LifeState = "happy" | "sad" | "hungry" | "sleepy" | "starving" | "dormant";
 export type Stage = "egg" | "baby" | "teen" | "adult";
 export type SpriteState =
   | "idle" | "happy" | "petted" | "talking" | "thinking" | "listening" | "eating"
@@ -117,6 +118,21 @@ Needs Role 4 sign-off (they own `pairing.ts`).
 ## 4. Asks to other roles
 
 ### To Role 1 (contract)
+
+Status from Role 1 (2026-11-09, contract as built on `pets-v5.nearling.testnet`):
+
+| # | Status |
+|---|---|
+| C1 | **Mostly done.** `get_pet` returns `life_state`, `fullness`, `budget_micro`, `daily_credit_micro`, `self_sustaining`, `staked`, `pending_unstake`, `items`, `device_pk` (big numbers as strings). `daily_burn_micro` is not exposed yet (Role 1 to add) |
+| C2 | Open: Role 1 decision |
+| C3 | **Partly.** `thought { pet_id, cost_micro, usage_ref }` where `cost_micro` is the amount actually taken. No `source` yet: Role 1 decision |
+| C4 | Open: Role 1 decision. Current messages: "Only the owner", "Only brain", "Only the pet's device", "Cooldown: try again later", "Pet is asleep", "Unstake and withdraw before transfer", "Stake at least ...", "Unstake already pending", "Unstake still locked" |
+| C5 | Open: `persona_hash` is not stored yet |
+| C6 | Open: Role 1 decision |
+| C7 | **Yes.** `charge` / `credit` check `predecessor == config.brain`, so any function-call key on the brain account works |
+| C8 | **Yes.** NEP-181 `nft_tokens(from_index, limit)` is implemented |
+| C9 | Open. Note: NEARON's `claimable` only updates after anyone calls `sync_from_farm()` (seen in S6) |
+
 
 | # | Ask | Why |
 |---|---|---|
