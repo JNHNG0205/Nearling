@@ -1,6 +1,6 @@
 # Contract milestones (Role 1)
 
-Owner: Role 1, Contract. Spec: `CLAUDE.md` sections 6 and 7. Dates follow `CLAUDE.md` section 13.
+Owner: Role 1, Contract. Spec: `CLAUDE.md` sections 6 and 7 (scope: hybrid, `CLAUDE.md` 1.1; product features in `docs/Nearling-Hackathon-Build-Spec.md`). Dates follow `CLAUDE.md` section 13.
 
 Each milestone is done only when its **Pass** checks run green (tests) or are seen on testnet. Tick a box only after the check passes.
 
@@ -132,6 +132,21 @@ Goal: value actions need the pet's body when approval mode is on.
 - Unit tests: same key cannot propose and approve; expired action rejected; cancel refunds; each gated direct call rejected in approval mode; stolen-wallet scenario (re-register device) blocked
 - End to end with Role 4 on testnet: web proposes Stake 10 NEAR, device approves, stake lands; wallet key calling `approve_action` is rejected
 - Status 2026-11-09: contract side verified on `pets-v7` with a real limited key signed from the CLI (Stake 1 NEAR proposed, approved by the device key, staked; wallet approve rejected). Role 4 still needs to sign `approve_action` from the ESP32
+
+---
+
+## M5b: Hybrid additions (Nov 10 to 11)
+
+Goal: the contract pieces the hybrid scope (`CLAUDE.md` 1.1) adds from the Build Spec.
+
+- [ ] Soul: `set_soul(pet_id, prompt)` / `get_soul(pet_id)` with a version per change (writer and size cap to decide)
+- [ ] `config.fuel_price_micro`; brain charges it per chat
+- [ ] Shirt NFT for the Closet (second collection in this contract or a separate contract, to decide)
+- [ ] Brain-side `feed(pet)` after a NEAR Intents order settles (with Role 2)
+
+**Pass:**
+- Unit tests: soul version increments, size cap enforced, only the allowed writer can set it; a charge takes exactly `fuel_price_micro`; shirt ownership follows transfer
+- On testnet: brain reads the Soul and charges one fuel per chat; a claimed shirt shows in `nft_tokens_for_owner`
 
 ---
 

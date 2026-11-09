@@ -15,7 +15,7 @@ Spec status legend:
 
 **Nearling is an AI pet that lives on NEAR and pays for its own brain.** Every thought is a real private AI inference on NEAR AI Cloud, paid from the pet's own budget. Feed it NEAR and it thrives. Neglect it and it gets hungry, sleepy, then dormant. Stake NEAR for it through NEARON and the staking yield becomes AI credit that feeds it forever.
 
-The pet has **two bodies, one brain**: a web app anyone can try, and a small hardware device (ESP32 with a screen) on your desk. Both show the same pet, driven by the same brain service and the same on-chain state.
+The pet has **two bodies, one brain**: a web app anyone can try, and a small hardware device (ESP32-S3, 240×240 screen, buttons, touch pad, motion and light sensors, speaker) on your desk. Both show the same pet, driven by the same brain service and the same on-chain fuel.
 
 **Pitch line:** "A Tamagotchi whose life literally depends on its wallet. Every thought costs real AI compute, paid by the pet itself. Stake 10 NEAR and it lives forever."
 
@@ -30,7 +30,23 @@ The pet has **two bodies, one brain**: a web app anyone can try, and a small har
 | `nfts` | "NFTs as accounts that own money": each pet holds and spends its own budget |
 | `agents` | The pet pays for its own compute |
 | `privacy` | Chats run on NEAR AI private (TEE) models |
-| `security` | Device holds a limited access key that cannot move funds out; value actions need a physical approval on the device |
+| `security` | Value actions need a physical hold-to-approve on the device before Meteor signs on the phone; the brain can only make capped charges. On-chain device-key approvals (7.3) exist as an option |
+
+### 1.1 Hybrid scope [FIXED 2026-11-09]
+
+Two documents define the product:
+- **This file** is the source of truth for the chain: contract, fuel, NEARON, events, security caps.
+- **`docs/Nearling-Hackathon-Build-Spec.md`** (Build Spec) is the source of truth for product features, device hardware and UX: hatch and pair, verified talk with voice, offline care, Closet, Nearling Run, Wallet.
+
+Where they disagreed, the team chose a hybrid: **the Build Spec's product and hardware, with the pet's fuel kept on chain.**
+
+| Keep on chain (contract, built and verified) | Adopt from the Build Spec | Kept in code, not the demo path |
+|---|---|---|
+| **Fuel = the pet's on-chain budget** (5.1). One chat = one `charge` of `config.fuel_price_micro`; idempotent `usage_ref` gives the brain's reserve / debit / retry | Hardware, offline pat / rock / shake / sleep (Build Spec 4), winged evolution | On-device key signing, `stake_from_food`, the on-chain approval flow (7.3, M5) |
+| **Feed the Brain:** NEAR Intents checkout settles to the project account, then the brain calls `feed(pet)` with that NEAR | **Soul:** public, versioned personality prompt on chain (7.2, new) | On-chain care stats driven by `play` (mood, energy); care is device-local |
+| **Brain Garden = NEARON stake** (6), already working | **Shirt NFT** for the Closet (replaces `buy_item`) | `buy_item` |
+| Pet NFT, transfer rules, events, `E_` codes, demo-speed deployment | Nearling Run, voice replies (TTS), Wi-Fi setup portal (no contract impact) | Wallet send and validator staking (only if time allows) |
+| | Approvals for Wallet actions and pet transfer: backend approval request, hold-to-approve on the device, **Meteor signs on the phone** | |
 
 **Prior art:** TamaTown (ETHGlobal Open Agents, Sepolia: pets as AI agents with wallets), agentchi (Base, x402 pay-per-action pet game for agents), Dæmons (wallet-to-pet game), Pett.ai / PettBro (Web3 AI pet), NEARON's own Tamagotchi demo sub-pool (`mw-tama-1031.testnet`). **Our edge, in order of importance:** the game loop (needs, memory, the pet reaching out first), the hardware body, the pet visibly paying for each thought, stake to live.
 
@@ -135,6 +151,8 @@ Both device owners must be physically available Nov 8 to 14 and each needs a boa
 
 ## 5. Game design
 
+**Hybrid note (1.1):** 5.1 (budget = fuel) and the starving / dormant states of 5.3 stay on chain and drive the demo. Care is device-local (Build Spec 4); the on-chain mood, energy and `play` of 5.2 remain in the contract but are not the demo path. Evolution in the demo is the Build Spec's winged form; the on-chain xp stages (5.4) still grow from chats.
+
 ### 5.1 The pet's budget [FIXED]
 Each pet has two budget sources, both shown in the UI:
 | Source | What it is | How it is used |
@@ -179,8 +197,8 @@ Precedence (first match wins): Dormant > Starving > Sleepy (also while asleep) >
 - Memory makes it personal: "You said your exam was today. How did it go?"
 
 ### 5.6 Play and items
-- Mini-games in character [TBD pick 1 for MVP]: guess-the-number, trivia, rock-paper-scissors. Raise mood and xp.
-- 3 to 5 accessories (hat, scarf, glasses...) bought with NEAR, shown on web and device. Cosmetic + small mood bonus.
+- **Game:** Nearling Run, the two-lane race (Build Spec 6), off chain.
+- **Closet:** a **shirt NFT** the owner claims; the device draws it as a sprite layer (Build Spec 5). Replaces the `buy_item` accessories, which stay in the contract unused. Design [TBD M5b]: a second NEP-171 collection in the pets contract or a separate `shirts` contract.
 
 ---
 
@@ -315,6 +333,11 @@ Brain only:
 
 **Care XP [FIXED, tune numbers]:** the first owner interaction per UTC day (feed by the owner, play, chat via `charge`; a stranger feeding does not count) gives +2 xp and extends `streak` (resets after a missed day). Chat xp comes from `charge`. Any write that crosses a stage threshold (5.4) emits `stage_up`.
 
+**Hybrid additions [TBD M5b]:**
+- `set_soul(pet_id, prompt)` and `get_soul(pet_id) -> { version, prompt }`: the pet's public personality (Build Spec 2). Each change bumps `version`; the brain fetches it before a reply and shows the version on the receipt. Who may write it (owner, brain, or both) and the prompt size cap are [TBD].
+- `config.fuel_price_micro`: what one chat charges [TBD value]. The brain still sends the real cost in `usage_ref` logs; the charged amount is the fixed fuel price so "1 fuel" is the same for every reply.
+- Shirt NFT mint / claim, see 5.6.
+
 Views: `get_pet(pet_id) -> PetView` settled to current block time: `id, owner, name, born_at_ns, food_yocto, credit_micro, budget_micro, fullness, mood, energy, asleep_since_ns, xp, stage, traits, starving_since_ns, life_state, staked, pending_unstake { amount, unlock_epoch }, daily_credit_micro, daily_burn_micro, self_sustaining, items, device_pk` (`daily_burn_micro` = metabolism + average spend, M4b; u64 timestamps and u128 amounts are JSON strings; `self_sustaining` = daily credit ≥ metabolism + `avg_daily_spend_micro`); `get_pending_actions(pet_id)`; `nft_tokens_for_owner`; `config()`.
 
 ### 7.3 Device approval flow [FIXED design, VERIFY S5]
@@ -367,12 +390,15 @@ Node 22 + Hono, TypeScript. Holds the `brain` NEAR account key and the NEAR AI s
 | `POST /devices/claim` | pairing code | Device gets a device token bound to pet + owner |
 
 ### 8.3 Chat flow
-1. `get_pet`. Starving or Dormant → canned sleepy reply, no charge.
+1. `get_pet`. Starving or Dormant (no fuel) → canned "Low Fuel" reply, no charge; device care still works.
 2. Audio → transcribe.
-3. Prompt = base persona (stage, traits, mood, fullness, items, owner nickname) + memory summary + last 10 turns. Replies ≤ 2 sentences for device, ≤ 4 for web.
+3. Prompt = the pet's **Soul** from chain (`get_soul`, version shown on the receipt) + pet state (stage, fullness, shirt, owner nickname) + memory summary + last 10 turns. Replies ≤ 2 sentences for device, ≤ 4 for web.
 4. Chat completion on the private model, non-streaming. Structured tail with `trait_deltas`, `xp_gain`, `mood_delta`, `sprite_state` [TBD: single call with JSON output preferred].
-5. Compute cost, call `charge(...)`. If it fails, return the reply, mark unbilled, retry later.
+5. Call `charge(pet, config.fuel_price_micro, usage_ref = inference id, ...)` (hybrid 1.1: one chat = one fuel). Retries with the same `usage_ref` never double-charge. Log the real provider cost separately. Voice playback (TTS) runs after the reply text is saved (Build Spec 2).
 6. Append to memory; summarise every 20 turns.
+
+### 8.3b Feed the Brain (hybrid 1.1)
+The phone checkout uses NEAR Intents (Build Spec 3). When the order settles to the project account, the brain calls `feed(pet_id)` with the delivered NEAR, once per order (store the order id). Fuel then lives on chain like any other feed, and a friend can gift from another chain.
 
 ### 8.4 Scheduler
 Every 15 min: proactive message rules (5.5). Hourly: call `sweep_credit()` to move NEARON CREDIT into the org. Per-pet credit accrues in the contract; use `credit` only for capped corrections.
@@ -403,6 +429,8 @@ Stretch: NEP-366 sponsored transactions via a relayer so new players pay no gas.
 ---
 
 ## 10. Device spec (`firmware/`)
+
+**Hybrid note (1.1):** hardware, inputs (3 buttons, touch pad, motion, light), audio (spoken replies) and offline care follow the **Build Spec** (its hardware reference wins over this section). The on-device signing below is kept as an option but is **not the demo path**: approvals go through the backend and Meteor (Build Spec 7, 8).
 
 **Hardware [TBD after S4]:** ESP32-S3 board with a **capacitive touch colour screen**, I2S mic and speaker/buzzer (an M5Stack CoreS3-class board fits; verify specs before ordering). Physical buttons optional; the UI is touch-first.
 
@@ -437,21 +465,23 @@ Pixel art, 64×64 base sprite, 4 stages × about 12 states. One palette that rea
 
 ## 12. Scope
 
-**Must-have (submission)**
-1. Contract: mint, feed, charge, credit, play, stats and life states, stages, events, transfer rule.
-2. NEARON stake for a pet (Option A, section 6) with CREDIT accrual shown; Option B or simulated fallback only if S6 fails.
-3. Brain: chat on a private model, real cost billing, memory, persona from stats and traits, proactive messages.
-4. Web: adopt, pet home with chat, inbox, stats, budget, feed, stake, public pet page.
-5. Device: same pet's state and sprite, touch to pet, hold-to-talk voice chat, new-message alert, pairing.
+**Must-have (submission, hybrid 1.1)**
+1. Contract: pet NFT, on-chain fuel (`feed`, `charge` at `fuel_price_micro`, `credit`), starving / dormant, events, transfer rule (done); **Soul** and **shirt NFT** (M5b).
+2. Brain Garden: NEARON stake for a pet with CREDIT accrual shown (done, Option A).
+3. Brain: verified chat on a private model, voice, one `charge` per chat, Soul fetched from chain, memory, proactive messages.
+4. Web / phone: Hatch & Pair, Feed the Brain via NEAR Intents ending in `feed(pet)`, receipts, Closet claim, public pet page.
+5. Device (Build Spec): pairing, hold-to-talk, offline care, Closet, Nearling Run, approve-on-device for Wallet actions.
 6. README with "do X, see Y" on testnet, demo video.
 
-**P1 (ship after must-haves work):** on-device signing with the device key (`play`, `stake_from_food`), device approval flow for value actions, one mini-game, items and shop, trait evolution in UI.
+**P1 (ship after must-haves work):** Wallet send and validator staking, approve pet transfer on the device, second physical racer.
+
+**Kept in code, not in the demo:** on-device signing (`play`, `stake_from_food`, on-chain `approve_action`), `buy_item`, on-chain care stats.
 
 **Should-have:** sponsored transactions (NEP-366) so the device needs no gas.
 
-**Later (README roadmap):** battles (Illia's arena), visiting and breeding, pets earning via Agent Market, funding from other chains via NEAR Intents, brain in OutLayer, mainnet.
+**Later (README roadmap):** dedicated signing chip, friend visits and postcards, Dream Journal, pets earning via Agent Market, arena prizes, brain in OutLayer, mainnet (Build Spec "Future additions").
 
-**Cut:** new tokens, marketplace, royalties, swapping and trading (roadmap: the pet manages its own treasury via Rhea under caps), meme.cooking, BRRRAIN, text-to-speech.
+**Cut:** new tokens, marketplace, royalties, swapping and trading (roadmap: the pet manages its own treasury via Rhea under caps), meme.cooking, BRRRAIN.
 
 ---
 
