@@ -2,7 +2,7 @@
 
 use crate::Config;
 use near_sdk::json_types::{U128, U64};
-use near_sdk::near;
+use near_sdk::{near, PublicKey};
 
 const MINUTE_NS: u64 = 60 * 1_000_000_000;
 const HOUR_NS: u64 = 60 * MINUTE_NS;
@@ -20,6 +20,9 @@ const STAGE_XP: [u32; 3] = [10, 100, 500];
 const CHECKIN_XP: u32 = 2;
 const ENERGY_PER_CHAT: u8 = 3;
 const TRAIT_MOVE_PER_DAY: i8 = 2;
+const MOOD_PER_PET: u8 = 3;
+const MOOD_PER_PLAY: u8 = 5;
+const XP_PER_PLAY: u32 = 1;
 
 pub const START_MOOD: u8 = 80;
 pub const START_ENERGY: u8 = 100;
@@ -69,6 +72,24 @@ pub struct Pet {
     pub staked: u128,
     pub credit_at_ns: u64,
     pub pending_unstake: Option<PendingUnstake>,
+    pub last_pet_ns: Option<u64>,
+    pub last_play_ns: Option<u64>,
+    pub items: Vec<u16>,
+    /// The pet's device key (one per pet), checked with `env::signer_account_pk()`.
+    pub device_pk: Option<PublicKey>,
+    pub device_staked_today: u128,
+    /// Stakes sent to the pool whose callback has not run yet; transfer waits for them.
+    pub stakes_in_flight: u8,
+}
+
+#[near(serializers = [json])]
+#[serde(rename_all = "lowercase")]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum PlayAction {
+    Pet,
+    Play,
+    Sleep,
+    Wake,
 }
 
 #[near(serializers = [borsh, json])]
@@ -92,6 +113,10 @@ pub struct ThoughtOutcome {
     /// Food spent on this thought; goes to the treasury.
     pub food_yocto: u128,
     pub stage_up: Option<u8>,
+}
+
+fn cooled_down(last: Option<u64>, now: u64, cooldown: u64) -> bool {
+    last.is_none_or(|t| now >= t + cooldown)
 }
 
 pub fn day_of(now: u64) -> u32 {
@@ -126,6 +151,12 @@ impl Pet {
             staked: 0,
             credit_at_ns: now,
             pending_unstake: None,
+            last_pet_ns: None,
+            last_play_ns: None,
+            items: Vec::new(),
+            device_pk: None,
+            device_staked_today: 0,
+            stakes_in_flight: 0,
         }
     }
 
@@ -159,6 +190,7 @@ impl Pet {
         self.spent_today_micro = 0;
         self.xp_today = 0;
         self.traits_moved_today = [0; 5];
+        self.device_staked_today = 0;
     }
 
     /// First owner interaction of a UTC day: extends the streak. Returns the check-in xp.
@@ -181,6 +213,50 @@ impl Pet {
             return Some(stage);
         }
         None
+    }
+
+    /// Owner care action (CLAUDE.md 5.2, 7.2). Call after `settle(now)`. Counts as the daily
+    /// check-in. Returns the new stage if xp crossed a threshold.
+    pub fn play(
+        &mut self,
+        action: PlayAction,
+        now: u64,
+        cfg: &Config,
+    ) -> Result<Option<u8>, &'static str> {
+        let today = day_of(now);
+        self.roll_day(today);
+        let mut xp = 0;
+        match action {
+            PlayAction::Pet => {
+                if !cooled_down(self.last_pet_ns, now, cfg.cooldown_pet_ns) {
+                    return Err("Cooldown: try again later");
+                }
+                self.last_pet_ns = Some(now);
+                self.mood = (self.mood + MOOD_PER_PET).min(100);
+            }
+            PlayAction::Play => {
+                if self.asleep_since_ns.is_some() {
+                    return Err("Pet is asleep");
+                }
+                if !cooled_down(self.last_play_ns, now, cfg.cooldown_play_ns) {
+                    return Err("Cooldown: try again later");
+                }
+                self.last_play_ns = Some(now);
+                self.mood = (self.mood + MOOD_PER_PLAY).min(100);
+                self.energy = self.energy.saturating_sub(ENERGY_PER_CHAT);
+                xp = XP_PER_PLAY.min(cfg.xp_max_per_day.saturating_sub(self.xp_today));
+                self.xp_today += xp;
+            }
+            PlayAction::Sleep => {
+                if self.asleep_since_ns.is_none() {
+                    self.asleep_since_ns = Some(now);
+                    self.energy_at_ns = now;
+                }
+            }
+            PlayAction::Wake => self.asleep_since_ns = None,
+        }
+        let checkin_xp = self.check_in(today);
+        Ok(self.add_xp(xp + checkin_xp))
     }
 
     /// One billed chat from the brain. Call after `settle(now)`.
@@ -716,5 +792,46 @@ mod tests {
         p.settle(T0 + DAY_NS, &cfg());
         assert_eq!(p.starving_since_ns, None);
         assert!(p.credit_micro > 0);
+    }
+
+    #[test]
+    fn petting_raises_mood_with_a_cooldown() {
+        let mut p = pet(0, 10_000);
+        assert_eq!(p.play(PlayAction::Pet, T0, &cfg()), Ok(None));
+        assert_eq!(p.mood, START_MOOD + 3);
+        assert!(p.play(PlayAction::Pet, T0 + 4 * MINUTE_NS, &cfg()).is_err());
+        assert!(p.play(PlayAction::Pet, T0 + 5 * MINUTE_NS, &cfg()).is_ok());
+        assert_eq!(p.mood, START_MOOD + 6);
+    }
+
+    #[test]
+    fn playing_costs_energy_and_gives_xp_with_a_cooldown() {
+        let mut p = pet(0, 10_000);
+        p.play(PlayAction::Play, T0, &cfg()).unwrap();
+        assert_eq!((p.mood, p.energy), (START_MOOD + 5, START_ENERGY - 3));
+        assert_eq!(p.xp, 1 + 2, "play xp plus check-in");
+        assert!(p
+            .play(PlayAction::Play, T0 + 30 * 1_000_000_000, &cfg())
+            .is_err());
+        assert!(p.play(PlayAction::Play, T0 + MINUTE_NS, &cfg()).is_ok());
+        assert_eq!(p.xp, 4);
+    }
+
+    #[test]
+    fn play_xp_counts_toward_the_daily_cap() {
+        let mut p = pet(0, 10_000);
+        p.xp_today = 50;
+        p.play(PlayAction::Play, T0, &cfg()).unwrap();
+        assert_eq!(p.xp, 2, "only the check-in");
+    }
+
+    #[test]
+    fn sleep_and_wake() {
+        let mut p = pet(0, 10_000);
+        p.play(PlayAction::Sleep, T0, &cfg()).unwrap();
+        assert_eq!(p.asleep_since_ns, Some(T0));
+        assert_eq!(p.play(PlayAction::Play, T0, &cfg()), Err("Pet is asleep"));
+        p.play(PlayAction::Wake, T0, &cfg()).unwrap();
+        assert_eq!(p.asleep_since_ns, None);
     }
 }

@@ -250,10 +250,11 @@ Pet {
   spent_today_micro: u64, xp_today: u32, traits_moved_today: [i8; 5],   // daily caps; traits ±2 per trait per day
   avg_daily_spend_micro: u64,               // on rollover: (avg × 3 + yesterday) / 4, then × 3/4 per extra idle day; adds to daily burn (fullness) and drives self_sustaining
   last_checkin_day: Option<u32>, streak: u16,
-  last_pet_ns: u64, last_play_ns: u64,      // cooldowns
+  last_pet_ns, last_play_ns: Option<u64>,   // cooldowns
   device_pk: Option<PublicKey>,             // one device per pet, one pet per device
   approval_mode: bool,
-  device_stake_day: u32, device_staked_today: u128,
+  device_staked_today: u128,                // reset on day rollover with the other daily counters
+  stakes_in_flight: u8,                     // stake / stake_from_food sent to the pool, callback pending; blocks transfer
 }
 
 Config {                                    // set by `admin` via set_config; brain cannot change it
@@ -283,8 +284,8 @@ Admin:
 Owner (wallet key):
 - `nft_mint_pet(name) -> TokenId` payable exactly `mint_storage + starter_food` (0.2 NEAR): `mint_storage` **stays in the contract** to pay for the pet's storage (NEAR locks balance for storage; asserted on every mint), `starter_food` becomes food; random traits from `env::random_seed()`; name 1 to 32 bytes.
 - `stake(pet_id)` payable ≥ `min_stake`, `unstake(pet_id, amount)`, `withdraw(pet_id)`: section 6. Owner only. Gated by approval mode (7.3).
-- `play(pet_id, action: "pet" | "play" | "sleep" | "wake")`: no deposit; callable by owner, including via the device key. Cooldowns: pet 5 min, play 1 min (rejected inside the cooldown).
-- `buy_item(pet_id, item_id)` payable exactly the catalog price: price to treasury; max 5 items, no duplicates; adds `mood_bonus`.
+- `play(pet_id, action: "pet" | "play" | "sleep" | "wake")`: no deposit; callable by owner, including via the device key. Cooldowns: pet 5 min, play 1 min (rejected inside the cooldown). Effects [tune]: `pet` mood +3; `play` mood +5, energy -3, +1 xp (inside the daily xp cap), rejected while asleep; `sleep` / `wake` set or clear sleep. Every call is the owner's daily check-in. Emits `played`.
+- `buy_item(pet_id, item_id)` payable exactly the catalog price: price to treasury; max 5 items, no duplicates; adds `mood_bonus`. Emits `item_bought`.
 - `register_device(pet_id, public_key)`: sets the pet's device key, replacing any previous one (emits `device_cleared`) and cancelling pending actions. Gated by approval mode. The owner must also add that key to their account as a limited access key (receiver = pets contract, methods = `play`, `stake_from_food`, `approve_action`, allowance 1 NEAR), done through the wallet on the web app.
 - `set_approval_mode(pet_id, on: bool)`: turning on runs directly (needs a registered device); turning off is gated (7.3).
 - `propose_action(pet_id, action)` payable, `cancel_action(action_id)`: 7.3.
@@ -318,7 +319,7 @@ Views: `get_pet(pet_id) -> PetView` settled to current block time: `id, owner, n
 Key point: wallet and device keys both belong to the owner's account, so `predecessor` alone cannot tell them apart. The contract tells them apart by `env::signer_account_pk()`. Gating `register_device` closes the hole where a stolen wallet key swaps in its own device key and approves itself.
 
 ### 7.4 Transfer rules [FIXED]
-- **Transfer is blocked while `staked > 0` or `pending_unstake` is set** (unstake and withdraw first). Under approval mode it also needs a device approval (`Transfer`).
+- **Transfer is blocked while `staked > 0`, `pending_unstake` is set, or a stake is in flight** (`stakes_in_flight > 0`, closes the race where the callback has not recorded the stake yet). Unstake and withdraw first. Under approval mode it also needs a device approval (`Transfer`).
 - On transfer: the contract clears the device key (emits `device_cleared`) and pending actions. Traits, stage, xp and items stay with the pet. The brain archives the old owner's memories (new owner starts fresh with the pet), revokes device tokens bound to the old owner, resets the owner nickname.
 - Limited access keys live on the old owner's account, so the contract checks `predecessor == current owner` for device methods; old keys simply stop working.
 
@@ -489,6 +490,17 @@ Record results here.
 | Wasm toolchain | Rust 1.99 + cargo-near 0.23 output deploys and runs; no toolchain pin needed |
 
 M3 on testnet (2026-11-07, `pets-v4`, player `nearling-player1.testnet`): stake 2 NEAR recorded 1.9945 = pool iNEAR balance; `self_sustaining: true` at 1310 µ$/day; unstake 0.5 NEAR queued at epoch 5424 in both the pet and the pool; early withdraw rejected. Stake tx `6btDMVHSYj5P3koLiGQP33WBKRqbE5i2EqWbf1VAyFfL`.
+
+### S5 contract side (2026-11-08, `pets-v5`, CLI signing with a real limited access key; the ESP32 part is Role 4)
+Limited key on `nearling-player1.testnet`: receiver `pets-v5.nearling.testnet`, methods `play, stake_from_food, approve_action`, allowance 1 NEAR (`near account add-key ... grant-function-call-access`).
+| Check | Result |
+|---|---|
+| `register_device` from the wallet | `device_registered` |
+| `stake_from_food` 1 NEAR signed by the device key | Works: `env::signer_account_pk()` matched; staked 0.9945 (first deposit of this holder paid the pool fee) |
+| `stake_from_food` signed by the wallet key | Rejected: "Only the pet's device" |
+| `play("pet")` signed by the device key | Works |
+| Device key call with a deposit | Rejected: function-call access keys cannot attach deposits |
+| `approve_action` | M5 |
 
 Evidence: stake tx `FLjbh7CA1tRw9TknMGRctba4DjFnQr9dCKQgmiFF9sT6`; failed unstake without 1 yocto `5GpH91VtbhCdVXF4mTyceBwDsdSmoQWwb7b4LA1PPHBq`.
 

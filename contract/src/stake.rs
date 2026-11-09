@@ -25,6 +25,9 @@ impl Contract {
         let amount = env::attached_deposit();
         let min = self.config.min_stake;
         require!(amount >= min, format!("Stake at least {min}"));
+        let mut pet = self.load_pet(&pet_id);
+        pet.stakes_in_flight += 1;
+        self.save_pet(&pet_id, pet);
         self.pool_call("deposit_and_stake", json!({}), amount)
             .then(
                 self.callback()
@@ -34,18 +37,16 @@ impl Contract {
 
     #[private]
     pub fn on_stake(&mut self, pet_id: TokenId, owner: AccountId, amount: U128) -> bool {
+        let mut pet = self.load_pet(&pet_id);
+        pet.stakes_in_flight = pet.stakes_in_flight.saturating_sub(1);
         if !call_succeeded() {
+            self.save_pet(&pet_id, pet);
             Promise::new(owner)
                 .transfer(NearToken::from_yoctonear(amount.0))
                 .detach();
             return false;
         }
-        let mut recorded = amount.0;
-        if !self.pool_registered {
-            recorded -= self.config.pool_first_deposit_fee.as_yoctonear();
-            self.pool_registered = true;
-        }
-        let mut pet = self.load_pet(&pet_id);
+        let recorded = self.after_pool_fee(amount.0);
         pet.staked += recorded;
         self.save_pet(&pet_id, pet);
         events::emit(
@@ -152,13 +153,22 @@ impl Contract {
 }
 
 impl Contract {
-    fn require_owner(&self, pet_id: &TokenId) -> AccountId {
+    /// The pool keeps a one-time fee from the contract's first deposit ever (S6).
+    pub(crate) fn after_pool_fee(&mut self, amount: u128) -> u128 {
+        if self.pool_registered {
+            return amount;
+        }
+        self.pool_registered = true;
+        amount - self.config.pool_first_deposit_fee.as_yoctonear()
+    }
+
+    pub(crate) fn require_owner(&self, pet_id: &TokenId) -> AccountId {
         let owner = self.owner_of(pet_id);
         require!(env::predecessor_account_id() == owner, "Only the owner");
         owner
     }
 
-    fn pool_call(&self, method: &str, args: Value, deposit: NearToken) -> Promise {
+    pub(crate) fn pool_call(&self, method: &str, args: Value, deposit: NearToken) -> Promise {
         require!(
             env::prepaid_gas() >= MIN_PREPAID,
             "Attach at least 430 Tgas"
@@ -171,12 +181,12 @@ impl Contract {
         )
     }
 
-    fn callback(&self) -> ContractExt {
+    pub(crate) fn callback(&self) -> ContractExt {
         Self::ext(env::current_account_id()).with_static_gas(CALLBACK_GAS)
     }
 }
 
 /// Only a failed call counts as failure; a long result still means success.
-fn call_succeeded() -> bool {
+pub(crate) fn call_succeeded() -> bool {
     !matches!(env::promise_result_checked(0, 0), Err(PromiseError::Failed))
 }

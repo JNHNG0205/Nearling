@@ -91,7 +91,7 @@ impl Contract {
         );
     }
 
-    fn emit_stage_up(&self, pet_id: &TokenId, stage: Option<u8>) {
+    pub(crate) fn emit_stage_up(&self, pet_id: &TokenId, stage: Option<u8>) {
         if let Some(stage) = stage {
             events::emit("stage_up", json!({ "pet_id": pet_id, "stage": stage }));
         }

@@ -85,16 +85,17 @@ Goal: stake to live works for real on testnet.
 
 Goal: the device can act for the pet, safely, and transfer is safe.
 
-- [ ] `play(pet_id, action)` with cooldowns (pet 5 min, play 1 min); `played` event
-- [ ] `register_device(pet_id, public_key)`: one key per pet, replaces old (emits `device_cleared`), cancels pending actions
-- [ ] Device checks: `signer_account_pk() == device_pk` and `predecessor == owner`
-- [ ] `stake_from_food`: 1 to 2 NEAR per action, ≤ 5 NEAR/day, leaves one day of burn as food
-- [ ] Transfer rule: blocked while staked or unstake pending; clears device key and pending actions
-- [ ] P1: `buy_item` from the config catalog (max 5, no duplicates, price to treasury)
+- [x] `play(pet_id, action)` with cooldowns (pet 5 min, play 1 min); `played` event
+- [x] `register_device(pet_id, public_key)`: one key per pet, replaces old (emits `device_cleared`), cancels pending actions
+- [x] Device checks: `signer_account_pk() == device_pk` and `predecessor == owner`
+- [x] `stake_from_food`: 1 to 2 NEAR per action, ≤ 5 NEAR/day, leaves one day of burn as food
+- [x] Transfer rule: blocked while staked or unstake pending; clears device key and pending actions
+- [x] P1: `buy_item` from the config catalog (max 5, no duplicates, price to treasury)
 
 **Pass:**
 - Unit tests: cooldown rejection; device method with wrong signer key rejected; old owner's device key stops working after transfer; transfer with stake rejected; `stake_from_food` cap edges (0.99, 1, 2, 2.01 NEAR; 5 NEAR/day; burn reserve)
 - S5 with Role 4: `play` signed by the device key succeeds on testnet; a deposit attempt from the device key fails
+- Status 2026-11-08: contract side verified on `pets-v5` with a real limited key signed from the CLI (see `CLAUDE.md` 14). Role 4 still needs to sign the same calls from the ESP32
 
 ---
 

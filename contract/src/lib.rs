@@ -1,9 +1,12 @@
 //! Nearling pets contract. Spec: CLAUDE.md sections 6 and 7.
 
 mod budget;
+mod device;
 mod events;
+mod items;
 mod nft;
 mod pet;
+mod play;
 mod stake;
 
 use near_contract_standards::non_fungible_token::events::NftMint;
@@ -12,7 +15,9 @@ use near_contract_standards::non_fungible_token::{NonFungibleToken, TokenId};
 use near_sdk::json_types::{U128, U64};
 use near_sdk::serde_json::json;
 use near_sdk::store::LookupMap;
-use near_sdk::{env, near, require, AccountId, BorshStorageKey, NearToken, PanicOnDefault};
+use near_sdk::{
+    env, near, require, AccountId, BorshStorageKey, NearToken, PanicOnDefault, PublicKey,
+};
 use pet::{LifeState, PendingUnstake, Pet};
 
 const MINUTE_NS: u64 = 60 * 1_000_000_000;
@@ -138,6 +143,8 @@ pub struct PetView {
     pub pending_unstake: Option<PendingUnstake>,
     pub daily_credit_micro: u64,
     pub self_sustaining: bool,
+    pub items: Vec<u16>,
+    pub device_pk: Option<PublicKey>,
 }
 
 #[near]
@@ -240,6 +247,8 @@ impl Contract {
             starving_since_ns: pet.starving_since_ns.map(U64),
             staked: pet.staked.into(),
             pending_unstake: pet.pending_unstake,
+            items: pet.items,
+            device_pk: pet.device_pk,
         }
     }
 
@@ -821,5 +830,265 @@ mod tests {
         callback(true);
         contract.on_sweep();
         assert!(events().iter().any(|e| e.contains("credit_swept")));
+    }
+
+    fn device_pk() -> PublicKey {
+        "ed25519:6E8sCci9badyRkXb3JoRpBj5p8C6Tw41ELDZoiihKEtp"
+            .parse()
+            .unwrap()
+    }
+
+    fn wallet_pk() -> PublicKey {
+        "ed25519:DcA2MzgpJbrUATQLLceocVckhhAqrkingax4oJ9kZ847"
+            .parse()
+            .unwrap()
+    }
+
+    /// Call signed by `pk` on account `who` (device key or wallet key).
+    fn ctx_signed(who: AccountId, pk: PublicKey, deposit: NearToken) {
+        testing_env!(VMContextBuilder::new()
+            .predecessor_account_id(who.clone())
+            .signer_account_id(who)
+            .signer_account_pk(pk)
+            .attached_deposit(deposit)
+            .block_timestamp(DAY)
+            .epoch_height(10)
+            .prepaid_gas(near_sdk::Gas::from_tgas(450))
+            .build());
+    }
+
+    /// Minted pet with 3 NEAR of extra food and a registered device.
+    fn with_device() -> (Contract, TokenId) {
+        let (mut contract, id) = minted();
+        ctx(accounts(3), NearToken::from_near(3), DAY);
+        contract.feed(id.clone());
+        ctx(accounts(3), NearToken::from_yoctonear(0), DAY);
+        contract.register_device(id.clone(), device_pk());
+        (contract, id)
+    }
+
+    fn device_stake(contract: &mut Contract, id: &TokenId, near_milli: u128) {
+        ctx_signed(accounts(3), device_pk(), NearToken::from_yoctonear(0));
+        let _ = contract.stake_from_food(id.clone(), U128(near_milli * NEAR / 1_000));
+    }
+
+    #[test]
+    fn owner_play_emits_played() {
+        let (mut contract, id) = minted();
+        ctx(accounts(3), NearToken::from_yoctonear(0), DAY);
+        contract.play(id.clone(), pet::PlayAction::Pet);
+        assert_eq!(contract.get_pet(id).mood, pet::START_MOOD + 3);
+        assert!(events().iter().any(|e| e.contains("\"event\":\"played\"")));
+    }
+
+    #[test]
+    #[should_panic(expected = "Only the owner")]
+    fn stranger_cannot_play() {
+        let (mut contract, id) = minted();
+        ctx(accounts(4), NearToken::from_yoctonear(0), DAY);
+        contract.play(id, pet::PlayAction::Pet);
+    }
+
+    #[test]
+    #[should_panic(expected = "Cooldown")]
+    fn petting_twice_inside_the_cooldown_is_rejected() {
+        let (mut contract, id) = minted();
+        ctx(accounts(3), NearToken::from_yoctonear(0), DAY);
+        contract.play(id.clone(), pet::PlayAction::Pet);
+        contract.play(id, pet::PlayAction::Pet);
+    }
+
+    #[test]
+    fn register_device_stores_the_key_and_replacing_it_emits_device_cleared() {
+        let (mut contract, id) = with_device();
+        assert_eq!(contract.get_pet(id.clone()).device_pk, Some(device_pk()));
+        assert!(events().iter().any(|e| e.contains("device_registered")));
+        contract.register_device(id.clone(), wallet_pk());
+        assert_eq!(contract.get_pet(id).device_pk, Some(wallet_pk()));
+        assert!(events().iter().any(|e| e.contains("device_cleared")));
+    }
+
+    #[test]
+    #[should_panic(expected = "Only the owner")]
+    fn stranger_cannot_register_a_device() {
+        let (mut contract, id) = minted();
+        ctx(accounts(4), NearToken::from_yoctonear(0), DAY);
+        contract.register_device(id, device_pk());
+    }
+
+    #[test]
+    fn device_moves_food_into_stake() {
+        let (mut contract, id) = with_device();
+        device_stake(&mut contract, &id, 1_000);
+        assert_eq!(
+            pool_calls(),
+            vec![("deposit_and_stake".into(), "{}".into(), NEAR, 400)]
+        );
+        assert_eq!(
+            contract.get_pet(id.clone()).food_yocto.0,
+            3_100 * NEAR / 1_000 - NEAR
+        );
+        callback(true);
+        contract.on_stake_from_food(id.clone(), U128(NEAR));
+        assert_eq!(contract.get_pet(id).staked.0, NEAR - FEE);
+        assert!(events().iter().any(|e| e.contains("staked_from_food")));
+    }
+
+    #[test]
+    fn failed_device_stake_returns_the_food() {
+        let (mut contract, id) = with_device();
+        device_stake(&mut contract, &id, 1_000);
+        callback(false);
+        contract.on_stake_from_food(id.clone(), U128(NEAR));
+        let view = contract.get_pet(id);
+        assert_eq!(view.food_yocto.0, 3_100 * NEAR / 1_000);
+        assert_eq!(view.staked.0, 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "Only the pet's device")]
+    fn wallet_key_cannot_use_the_device_method() {
+        let (mut contract, id) = with_device();
+        ctx_signed(accounts(3), wallet_pk(), NearToken::from_yoctonear(0));
+        let _ = contract.stake_from_food(id, U128(NEAR));
+    }
+
+    #[test]
+    #[should_panic(expected = "Device stake must be")]
+    fn device_stake_below_one_near_is_rejected() {
+        let (mut contract, id) = with_device();
+        device_stake(&mut contract, &id, 990);
+    }
+
+    #[test]
+    #[should_panic(expected = "Device stake must be")]
+    fn device_stake_above_two_near_is_rejected() {
+        let (mut contract, id) = with_device();
+        device_stake(&mut contract, &id, 2_010);
+    }
+
+    #[test]
+    #[should_panic(expected = "Device daily stake cap")]
+    fn device_stake_is_capped_per_day() {
+        let (mut contract, id) = with_device();
+        ctx(accounts(3), NearToken::from_near(10), DAY);
+        contract.feed(id.clone());
+        device_stake(&mut contract, &id, 2_000);
+        device_stake(&mut contract, &id, 2_000);
+        device_stake(&mut contract, &id, 1_001); // 5.001 NEAR
+    }
+
+    #[test]
+    #[should_panic(expected = "Keep a day of food")]
+    fn device_stake_keeps_one_day_of_food() {
+        let (mut contract, id) = minted();
+        ctx(accounts(3), NearToken::from_millinear(900), DAY);
+        contract.feed(id.clone()); // 1.0 NEAR of food in total
+        ctx(accounts(3), NearToken::from_yoctonear(0), DAY);
+        contract.register_device(id.clone(), device_pk());
+        device_stake(&mut contract, &id, 1_000);
+    }
+
+    #[test]
+    #[should_panic(expected = "Unstake and withdraw before transfer")]
+    fn transfer_is_blocked_while_staked() {
+        let (mut contract, id) = staked(2);
+        ctx(accounts(3), NearToken::from_yoctonear(1), DAY);
+        contract.nft_transfer(accounts(4), id, None, None);
+    }
+
+    #[test]
+    #[should_panic(expected = "Unstake and withdraw before transfer")]
+    fn transfer_is_blocked_while_a_stake_is_in_flight() {
+        let (mut contract, id) = minted();
+        ctx_full(accounts(3), NearToken::from_near(2), DAY, 10);
+        let _ = contract.stake(id.clone());
+        ctx(accounts(3), NearToken::from_yoctonear(1), DAY);
+        contract.nft_transfer(accounts(4), id, None, None);
+    }
+
+    #[test]
+    #[should_panic(expected = "Only the owner")]
+    fn transfer_clears_the_device_so_the_old_owner_device_stops_working() {
+        let (mut contract, id) = with_device();
+        ctx(accounts(3), NearToken::from_yoctonear(1), DAY);
+        contract.nft_transfer(accounts(4), id.clone(), None, None);
+        let view = contract.get_pet(id.clone());
+        assert_eq!((view.owner, view.device_pk), (accounts(4), None));
+        assert!(events().iter().any(|e| e.contains("device_cleared")));
+        device_stake(&mut contract, &id, 1_000);
+    }
+
+    fn with_shop() -> (Contract, TokenId) {
+        let (mut contract, id) = minted();
+        let mut cfg = contract.config();
+        cfg.items = vec![Item {
+            id: 1,
+            price: NearToken::from_millinear(500),
+            mood_bonus: 4,
+        }];
+        ctx(accounts(0), NearToken::from_yoctonear(0), DAY);
+        contract.set_config(cfg);
+        (contract, id)
+    }
+
+    #[test]
+    fn buying_an_item_pays_the_treasury_and_lifts_mood() {
+        let (mut contract, id) = with_shop();
+        ctx(accounts(3), NearToken::from_millinear(500), DAY);
+        contract.buy_item(id.clone(), 1);
+        let view = contract.get_pet(id);
+        assert_eq!(view.items, vec![1]);
+        assert_eq!(view.mood, pet::START_MOOD + 4);
+        assert_eq!(
+            transfers_to(&accounts(2)),
+            vec![NearToken::from_millinear(500)]
+        );
+        assert!(events().iter().any(|e| e.contains("item_bought")));
+    }
+
+    #[test]
+    #[should_panic(expected = "Already owned")]
+    fn buying_the_same_item_twice_is_rejected() {
+        let (mut contract, id) = with_shop();
+        ctx(accounts(3), NearToken::from_millinear(500), DAY);
+        contract.buy_item(id.clone(), 1);
+        contract.buy_item(id, 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "Attach exactly")]
+    fn buying_with_the_wrong_price_is_rejected() {
+        let (mut contract, id) = with_shop();
+        ctx(accounts(3), NearToken::from_millinear(400), DAY);
+        contract.buy_item(id, 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "Unknown item")]
+    fn buying_an_unknown_item_is_rejected() {
+        let (mut contract, id) = with_shop();
+        ctx(accounts(3), NearToken::from_millinear(500), DAY);
+        contract.buy_item(id, 9);
+    }
+
+    #[test]
+    #[should_panic(expected = "At most 5 items")]
+    fn a_pet_holds_at_most_five_items() {
+        let (mut contract, id) = minted();
+        let mut cfg = contract.config();
+        cfg.items = (1..=6)
+            .map(|i| Item {
+                id: i,
+                price: NearToken::from_millinear(1),
+                mood_bonus: 0,
+            })
+            .collect();
+        ctx(accounts(0), NearToken::from_yoctonear(0), DAY);
+        contract.set_config(cfg);
+        ctx(accounts(3), NearToken::from_millinear(1), DAY);
+        for i in 1..=6 {
+            contract.buy_item(id.clone(), i);
+        }
     }
 }

@@ -1,6 +1,6 @@
-//! NEP-171 core, NEP-177 metadata, NEP-181 enumeration. Transfer rules (7.4) come in M4.
+//! NEP-171 core, NEP-177 metadata, NEP-181 enumeration, with the transfer rules of 7.4.
 
-use crate::{Contract, ContractExt};
+use crate::{events, Contract, ContractExt};
 use near_contract_standards::non_fungible_token::core::{
     NonFungibleTokenCore, NonFungibleTokenResolver,
 };
@@ -10,7 +10,8 @@ use near_contract_standards::non_fungible_token::metadata::{
 };
 use near_contract_standards::non_fungible_token::{Token, TokenId};
 use near_sdk::json_types::U128;
-use near_sdk::{near, AccountId, PromiseOrValue};
+use near_sdk::serde_json::json;
+use near_sdk::{near, require, AccountId, PromiseOrValue};
 use std::collections::HashMap;
 
 #[near]
@@ -23,6 +24,7 @@ impl NonFungibleTokenCore for Contract {
         approval_id: Option<u64>,
         memo: Option<String>,
     ) {
+        self.before_transfer(&token_id);
         self.tokens
             .nft_transfer(receiver_id, token_id, approval_id, memo)
     }
@@ -36,12 +38,32 @@ impl NonFungibleTokenCore for Contract {
         memo: Option<String>,
         msg: String,
     ) -> PromiseOrValue<bool> {
+        self.before_transfer(&token_id);
         self.tokens
             .nft_transfer_call(receiver_id, token_id, approval_id, memo, msg)
     }
 
     fn nft_token(&self, token_id: TokenId) -> Option<Token> {
         self.tokens.nft_token(token_id)
+    }
+}
+
+impl Contract {
+    /// Stake belongs to the owner, so it must be unstaked and withdrawn first. The new owner
+    /// starts with no device; old device keys live on the old owner's account anyway.
+    fn before_transfer(&mut self, token_id: &TokenId) {
+        let mut pet = self.load_pet(token_id);
+        require!(
+            pet.staked == 0 && pet.pending_unstake.is_none() && pet.stakes_in_flight == 0,
+            "Unstake and withdraw before transfer"
+        );
+        if let Some(old) = pet.device_pk.take() {
+            events::emit(
+                "device_cleared",
+                json!({ "pet_id": token_id, "public_key": old }),
+            );
+        }
+        self.save_pet(token_id, pet);
     }
 }
 
