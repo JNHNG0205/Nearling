@@ -100,6 +100,7 @@ nearling/
 ├── README.md                    # judge-facing: what, why, try it on testnet, "do X, see Y"
 ├── .env.example
 ├── contract/                    # NEAR contract, Rust, near-sdk 5.x + near-contract-standards
+├── shirts/                      # Closet shirt NFT collection (NEP-171), separate small contract
 ├── brain/                       # pet brain service, TypeScript (Node 22, Hono)
 ├── web/                         # Next.js app
 ├── firmware/                    # ESP32-S3 device, PlatformIO (Arduino framework)
@@ -198,7 +199,7 @@ Precedence (first match wins): Dormant > Starving > Sleepy (also while asleep) >
 
 ### 5.6 Play and items
 - **Game:** Nearling Run, the two-lane race (Build Spec 6), off chain.
-- **Closet:** a **shirt NFT** the owner claims; the device draws it as a sprite layer (Build Spec 5). Replaces the `buy_item` accessories, which stay in the contract unused. Design [TBD M5b]: a second NEP-171 collection in the pets contract or a separate `shirts` contract.
+- **Closet:** a **shirt NFT** the owner claims; the device draws it as a sprite layer (Build Spec 5). Replaces the `buy_item` accessories, which stay in the contract unused. **Shirts contract [FIXED, M5b]** (`shirts/`, `shirts.nearling.testnet`): NEP-171/177/181, `claim()` mints one shirt per account, ever (`E_CLAIMED`); the claimer attaches 0.01 NEAR for storage and the excess is refunded. Shirts transfer freely; the brain checks ownership with `nft_tokens_for_owner` when the Closet syncs. Kept separate so the pets contract's `nft_tokens` stay pets only.
 
 ---
 
@@ -227,7 +228,7 @@ Docs confirm a contract can be holder and router. Sub-pool beneficiaries need an
 
 **Our design (Option A, chosen) [FIXED, VERIFY S6]:**
 1. The **pets contract is the plain iNEAR holder.** No sub-pools, no beneficiary binding, no contract key in the brain.
-2. `stake(pet_id)`: owner only, ≥ `config.min_stake` (1 NEAR, so nothing idles in the buffer). Contract calls `deposit_and_stake` with the attached NEAR (pool calls need ≥ 430 Tgas prepaid); the callback adds to `pet.staked`, or refunds the owner on failure. The pool keeps a one-time first-deposit fee (`config.pool_first_deposit_fee`, 0.0055 NEAR, S6) from the contract's first deposit ever, so the first stake is recorded as `amount - fee` and `pet.staked` always equals iNEAR actually held (checked on testnet).
+2. `stake(pet_id)`: owner only, ≥ `config.min_stake` (1 NEAR, so nothing idles in the buffer). Contract calls `deposit_and_stake` with the attached NEAR (pool calls need ≥ 430 Tgas prepaid); the callback adds to `pet.staked`, or refunds the owner on failure. **Pool registration [FIXED 2026-11-09]:** the pool keeps a one-time fee from a holder's first deposit ever, and its size changed with a pool upgrade (0.0055 NEAR in S6, 0.08467 NEAR after `settlement_version` 2: `pets-v8`'s 0.2 NEAR house deposit minted 0.11533 iNEAR; it had left `pets-v7`'s ledger 0.079 NEAR above its iNEAR). So the admin calls `register_pool()` once at deploy with a small house deposit (`HOUSE`, 0.2 NEAR in `deploy-testnet.sh`) that absorbs the fee; until then every stake is rejected (`E_POOL_NOT_READY`). After it, each pet stake mints iNEAR 1:1 and `pet.staked` is recorded as the full amount. The house iNEAR belongs to no pet; its CREDIT goes to the org on sweeps.
 3. **Per-pet credit accrues lazily in the contract:** `credit_micro += staked × config.farm_rate × elapsed`, computed in `get_pet` and settled on every write (own as-of time `credit_at_ns`). The UI sees credit grow live. **A starving pet is revived by stake only when it is self-sustaining** (daily credit ≥ metabolism + average spend); a smaller accrual is eaten by metabolism, so the 72 h dormant clock keeps running.
 4. `sweep_credit()`: **anyone** can call; it calls `sync_from_farm()` (150 Tgas) and then `claim_and_topup(config.org_id)` (400 Tgas) in one transaction; callers attach ≥ 600 Tgas (C9: `claimable` only updates after a sync). On testnet the whole sweep burnt about 15 Tgas. With nothing claimable after a fresh sync, NEARON panics "Nothing to claim" and the sweep emits nothing. The org is fixed in config, so a caller cannot redirect CREDIT. The brain calls it hourly. `claim_and_topup` returns no value (with 0 claimable it succeeds and does nothing, seen on testnet), so `credit_swept { org_id, result }` cannot report an amount; the brain reads the org balance to see what arrived.
 5. `unstake(pet_id, amount)`: one pending unstake per pet; a second one while one is pending is rejected. Calls pool `unstake` (1 yocto attached); records `pending_unstake { amount, unlock_epoch = current + 2 }`. **Always treated as pending** [FIXED after S6]: the pool may pay at once from its buffer or queue it, and the return value does not say which, so the owner always waits for `unlock_epoch`.
@@ -286,10 +287,11 @@ Config {                                    // set by `admin` via set_config; br
   near_usd_rate_micro: u64,                 // "testnet rate", tuned so starter food lasts about 1 day of active chat [TBD, start 200_000 = $0.20/NEAR]
   mint_storage: u128 (0.1 NEAR, to treasury), starter_food: u128 (0.1 NEAR),
   metabolism_micro_per_day: u64,            // 1_000 = $0.001/day [TBD]
+  fuel_price_micro: u64,                    // 1_000 = $0.001 per chat ("1 fuel", hybrid 1.1)
   charge_max_per_call_micro: 5_000, charge_max_per_day_micro: 100_000,
   xp_max_per_call: 5, xp_max_per_day: 50, mood_delta_max: 10,
   credit_correction_max_micro: u64,
-  min_stake: 1 NEAR, pool_first_deposit_fee: 0.0055 NEAR,
+  min_stake: 1 NEAR,
   device_stake_min: 1 NEAR, device_stake_max_per_action: 2 NEAR, device_stake_max_per_day: 5 NEAR,
   cooldown_pet_ns: 5 min, cooldown_play_ns: 1 min,
   mood_ns_per_point: 30 min, energy_ns_per_point: 7.5 min, dormant_after_ns: 72 h,   // M4b, so demo speed is config only
@@ -327,16 +329,16 @@ Brain only:
 - `charge(pet_id, cost_micro_usd: u64, usage_ref: String, trait_deltas: Option<[i8;5]>, xp_gain: u32, mood_delta: i8)`: settles, then spends credit first, then food (converted at `near_usd_rate_micro`); food spent goes to `treasury`. **Never panics for lack of funds or caps:** cost is clamped to the per-call cap ($0.005), the daily cap ($0.10 per pet) and what is left; if short, the pet becomes starving. Deltas are clamped: xp ≤ 5 per call and ≤ 50 per day (the check-in bonus is on top), mood ±10, traits ±2 per trait per day (0 to 100). Each chat also costs 3 energy (5.2). Emits `thought { pet_id, cost_micro, usage_ref, source }` with the amount actually charged and `source` = `credit` / `food` / `mixed` / `none` (C3, M4b). **Idempotent (C2, M4b):** a `usage_ref` already among the pet's last 32 charges is a no-op (no charge, no event), so the brain can retry blindly. Only thought spending goes to the treasury; food burnt by metabolism stays in the contract.
 - `credit(pet_id, micro_usd: u64, ref: String)`: capped correction only (credit normally accrues lazily). Above `credit_correction_max_micro` it panics (a correction that large is a bug, not a retry). Clears starving if the budget is now above 0. Emits `credited`.
 
-**Panic codes [FIXED, M4b] (C4):** every panic message starts with a stable code and a colon, e.g. `E_NOT_OWNER: Only the owner`, so the web can map it to a friendly line. Codes: `E_NOT_ADMIN`, `E_NOT_BRAIN`, `E_NOT_OWNER`, `E_NOT_DEVICE`, `E_UNKNOWN_PET`, `E_DEPOSIT`, `E_NAME`, `E_GAS`, `E_COOLDOWN`, `E_ASLEEP`, `E_MIN_STAKE`, `E_NO_STAKE`, `E_UNSTAKE_PENDING`, `E_NO_UNSTAKE`, `E_LOCKED`, `E_DEVICE_CAP`, `E_FOOD_RESERVE`, `E_STAKED`, `E_ITEM`, `E_CREDIT_CAP`, `E_STORAGE`, `E_APPROVAL_MODE`, `E_EXPIRED`, `E_SAME_KEY`, `E_NO_ACTION`, `E_TOO_MANY_ACTIONS`.
+**Panic codes [FIXED, M4b] (C4):** every panic message starts with a stable code and a colon, e.g. `E_NOT_OWNER: Only the owner`, so the web can map it to a friendly line. Codes: `E_NOT_ADMIN`, `E_NOT_BRAIN`, `E_NOT_OWNER`, `E_NOT_DEVICE`, `E_UNKNOWN_PET`, `E_DEPOSIT`, `E_NAME`, `E_GAS`, `E_COOLDOWN`, `E_ASLEEP`, `E_MIN_STAKE`, `E_NO_STAKE`, `E_UNSTAKE_PENDING`, `E_NO_UNSTAKE`, `E_LOCKED`, `E_DEVICE_CAP`, `E_FOOD_RESERVE`, `E_STAKED`, `E_ITEM`, `E_CREDIT_CAP`, `E_STORAGE`, `E_APPROVAL_MODE`, `E_EXPIRED`, `E_SAME_KEY`, `E_NO_ACTION`, `E_TOO_MANY_ACTIONS`, `E_SOUL_SIZE`, `E_POOL_NOT_READY`, `E_POOL_READY`; shirts: `E_CLAIMED`, `E_DEPOSIT`.
 
 **persona_hash (C5):** not stored on chain; the brain keeps the persona.
 
 **Care XP [FIXED, tune numbers]:** the first owner interaction per UTC day (feed by the owner, play, chat via `charge`; a stranger feeding does not count) gives +2 xp and extends `streak` (resets after a missed day). Chat xp comes from `charge`. Any write that crosses a stage threshold (5.4) emits `stage_up`.
 
-**Hybrid additions [TBD M5b]:**
-- `set_soul(pet_id, prompt)` and `get_soul(pet_id) -> { version, prompt }`: the pet's public personality (Build Spec 2). Each change bumps `version`; the brain fetches it before a reply and shows the version on the receipt. Who may write it (owner, brain, or both) and the prompt size cap are [TBD].
-- `config.fuel_price_micro`: what one chat charges [TBD value]. The brain still sends the real cost in `usage_ref` logs; the charged amount is the fixed fuel price so "1 fuel" is the same for every reply.
-- Shirt NFT mint / claim, see 5.6.
+**Hybrid additions [FIXED, M5b]:**
+- **Soul:** `nft_mint_pet(name, soul: Option<String>)` can set it at mint (version 1); `set_soul(pet_id, prompt)` is **owner only**, at most **1 KB** (`E_SOUL_SIZE`), and bumps `version`; `get_soul(pet_id) -> { version, prompt }`; `get_pet` shows `soul_version`. Only the current prompt is stored; every change emits `soul_updated { pet_id, version, prompt }`, so the full history is public in the logs. Version 0 = no soul (brain uses its default persona). The Soul stays with the pet on transfer. A full 1 KB soul at mint costs 0.019 NEAR of storage, inside `mint_storage`.
+- **Fuel price:** `config.fuel_price_micro` = 1_000 ($0.001 per chat). The brain passes it as `cost_micro_usd` on every `charge`, so "1 fuel" is the same for every reply; the real provider cost is logged off chain. Starter food (0.1 NEAR at $0.20) is about 20 chats; feeding 1 NEAR about 200.
+- **Shirts:** separate contract, see 5.6.
 
 Views: `get_pet(pet_id) -> PetView` settled to current block time: `id, owner, name, born_at_ns, food_yocto, credit_micro, budget_micro, fullness, mood, energy, asleep_since_ns, xp, stage, traits, starving_since_ns, life_state, staked, pending_unstake { amount, unlock_epoch }, daily_credit_micro, daily_burn_micro, self_sustaining, items, device_pk` (`daily_burn_micro` = metabolism + average spend, M4b; u64 timestamps and u128 amounts are JSON strings; `self_sustaining` = daily credit ≥ metabolism + `avg_daily_spend_micro`); `get_pending_actions(pet_id)`; `nft_tokens_for_owner`; `config()`.
 
@@ -356,7 +358,7 @@ Key point: wallet and device keys both belong to the owner's account, so `predec
 - Limited access keys live on the old owner's account, so the contract checks `predecessor == current owner` for device methods; old keys simply stop working.
 
 ### 7.5 Events (NEP-297, standard `nearling`, version `1.0.0`) + NEP-256 NFT events
-`fed`, `thought` (pet_id, cost, usage_ref), `credited`, `credit_swept`, `played`, `staked`, `staked_from_food`, `unstaked`, `unstake_withdrawn`, `item_bought`, `stage_up`, `dormant`, `revived`, `device_registered`, `device_cleared`, `action_proposed`, `action_approved`, `action_cancelled`.
+`fed`, `thought` (pet_id, cost, usage_ref), `credited`, `credit_swept`, `soul_updated`, `pool_registered`, `played`, `staked`, `staked_from_food`, `unstaked`, `unstake_withdrawn`, `item_bought`, `stage_up`, `dormant`, `revived`, `device_registered`, `device_cleared`, `action_proposed`, `action_approved`, `action_cancelled`.
 
 ### 7.6 Invariants
 - Only `brain` can `charge` and `credit`; both are capped. Only `admin` can change config.
@@ -524,9 +526,12 @@ Record results here.
 | `unstake(amount)` | **Requires exactly 1 yoctoNEAR attached** (contract attaches it from its own balance). Returns empty. **If the pool buffer covers the amount, NEAR is paid back immediately** (no queued withdrawal); otherwise queued with `unlock_epoch = current + 2` (epoch = 43200 blocks ≈ 12 h, so 12 to 24 h). Decision: always treat as pending (section 6 step 5) |
 | Separate unlock epoch per queued unstake | Open: only same-epoch entries seen so far (all unlock at 5424). Matters little: each pet has at most one pending unstake |
 | `withdraw()` | **Requires exactly 1 yoctoNEAR attached** (first try failed without it; the pets contract kept the unstake pending, as designed). Returns the amount paid, e.g. `"500000000000000000000000"`. Verified at epoch 5425: spike got 0.5 NEAR; `pets-v4` pet #0 withdraw paid the player 0.5 NEAR and cleared `pending_unstake` |
+| `withdraw()` after unlock (2026-11-09) | The pool was upgraded: `get_account` now shows `matured_withdrawals`, `withdrawable`, `unstake_requested`. At `unlock_epoch` a matured withdrawal can still fail with **"Withdrawal funds not collected yet; retry later"** until the pool collects it from its validator (seen on `pets-v5`, tx `GWs1GJYotNSFRdnKUiVy6atPcYJ6GykCqKzFmsmuQby8`). The pets contract keeps the unstake pending (callback restore), so the owner simply retries; web and brain should show "withdrawal processing, retry later" |
 | CREDIT accrual | CREDIT has 24 decimals. `claimable` updates after anyone calls `sync_from_farm()`. Measured: 0.7945 iNEAR earned 0.000444687 CREDIT from 2026-11-07T14:04:57Z to 2026-11-08T10:31:32Z = **657 µ$ per NEAR per day**, same as the mainnet figure and our config default |
 | `claim_and_topup(org_id)` | From `pets-v4` with 0 claimable and a placeholder org: succeeded, returned empty, did nothing. From `pets-v6` right after `sync_from_farm` with no stake: panicked "Nothing to claim" (M4b sweep, tx `E6Fp8LKY1Wjr2kYZwd8GbZnXATA7Y9NbG5GaW8Lf72WJ`). Real top-up still open: needs the brain's org id (Role 2) and ≥ 0.01 CREDIT. Note: minimum burn 0.01 CREDIT, so at about 0.000657 CREDIT per NEAR per day a sweep needs ≈ 15 NEAR-days of stake across all pets. The brain should only call `sweep_credit` when `get_account(pets).claimable ≥ 0.01 CREDIT` |
 | Wasm toolchain | Rust 1.99 + cargo-near 0.23 output deploys and runs; no toolchain pin needed |
+
+M5b on testnet (2026-11-09, `pets-v8` + `shirts.nearling.testnet`, owner `nearling-player2.testnet`): `register_pool` emitted `pool_registered` (house 0.2 NEAR = 0.11533 iNEAR); mint with a soul emitted `soul_updated` v1, `set_soul` v2, a stranger got `E_NOT_OWNER`; stake 1 NEAR recorded exactly 1 NEAR and the pool held house + 1 to the yocto; the brain charged one fuel (`cost_micro` 1000, `source` food); shirt claim minted #0, a second claim gave `E_CLAIMED`, the transfer moved it to `nearling-player1.testnet`.
 
 M3 on testnet (2026-11-07, `pets-v4`, player `nearling-player1.testnet`): stake 2 NEAR recorded 1.9945 = pool iNEAR balance; `self_sustaining: true` at 1310 µ$/day; unstake 0.5 NEAR queued at epoch 5424 in both the pet and the pool; early withdraw rejected. Stake tx `6btDMVHSYj5P3koLiGQP33WBKRqbE5i2EqWbf1VAyFfL`.
 

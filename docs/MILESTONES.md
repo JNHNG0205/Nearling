@@ -139,10 +139,13 @@ Goal: value actions need the pet's body when approval mode is on.
 
 Goal: the contract pieces the hybrid scope (`CLAUDE.md` 1.1) adds from the Build Spec.
 
-- [ ] Soul: `set_soul(pet_id, prompt)` / `get_soul(pet_id)` with a version per change (writer and size cap to decide)
-- [ ] `config.fuel_price_micro`; brain charges it per chat
-- [ ] Shirt NFT for the Closet (second collection in this contract or a separate contract, to decide)
-- [ ] Brain-side `feed(pet)` after a NEAR Intents order settles (with Role 2)
+- [x] Soul: owner-only `set_soul` (1 KB) / `get_soul`, optional soul at mint, version per change, `soul_updated` events
+- [x] `config.fuel_price_micro` = $0.001; brain charges it per chat
+- [x] Shirt NFT for the Closet: separate `shirts/` contract, one free claim per account
+- [ ] Brain-side `feed(pet)` after a NEAR Intents order settles (Role 2; contract side is the existing `feed`)
+- [x] Fix found on testnet: `register_pool` house deposit replaces the hardcoded first-deposit fee (the pool upgrade changed it)
+- [x] Deploy `pets-v8` (+ `register_pool`) and `shirts.nearling.testnet`; verified on testnet (see `CLAUDE.md` 14)
+- [x] Redeploy `pets-demo` with the M5b code, pool registered, demo speed on
 
 **Pass:**
 - Unit tests: soul version increments, size cap enforced, only the allowed writer can set it; a charge takes exactly `fuel_price_micro`; shirt ownership follows transfer
