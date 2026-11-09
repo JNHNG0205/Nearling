@@ -9,11 +9,10 @@ const HOUR_NS: u64 = 60 * MINUTE_NS;
 pub const DAY_NS: u64 = 24 * HOUR_NS;
 const YOCTO_PER_NEAR: u128 = 1_000_000_000_000_000_000_000_000;
 
-/// Mood -2 per hour awake.
-const MOOD_NS_PER_POINT: u64 = 30 * MINUTE_NS;
-/// Energy +8 per hour asleep.
-const ENERGY_NS_PER_POINT: u64 = 450 * 1_000_000_000;
-const DORMANT_AFTER_NS: u64 = 72 * HOUR_NS;
+/// Defaults for the config rates: mood -2 per hour awake, energy +8 per hour asleep.
+pub const MOOD_NS_PER_POINT: u64 = 30 * MINUTE_NS;
+pub const ENERGY_NS_PER_POINT: u64 = 450 * 1_000_000_000;
+pub const DORMANT_AFTER_NS: u64 = 72 * HOUR_NS;
 
 /// XP needed for Baby, Teen, Adult (CLAUDE.md 5.4).
 const STAGE_XP: [u32; 3] = [10, 100, 500];
@@ -23,6 +22,8 @@ const TRAIT_MOVE_PER_DAY: i8 = 2;
 const MOOD_PER_PET: u8 = 3;
 const MOOD_PER_PLAY: u8 = 5;
 const XP_PER_PLAY: u32 = 1;
+/// `charge` ignores a usage_ref seen in the pet's last this-many charges (C2).
+const USAGE_REF_WINDOW: usize = 32;
 
 pub const START_MOOD: u8 = 80;
 pub const START_ENERGY: u8 = 100;
@@ -80,6 +81,8 @@ pub struct Pet {
     pub device_staked_today: u128,
     /// Stakes sent to the pool whose callback has not run yet; transfer waits for them.
     pub stakes_in_flight: u8,
+    /// First 8 bytes of sha256(usage_ref) of the last charges, oldest first.
+    pub recent_usage_refs: Vec<u64>,
 }
 
 #[near(serializers = [json])]
@@ -110,6 +113,7 @@ pub struct Thought {
 #[derive(Debug, PartialEq)]
 pub struct ThoughtOutcome {
     pub charged_micro: u64,
+    pub from_credit_micro: u64,
     /// Food spent on this thought; goes to the treasury.
     pub food_yocto: u128,
     pub stage_up: Option<u8>,
@@ -157,6 +161,7 @@ impl Pet {
             device_pk: None,
             device_staked_today: 0,
             stakes_in_flight: 0,
+            recent_usage_refs: Vec::new(),
         }
     }
 
@@ -229,17 +234,17 @@ impl Pet {
         match action {
             PlayAction::Pet => {
                 if !cooled_down(self.last_pet_ns, now, cfg.cooldown_pet_ns) {
-                    return Err("Cooldown: try again later");
+                    return Err("E_COOLDOWN: Try again later");
                 }
                 self.last_pet_ns = Some(now);
                 self.mood = (self.mood + MOOD_PER_PET).min(100);
             }
             PlayAction::Play => {
                 if self.asleep_since_ns.is_some() {
-                    return Err("Pet is asleep");
+                    return Err("E_ASLEEP: Pet is asleep");
                 }
                 if !cooled_down(self.last_play_ns, now, cfg.cooldown_play_ns) {
-                    return Err("Cooldown: try again later");
+                    return Err("E_COOLDOWN: Try again later");
                 }
                 self.last_play_ns = Some(now);
                 self.mood = (self.mood + MOOD_PER_PLAY).min(100);
@@ -271,7 +276,9 @@ impl Pet {
             .cost_micro
             .min(cfg.charge_max_per_call_micro)
             .min(day_left);
+        let credit_before = self.credit_micro;
         let (charged_micro, food_yocto) = self.spend(cost, cfg);
+        let from_credit_micro = credit_before - self.credit_micro;
         self.spent_today_micro += charged_micro;
         if self.budget_micro(cfg) == 0 && self.starving_since_ns.is_none() {
             self.starving_since_ns = Some(now);
@@ -302,6 +309,7 @@ impl Pet {
 
         ThoughtOutcome {
             charged_micro,
+            from_credit_micro,
             food_yocto,
             stage_up,
         }
@@ -318,6 +326,23 @@ impl Pet {
         (self.staked * cfg.farm_rate_micro_per_near_day as u128 / YOCTO_PER_NEAR) as u64
     }
 
+    /// Metabolism plus average daily thought spend, in micro-USD.
+    pub fn daily_burn_micro(&self, cfg: &Config) -> u64 {
+        cfg.metabolism_micro_per_day + self.avg_daily_spend_micro
+    }
+
+    /// Records a charge's usage_ref hash; false if it was already seen (a retry).
+    pub fn remember_usage(&mut self, ref_hash: u64) -> bool {
+        if self.recent_usage_refs.contains(&ref_hash) {
+            return false;
+        }
+        if self.recent_usage_refs.len() == USAGE_REF_WINDOW {
+            self.recent_usage_refs.remove(0);
+        }
+        self.recent_usage_refs.push(ref_hash);
+        true
+    }
+
     /// Daily credit covers metabolism plus average thought spend.
     pub fn self_sustaining(&self, cfg: &Config) -> bool {
         let daily = self.daily_credit_micro(cfg);
@@ -326,10 +351,11 @@ impl Pet {
 
     /// Brings every lazy value forward to `now` (CLAUDE.md 7.1 lazy settlement).
     pub fn settle(&mut self, now: u64, cfg: &Config) {
+        self.roll_day(day_of(now));
         self.settle_credit(now, cfg);
         self.settle_budget(now, cfg);
-        let awake_from = self.settle_energy(now);
-        self.settle_mood(now, awake_from);
+        let awake_from = self.settle_energy(now, cfg.energy_ns_per_point);
+        self.settle_mood(now, awake_from, cfg.mood_ns_per_point);
     }
 
     fn settle_credit(&mut self, now: u64, cfg: &Config) {
@@ -373,38 +399,38 @@ impl Pet {
 
     /// Energy rises while asleep; auto-wake at 100. Returns when the pet was awake from,
     /// or `None` if it slept through `now`.
-    fn settle_energy(&mut self, now: u64) -> Option<u64> {
-        if self.asleep_since_ns.is_none() {
+    fn settle_energy(&mut self, now: u64, ns_per_point: u64) -> Option<u64> {
+        if self.asleep_since_ns.is_none() || ns_per_point == 0 {
             self.energy_at_ns = now;
             return Some(0);
         }
-        let points = now.saturating_sub(self.energy_at_ns) / ENERGY_NS_PER_POINT;
+        let points = now.saturating_sub(self.energy_at_ns) / ns_per_point;
         let needed = (100 - self.energy.min(100)) as u64;
         if points >= needed {
-            let woke_at = self.energy_at_ns + needed * ENERGY_NS_PER_POINT;
+            let woke_at = self.energy_at_ns + needed * ns_per_point;
             self.energy = 100;
             self.energy_at_ns = now;
             self.asleep_since_ns = None;
             return Some(woke_at);
         }
         self.energy += points as u8;
-        self.energy_at_ns += points * ENERGY_NS_PER_POINT;
+        self.energy_at_ns += points * ns_per_point;
         None
     }
 
-    fn settle_mood(&mut self, now: u64, awake_from: Option<u64>) {
-        let Some(awake_from) = awake_from else {
+    fn settle_mood(&mut self, now: u64, awake_from: Option<u64>, ns_per_point: u64) {
+        let (Some(awake_from), true) = (awake_from, ns_per_point > 0) else {
             self.mood_at_ns = now;
             return;
         };
         self.mood_at_ns = self.mood_at_ns.max(awake_from);
-        let points = now.saturating_sub(self.mood_at_ns) / MOOD_NS_PER_POINT;
+        let points = now.saturating_sub(self.mood_at_ns) / ns_per_point;
         if points >= self.mood as u64 {
             self.mood = 0;
             self.mood_at_ns = now;
         } else {
             self.mood -= points as u8;
-            self.mood_at_ns += points * MOOD_NS_PER_POINT;
+            self.mood_at_ns += points * ns_per_point;
         }
     }
 
@@ -420,7 +446,7 @@ impl Pet {
     /// Call after `settle(now)`.
     pub fn life_state(&self, now: u64, cfg: &Config) -> LifeState {
         if let Some(since) = self.starving_since_ns {
-            return if now.saturating_sub(since) >= DORMANT_AFTER_NS {
+            return if now.saturating_sub(since) >= cfg.dormant_after_ns {
                 LifeState::Dormant
             } else {
                 LifeState::Starving
@@ -830,8 +856,41 @@ mod tests {
         let mut p = pet(0, 10_000);
         p.play(PlayAction::Sleep, T0, &cfg()).unwrap();
         assert_eq!(p.asleep_since_ns, Some(T0));
-        assert_eq!(p.play(PlayAction::Play, T0, &cfg()), Err("Pet is asleep"));
+        assert_eq!(
+            p.play(PlayAction::Play, T0, &cfg()),
+            Err("E_ASLEEP: Pet is asleep")
+        );
         p.play(PlayAction::Wake, T0, &cfg()).unwrap();
         assert_eq!(p.asleep_since_ns, None);
+    }
+
+    /// About 100x: the demo-speed deployment (CLAUDE.md 7).
+    fn demo_cfg() -> Config {
+        let mut c = cfg();
+        c.mood_ns_per_point = MOOD_NS_PER_POINT / 100;
+        c.energy_ns_per_point = ENERGY_NS_PER_POINT / 100;
+        c.dormant_after_ns = DORMANT_AFTER_NS / 100;
+        c
+    }
+
+    #[test]
+    fn mood_and_energy_rates_come_from_config() {
+        let mut p = pet(0, 10_000);
+        p.settle(T0 + 10 * MINUTE_NS, &demo_cfg()); // 18 s per point
+        assert_eq!(p.mood, START_MOOD - 33);
+        p.energy = 10;
+        p.asleep_since_ns = Some(T0 + 10 * MINUTE_NS);
+        p.energy_at_ns = T0 + 10 * MINUTE_NS;
+        p.settle(T0 + 11 * MINUTE_NS, &demo_cfg()); // 4.5 s per point
+        assert_eq!(p.energy, 23);
+    }
+
+    #[test]
+    fn dormant_delay_comes_from_config() {
+        let mut p = pet(0, 0);
+        p.settle(T0, &demo_cfg());
+        let later = T0 + 44 * MINUTE_NS; // 72 h / 100 = 43.2 min
+        assert_eq!(p.life_state(later, &demo_cfg()), LifeState::Dormant);
+        assert_eq!(p.life_state(later, &cfg()), LifeState::Starving);
     }
 }

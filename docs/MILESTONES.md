@@ -103,16 +103,18 @@ Goal: the device can act for the pet, safely, and transfer is safe.
 
 Goal: settle the contract asks in `conceptual/05-api-contract.md` (C1 to C9) before M5 so brain and web can build on a stable interface.
 
-- [ ] C2: idempotent `charge` (repeat `usage_ref` among the pet's last 32 charges = no-op)
-- [ ] C3: `source` in the `thought` event
-- [ ] C4: stable `E_` panic codes on every message
-- [ ] C1: `daily_burn_micro` in `get_pet`
-- [ ] C6: mood, energy and dormant rates in `Config`, `demo_speed` flag; deploy `pets-demo.nearling.testnet` at about 100×
-- [ ] C9: `sweep_credit` = `sync_from_farm` then `claim_and_topup`
+- [x] C2: idempotent `charge` (repeat `usage_ref` among the pet's last 32 charges = no-op)
+- [x] C3: `source` in the `thought` event
+- [x] C4: stable `E_` panic codes on every message
+- [x] C1: `daily_burn_micro` in `get_pet`
+- [x] C6: mood, energy and dormant rates in `Config`, `demo_speed` flag
+- [ ] C6: deploy `pets-demo.nearling.testnet` at about 100× (needs ~3.8 NEAR)
+- [x] C9: `sweep_credit` = `sync_from_farm` then `claim_and_topup`
 
 **Pass:**
 - Unit tests: repeated `usage_ref` charges once; `source` correct for credit, food, mixed and empty budget; every `should_panic` test matches its `E_` code; `daily_burn_micro` = metabolism + average spend
 - On testnet: demo-speed pet goes hungry to starving to dormant within an hour; `sweep_credit` runs both pool calls in one transaction
+- Status 2026-11-09 on `pets-v6`: repeated `usage_ref` charged once, `source` reported, `E_NOT_OWNER` code seen, `daily_burn_micro` shown, sweep ran sync + claim in one tx (15 Tgas burnt). Demo deployment still open
 
 ---
 

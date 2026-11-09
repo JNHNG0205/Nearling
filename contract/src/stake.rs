@@ -13,6 +13,9 @@ use near_sdk::{env, near, require, AccountId, Gas, NearToken, Promise, PromiseEr
 const POOL_GAS: Gas = Gas::from_tgas(400);
 const CALLBACK_GAS: Gas = Gas::from_tgas(20);
 const MIN_PREPAID: Gas = Gas::from_tgas(430);
+/// `claimable` only updates after `sync_from_farm` (S6), so a sweep syncs first.
+const SYNC_GAS: Gas = Gas::from_tgas(150);
+const MIN_PREPAID_SWEEP: Gas = Gas::from_tgas(600);
 /// Unstake epochs: current + farm delay (1 on testnet) + 1.
 const UNLOCK_EPOCHS: u64 = 2;
 
@@ -24,7 +27,7 @@ impl Contract {
         let owner = self.require_owner(&pet_id);
         let amount = env::attached_deposit();
         let min = self.config.min_stake;
-        require!(amount >= min, format!("Stake at least {min}"));
+        require!(amount >= min, format!("E_MIN_STAKE: Stake at least {min}"));
         let mut pet = self.load_pet(&pet_id);
         pet.stakes_in_flight += 1;
         self.save_pet(&pet_id, pet);
@@ -60,8 +63,14 @@ impl Contract {
     pub fn unstake(&mut self, pet_id: TokenId, amount: U128) -> Promise {
         self.require_owner(&pet_id);
         let mut pet = self.load_pet(&pet_id);
-        require!(pet.pending_unstake.is_none(), "Unstake already pending");
-        require!(amount.0 > 0 && amount.0 <= pet.staked, "Not enough stake");
+        require!(
+            pet.pending_unstake.is_none(),
+            "E_UNSTAKE_PENDING: Unstake already pending"
+        );
+        require!(
+            amount.0 > 0 && amount.0 <= pet.staked,
+            "E_NO_STAKE: Not enough stake"
+        );
         pet.staked -= amount.0;
         pet.pending_unstake = Some(PendingUnstake {
             amount,
@@ -99,10 +108,10 @@ impl Contract {
         let pending = pet
             .pending_unstake
             .take()
-            .unwrap_or_else(|| env::panic_str("No unstake pending"));
+            .unwrap_or_else(|| env::panic_str("E_NO_UNSTAKE: No unstake pending"));
         require!(
             env::epoch_height() >= pending.unlock_epoch.0,
-            "Unstake still locked"
+            "E_LOCKED: Unstake still locked"
         );
         self.save_pet(&pet_id, pet);
         self.pool_call("withdraw", json!({}), NearToken::from_yoctonear(1))
@@ -132,8 +141,25 @@ impl Contract {
 
     /// Anyone; CREDIT can only go to `config.org_id`.
     pub fn sweep_credit(&mut self) -> Promise {
+        require!(
+            env::prepaid_gas() >= MIN_PREPAID_SWEEP,
+            "E_GAS: Attach at least 600 Tgas"
+        );
+        let pool = self.config.pool.clone();
         let args = json!({ "org_id": self.config.org_id });
-        self.pool_call("claim_and_topup", args, NearToken::from_yoctonear(0))
+        Promise::new(pool.clone())
+            .function_call(
+                "sync_from_farm".to_string(),
+                b"{}".to_vec(),
+                NearToken::from_yoctonear(0),
+                SYNC_GAS,
+            )
+            .then(Promise::new(pool).function_call(
+                "claim_and_topup".to_string(),
+                args.to_string().into_bytes(),
+                NearToken::from_yoctonear(0),
+                POOL_GAS,
+            ))
             .then(self.callback().on_sweep())
     }
 
@@ -164,14 +190,17 @@ impl Contract {
 
     pub(crate) fn require_owner(&self, pet_id: &TokenId) -> AccountId {
         let owner = self.owner_of(pet_id);
-        require!(env::predecessor_account_id() == owner, "Only the owner");
+        require!(
+            env::predecessor_account_id() == owner,
+            "E_NOT_OWNER: Only the owner"
+        );
         owner
     }
 
     pub(crate) fn pool_call(&self, method: &str, args: Value, deposit: NearToken) -> Promise {
         require!(
             env::prepaid_gas() >= MIN_PREPAID,
-            "Attach at least 430 Tgas"
+            "E_GAS: Attach at least 430 Tgas"
         );
         Promise::new(self.config.pool.clone()).function_call(
             method.to_string(),

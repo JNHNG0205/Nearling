@@ -19,14 +19,14 @@ impl Contract {
             .iter()
             .find(|i| i.id == item_id)
             .cloned()
-            .unwrap_or_else(|| env::panic_str("Unknown item"));
+            .unwrap_or_else(|| env::panic_str("E_ITEM: Unknown item"));
         require!(
             env::attached_deposit() == item.price,
-            format!("Attach exactly {}", item.price)
+            format!("E_DEPOSIT: Attach exactly {}", item.price)
         );
         let mut pet = self.load_pet(&pet_id);
-        require!(!pet.items.contains(&item_id), "Already owned");
-        require!(pet.items.len() < MAX_ITEMS, "At most 5 items");
+        require!(!pet.items.contains(&item_id), "E_ITEM: Already owned");
+        require!(pet.items.len() < MAX_ITEMS, "E_ITEM: At most 5 items");
         pet.items.push(item_id);
         pet.mood = (pet.mood + item.mood_bonus).min(100);
         self.save_pet(&pet_id, pet);

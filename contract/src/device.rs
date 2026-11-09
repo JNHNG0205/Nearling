@@ -36,22 +36,25 @@ impl Contract {
         let mut pet = self.load_pet(&pet_id);
         require!(
             pet.device_pk.as_ref() == Some(&env::signer_account_pk()),
-            "Only the pet's device"
+            "E_NOT_DEVICE: Only the pet's device"
         );
         let cfg = &self.config;
         let (min, max) = (cfg.device_stake_min, cfg.device_stake_max_per_action);
         require!(
             amount.0 >= min.as_yoctonear() && amount.0 <= max.as_yoctonear(),
-            format!("Device stake must be {min} to {max}")
+            format!("E_DEVICE_CAP: Device stake must be {min} to {max}")
         );
         pet.roll_day(day_of(env::block_timestamp()));
         require!(
             pet.device_staked_today + amount.0 <= cfg.device_stake_max_per_day.as_yoctonear(),
-            "Device daily stake cap"
+            "E_DEVICE_CAP: Device daily stake cap"
         );
         let burn_micro = (cfg.metabolism_micro_per_day + pet.avg_daily_spend_micro) as u128;
         let reserve = (burn_micro * YOCTO_PER_NEAR).div_ceil(cfg.near_usd_rate_micro as u128);
-        require!(pet.food_yocto >= amount.0 + reserve, "Keep a day of food");
+        require!(
+            pet.food_yocto >= amount.0 + reserve,
+            "E_FOOD_RESERVE: Keep a day of food"
+        );
         pet.food_yocto -= amount.0;
         pet.device_staked_today += amount.0;
         pet.stakes_in_flight += 1;

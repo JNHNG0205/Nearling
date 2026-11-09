@@ -12,7 +12,7 @@ impl Contract {
     #[payable]
     pub fn feed(&mut self, pet_id: TokenId) {
         let amount = env::attached_deposit();
-        require!(!amount.is_zero(), "Attach NEAR to feed");
+        require!(!amount.is_zero(), "E_DEPOSIT: Attach NEAR to feed");
         let mut pet = self.load_pet(&pet_id);
         pet.food_yocto += amount.as_yoctonear();
         pet.mood = (pet.mood + 5).min(100);
@@ -43,6 +43,10 @@ impl Contract {
     ) {
         self.require_brain();
         let mut pet = self.load_pet(&pet_id);
+        let hash = env::sha256_array(usage_ref.as_bytes());
+        if !pet.remember_usage(u64::from_le_bytes(hash[..8].try_into().unwrap())) {
+            return;
+        }
         let thought = Thought {
             cost_micro: cost_micro_usd,
             xp_gain,
@@ -56,9 +60,20 @@ impl Contract {
                 .transfer(NearToken::from_yoctonear(out.food_yocto))
                 .detach();
         }
+        let source = match (out.from_credit_micro, out.food_yocto) {
+            (0, 0) => "none",
+            (_, 0) => "credit",
+            (0, _) => "food",
+            _ => "mixed",
+        };
         events::emit(
             "thought",
-            json!({ "pet_id": pet_id, "cost_micro": out.charged_micro, "usage_ref": usage_ref }),
+            json!({
+                "pet_id": pet_id,
+                "cost_micro": out.charged_micro,
+                "usage_ref": usage_ref,
+                "source": source,
+            }),
         );
         self.emit_stage_up(&pet_id, out.stage_up);
     }
@@ -68,7 +83,7 @@ impl Contract {
         self.require_brain();
         require!(
             micro_usd <= self.config.credit_correction_max_micro,
-            "Credit above correction cap"
+            "E_CREDIT_CAP: Credit above correction cap"
         );
         let mut pet = self.load_pet(&pet_id);
         pet.credit_micro = pet.credit_micro.saturating_add(micro_usd);
@@ -87,7 +102,7 @@ impl Contract {
     fn require_brain(&self) {
         require!(
             env::predecessor_account_id() == self.config.brain,
-            "Only brain"
+            "E_NOT_BRAIN: Only brain"
         );
     }
 

@@ -55,7 +55,7 @@ impl Contract {
         let mut pet = self.load_pet(token_id);
         require!(
             pet.staked == 0 && pet.pending_unstake.is_none() && pet.stakes_in_flight == 0,
-            "Unstake and withdraw before transfer"
+            "E_STAKED: Unstake and withdraw before transfer"
         );
         if let Some(old) = pet.device_pk.take() {
             events::emit(

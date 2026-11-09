@@ -58,6 +58,11 @@ pub struct Config {
     pub device_stake_max_per_day: NearToken,
     pub cooldown_pet_ns: u64,
     pub cooldown_play_ns: u64,
+    pub mood_ns_per_point: u64,
+    pub energy_ns_per_point: u64,
+    pub dormant_after_ns: u64,
+    /// Fast rates for judges; clients label this deployment "demo speed".
+    pub demo_speed: bool,
     pub items: Vec<Item>,
 }
 
@@ -94,6 +99,10 @@ impl Config {
             device_stake_max_per_day: NearToken::from_near(5),
             cooldown_pet_ns: 5 * MINUTE_NS,
             cooldown_play_ns: MINUTE_NS,
+            mood_ns_per_point: pet::MOOD_NS_PER_POINT,
+            energy_ns_per_point: pet::ENERGY_NS_PER_POINT,
+            dormant_after_ns: pet::DORMANT_AFTER_NS,
+            demo_speed: false,
             items: Vec::new(),
         }
     }
@@ -142,6 +151,7 @@ pub struct PetView {
     pub staked: U128,
     pub pending_unstake: Option<PendingUnstake>,
     pub daily_credit_micro: u64,
+    pub daily_burn_micro: u64,
     pub self_sustaining: bool,
     pub items: Vec<u16>,
     pub device_pk: Option<PublicKey>,
@@ -182,9 +192,12 @@ impl Contract {
             .saturating_add(self.config.starter_food);
         require!(
             env::attached_deposit() == price,
-            format!("Attach exactly {price}")
+            format!("E_DEPOSIT: Attach exactly {price}")
         );
-        require!((1..=32).contains(&name.len()), "Name must be 1 to 32 bytes");
+        require!(
+            (1..=32).contains(&name.len()),
+            "E_NAME: Name must be 1 to 32 bytes"
+        );
 
         let storage_before = env::storage_usage();
         let id = self.next_id.to_string();
@@ -210,7 +223,7 @@ impl Contract {
         let used = env::storage_usage() - storage_before;
         require!(
             env::storage_byte_cost().saturating_mul(used as u128) <= self.config.mint_storage,
-            "mint_storage does not cover storage"
+            "E_STORAGE: mint_storage does not cover storage"
         );
         NftMint {
             owner_id: &owner,
@@ -232,6 +245,7 @@ impl Contract {
             fullness: pet.fullness(cfg),
             budget_micro: pet.budget_micro(cfg),
             daily_credit_micro: pet.daily_credit_micro(cfg),
+            daily_burn_micro: pet.daily_burn_micro(cfg),
             self_sustaining: pet.self_sustaining(cfg),
             id: pet_id,
             name: pet.name,
@@ -255,7 +269,7 @@ impl Contract {
     pub fn set_config(&mut self, config: Config) {
         require!(
             env::predecessor_account_id() == self.config.admin,
-            "Only admin"
+            "E_NOT_ADMIN: Only admin"
         );
         self.config = config;
     }
@@ -270,14 +284,14 @@ impl Contract {
         self.pets
             .get(id)
             .cloned()
-            .unwrap_or_else(|| env::panic_str("Unknown pet"))
+            .unwrap_or_else(|| env::panic_str("E_UNKNOWN_PET: Unknown pet"))
     }
 
     fn owner_of(&self, id: &TokenId) -> AccountId {
         self.tokens
             .owner_by_id
             .get(id)
-            .unwrap_or_else(|| env::panic_str("Unknown pet"))
+            .unwrap_or_else(|| env::panic_str("E_UNKNOWN_PET: Unknown pet"))
     }
 
     /// Write path: load and settle to now, recording any life state change.
@@ -333,6 +347,10 @@ mod tests {
         assert_eq!(c.admin, accounts(0));
         assert_eq!(c.min_stake, NearToken::from_near(1));
         assert_eq!(c.charge_max_per_call_micro, 5_000);
+        assert_eq!(c.mood_ns_per_point, 30 * MINUTE_NS);
+        assert_eq!(c.energy_ns_per_point, 450 * 1_000_000_000);
+        assert_eq!(c.dormant_after_ns, 72 * 60 * MINUTE_NS);
+        assert!(!c.demo_speed);
     }
 
     #[test]
@@ -345,7 +363,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Only admin")]
+    #[should_panic(expected = "E_NOT_ADMIN: Only admin")]
     fn non_admin_cannot_set_config() {
         let mut contract = setup();
         let c = contract.config();
@@ -403,7 +421,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Attach exactly 0.200 NEAR")]
+    #[should_panic(expected = "E_DEPOSIT: Attach exactly 0.200 NEAR")]
     fn mint_rejects_wrong_deposit() {
         let mut contract = setup();
         ctx(accounts(3), NearToken::from_millinear(199), DAY);
@@ -411,7 +429,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Name must be 1 to 32 bytes")]
+    #[should_panic(expected = "E_NAME: Name must be 1 to 32 bytes")]
     fn mint_rejects_long_name() {
         let mut contract = setup();
         ctx(accounts(3), MINT, DAY);
@@ -441,7 +459,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Unknown pet")]
+    #[should_panic(expected = "E_UNKNOWN_PET: Unknown pet")]
     fn get_pet_rejects_unknown_id() {
         setup().get_pet("7".into());
     }
@@ -461,7 +479,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Attach NEAR to feed")]
+    #[should_panic(expected = "E_DEPOSIT: Attach NEAR to feed")]
     fn feed_rejects_zero_deposit() {
         let (mut contract, id) = minted();
         ctx(accounts(4), NearToken::from_yoctonear(0), DAY);
@@ -501,8 +519,12 @@ mod tests {
         ctx(accounts(1), NearToken::from_yoctonear(0), ts);
     }
 
+    /// One charge with a fresh usage_ref (repeats are no-ops, C2).
     fn chat(contract: &mut Contract, id: &TokenId, cost: u64, xp: u32) {
-        contract.charge(id.clone(), cost, "inf-1".into(), None, xp, 0);
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static NEXT: AtomicU64 = AtomicU64::new(0);
+        let usage_ref = format!("inf-{}", NEXT.fetch_add(1, Ordering::Relaxed));
+        contract.charge(id.clone(), cost, usage_ref, None, xp, 0);
     }
 
     fn transfers_to(who: &AccountId) -> Vec<NearToken> {
@@ -518,7 +540,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Only brain")]
+    #[should_panic(expected = "E_NOT_BRAIN: Only brain")]
     fn charge_by_non_brain_is_rejected() {
         let (mut contract, id) = minted();
         ctx(accounts(3), NearToken::from_yoctonear(0), DAY);
@@ -539,7 +561,7 @@ mod tests {
         let ev = events();
         assert!(ev.iter().any(|e| e.contains("\"event\":\"thought\"")
             && e.contains("\"cost_micro\":1000")
-            && e.contains("\"usage_ref\":\"inf-1\"")));
+            && e.contains("\"usage_ref\":\"inf-")));
     }
 
     #[test]
@@ -577,7 +599,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Only brain")]
+    #[should_panic(expected = "E_NOT_BRAIN: Only brain")]
     fn credit_by_non_brain_is_rejected() {
         let (mut contract, id) = minted();
         ctx(accounts(3), NearToken::from_yoctonear(0), DAY);
@@ -585,7 +607,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Credit above correction cap")]
+    #[should_panic(expected = "E_CREDIT_CAP: Credit above correction cap")]
     fn credit_above_cap_is_rejected() {
         let (mut contract, id) = minted();
         as_brain(DAY);
@@ -677,7 +699,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Only the owner")]
+    #[should_panic(expected = "E_NOT_OWNER: Only the owner")]
     fn stake_by_non_owner_is_rejected() {
         let (mut contract, id) = minted();
         ctx_full(accounts(4), NearToken::from_near(2), DAY, 10);
@@ -685,7 +707,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Stake at least")]
+    #[should_panic(expected = "E_MIN_STAKE: Stake at least")]
     fn stake_below_minimum_is_rejected() {
         let (mut contract, id) = minted();
         ctx_full(accounts(3), NearToken::from_millinear(999), DAY, 10);
@@ -751,7 +773,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Unstake already pending")]
+    #[should_panic(expected = "E_UNSTAKE_PENDING: Unstake already pending")]
     fn second_unstake_while_pending_is_rejected() {
         let (mut contract, id) = staked(10);
         ctx_full(accounts(3), NearToken::from_yoctonear(0), DAY, 10);
@@ -760,7 +782,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Not enough stake")]
+    #[should_panic(expected = "E_NO_STAKE: Not enough stake")]
     fn unstake_more_than_staked_is_rejected() {
         let (mut contract, id) = staked(1);
         ctx_full(accounts(3), NearToken::from_yoctonear(0), DAY, 10);
@@ -789,7 +811,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Unstake still locked")]
+    #[should_panic(expected = "E_LOCKED: Unstake still locked")]
     fn withdraw_before_unlock_is_rejected() {
         let (mut contract, id) = unstaked_2();
         ctx_full(accounts(3), NearToken::from_yoctonear(0), DAY, 11);
@@ -823,10 +845,19 @@ mod tests {
     #[test]
     fn anyone_can_sweep_credit_to_the_configured_org() {
         let mut contract = setup();
-        ctx_full(accounts(4), NearToken::from_yoctonear(0), DAY, 10);
+        testing_env!(VMContextBuilder::new()
+            .predecessor_account_id(accounts(4))
+            .prepaid_gas(near_sdk::Gas::from_tgas(650))
+            .build());
         let _ = contract.sweep_credit();
         let args = "{\"org_id\":\"org\"}".to_string();
-        assert_eq!(pool_calls(), vec![("claim_and_topup".into(), args, 0, 400)]);
+        assert_eq!(
+            pool_calls(),
+            vec![
+                ("sync_from_farm".into(), "{}".into(), 0, 150),
+                ("claim_and_topup".into(), args, 0, 400)
+            ]
+        );
         callback(true);
         contract.on_sweep();
         assert!(events().iter().any(|e| e.contains("credit_swept")));
@@ -882,7 +913,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Only the owner")]
+    #[should_panic(expected = "E_NOT_OWNER: Only the owner")]
     fn stranger_cannot_play() {
         let (mut contract, id) = minted();
         ctx(accounts(4), NearToken::from_yoctonear(0), DAY);
@@ -890,7 +921,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Cooldown")]
+    #[should_panic(expected = "E_COOLDOWN: ")]
     fn petting_twice_inside_the_cooldown_is_rejected() {
         let (mut contract, id) = minted();
         ctx(accounts(3), NearToken::from_yoctonear(0), DAY);
@@ -909,7 +940,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Only the owner")]
+    #[should_panic(expected = "E_NOT_OWNER: Only the owner")]
     fn stranger_cannot_register_a_device() {
         let (mut contract, id) = minted();
         ctx(accounts(4), NearToken::from_yoctonear(0), DAY);
@@ -946,7 +977,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Only the pet's device")]
+    #[should_panic(expected = "E_NOT_DEVICE: Only the pet's device")]
     fn wallet_key_cannot_use_the_device_method() {
         let (mut contract, id) = with_device();
         ctx_signed(accounts(3), wallet_pk(), NearToken::from_yoctonear(0));
@@ -954,21 +985,21 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Device stake must be")]
+    #[should_panic(expected = "E_DEVICE_CAP: Device stake must be")]
     fn device_stake_below_one_near_is_rejected() {
         let (mut contract, id) = with_device();
         device_stake(&mut contract, &id, 990);
     }
 
     #[test]
-    #[should_panic(expected = "Device stake must be")]
+    #[should_panic(expected = "E_DEVICE_CAP: Device stake must be")]
     fn device_stake_above_two_near_is_rejected() {
         let (mut contract, id) = with_device();
         device_stake(&mut contract, &id, 2_010);
     }
 
     #[test]
-    #[should_panic(expected = "Device daily stake cap")]
+    #[should_panic(expected = "E_DEVICE_CAP: Device daily stake cap")]
     fn device_stake_is_capped_per_day() {
         let (mut contract, id) = with_device();
         ctx(accounts(3), NearToken::from_near(10), DAY);
@@ -979,7 +1010,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Keep a day of food")]
+    #[should_panic(expected = "E_FOOD_RESERVE: Keep a day of food")]
     fn device_stake_keeps_one_day_of_food() {
         let (mut contract, id) = minted();
         ctx(accounts(3), NearToken::from_millinear(900), DAY);
@@ -990,7 +1021,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Unstake and withdraw before transfer")]
+    #[should_panic(expected = "E_STAKED: Unstake and withdraw before transfer")]
     fn transfer_is_blocked_while_staked() {
         let (mut contract, id) = staked(2);
         ctx(accounts(3), NearToken::from_yoctonear(1), DAY);
@@ -998,7 +1029,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Unstake and withdraw before transfer")]
+    #[should_panic(expected = "E_STAKED: Unstake and withdraw before transfer")]
     fn transfer_is_blocked_while_a_stake_is_in_flight() {
         let (mut contract, id) = minted();
         ctx_full(accounts(3), NearToken::from_near(2), DAY, 10);
@@ -1008,7 +1039,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Only the owner")]
+    #[should_panic(expected = "E_NOT_OWNER: Only the owner")]
     fn transfer_clears_the_device_so_the_old_owner_device_stops_working() {
         let (mut contract, id) = with_device();
         ctx(accounts(3), NearToken::from_yoctonear(1), DAY);
@@ -1048,7 +1079,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Already owned")]
+    #[should_panic(expected = "E_ITEM: Already owned")]
     fn buying_the_same_item_twice_is_rejected() {
         let (mut contract, id) = with_shop();
         ctx(accounts(3), NearToken::from_millinear(500), DAY);
@@ -1057,7 +1088,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Attach exactly")]
+    #[should_panic(expected = "E_DEPOSIT: Attach exactly")]
     fn buying_with_the_wrong_price_is_rejected() {
         let (mut contract, id) = with_shop();
         ctx(accounts(3), NearToken::from_millinear(400), DAY);
@@ -1065,7 +1096,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Unknown item")]
+    #[should_panic(expected = "E_ITEM: Unknown item")]
     fn buying_an_unknown_item_is_rejected() {
         let (mut contract, id) = with_shop();
         ctx(accounts(3), NearToken::from_millinear(500), DAY);
@@ -1073,7 +1104,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "At most 5 items")]
+    #[should_panic(expected = "E_ITEM: At most 5 items")]
     fn a_pet_holds_at_most_five_items() {
         let (mut contract, id) = minted();
         let mut cfg = contract.config();
@@ -1090,5 +1121,108 @@ mod tests {
         for i in 1..=6 {
             contract.buy_item(id.clone(), i);
         }
+    }
+
+    #[test]
+    #[should_panic(expected = "E_GAS: Attach at least 430 Tgas")]
+    fn pool_calls_need_enough_gas() {
+        let (mut contract, id) = minted();
+        testing_env!(VMContextBuilder::new()
+            .predecessor_account_id(accounts(3))
+            .attached_deposit(NearToken::from_near(2))
+            .block_timestamp(DAY)
+            .prepaid_gas(near_sdk::Gas::from_tgas(300))
+            .build());
+        let _ = contract.stake(id);
+    }
+
+    #[test]
+    #[should_panic(expected = "E_GAS: Attach at least 600 Tgas")]
+    fn sweep_needs_gas_for_both_pool_calls() {
+        let mut contract = setup();
+        ctx_full(accounts(4), NearToken::from_yoctonear(0), DAY, 10); // 450 Tgas
+        let _ = contract.sweep_credit();
+    }
+
+    #[test]
+    #[should_panic(expected = "E_NO_UNSTAKE: No unstake pending")]
+    fn withdraw_without_unstake_is_rejected() {
+        let (mut contract, id) = staked(2);
+        ctx_full(accounts(3), NearToken::from_yoctonear(0), DAY, 10);
+        let _ = contract.withdraw(id);
+    }
+
+    fn thought_events() -> Vec<String> {
+        events()
+            .into_iter()
+            .filter(|e| e.contains("\"event\":\"thought\""))
+            .collect()
+    }
+
+    fn charge_ref(contract: &mut Contract, id: &TokenId, cost: u64, usage_ref: &str) {
+        contract.charge(id.clone(), cost, usage_ref.into(), None, 0, 0);
+    }
+
+    #[test]
+    fn repeating_a_usage_ref_charges_once() {
+        let (mut contract, id) = minted();
+        as_brain(DAY);
+        charge_ref(&mut contract, &id, 1_000, "inf-7");
+        charge_ref(&mut contract, &id, 1_000, "inf-7");
+        assert_eq!(contract.get_pet(id).budget_micro, 19_000);
+        assert_eq!(thought_events().len(), 1);
+    }
+
+    #[test]
+    fn usage_refs_are_remembered_for_the_last_32_charges() {
+        let (mut contract, id) = minted();
+        as_brain(DAY);
+        charge_ref(&mut contract, &id, 100, "first");
+        for i in 0..32 {
+            charge_ref(&mut contract, &id, 100, &format!("other-{i}"));
+        }
+        charge_ref(&mut contract, &id, 100, "first");
+        assert_eq!(thought_events().len(), 34, "first fell out of the window");
+    }
+
+    #[test]
+    fn thought_reports_where_the_money_came_from() {
+        let (mut contract, id) = minted();
+        as_brain(DAY);
+        contract.credit(id.clone(), 1_500, "c".into());
+        charge_ref(&mut contract, &id, 1_000, "a"); // credit only
+        charge_ref(&mut contract, &id, 1_000, "b"); // 500 credit + 500 food
+        charge_ref(&mut contract, &id, 1_000, "c"); // food only
+        let sources: Vec<String> = thought_events()
+            .iter()
+            .map(|e| {
+                e.split("\"source\":\"")
+                    .nth(1)
+                    .unwrap()
+                    .split('"')
+                    .next()
+                    .unwrap()
+                    .to_string()
+            })
+            .collect();
+        assert_eq!(sources, ["credit", "mixed", "food"]);
+    }
+
+    #[test]
+    fn thought_on_an_empty_budget_reports_source_none() {
+        let (mut contract, id) = minted();
+        as_brain(DAY + 30 * DAY);
+        charge_ref(&mut contract, &id, 1_000, "a");
+        assert!(thought_events()[0].contains("\"source\":\"none\""));
+    }
+
+    #[test]
+    fn get_pet_reports_daily_burn() {
+        let (mut contract, id) = minted();
+        as_brain(DAY);
+        charge_ref(&mut contract, &id, 4_000, "a");
+        ctx(accounts(4), NearToken::from_yoctonear(0), 2 * DAY);
+        // metabolism 1_000 + average spend (0 * 3 + 4_000) / 4
+        assert_eq!(contract.get_pet(id).daily_burn_micro, 2_000);
     }
 }
