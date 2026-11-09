@@ -110,7 +110,7 @@ nearling/
 ├── art/                         # sprite sheets (PNG) + sprite JSON
 ├── scripts/                     # deploy-testnet.sh, seed-demo.sh
 ├── spikes/                      # throwaway spike code (e.g. s6-nearon), results go to section 14
-└── docs/                        # DEMO.md, ARCHITECTURE.md, MILESTONES.md (contract milestones)
+└── docs/                        # MILESTONES.md, CONTRACT_INTERFACE.md (client quick reference), abi/ (generated ABIs), Build Spec
 ```
 
 **Team split (4 people):**
@@ -557,7 +557,9 @@ Evidence: stake tx `FLjbh7CA1tRw9TknMGRctba4DjFnQr9dCKQgmiFF9sT6`; failed unstak
 cargo check --target wasm32-unknown-unknown        # near-sdk 5.x refuses plain host builds
 cargo test
 cargo near build non-reproducible-wasm             # cargo-near 0.23; output in target/near/ [VERIFY on first deploy]
-./scripts/deploy-testnet.sh
+./scripts/deploy-testnet.sh                        # DEMO_SPEED=1 for pets-demo; registers the NEARON pool
+./scripts/deploy-shirts.sh
+./scripts/seed-demo.sh                             # demo pets in each state (owner nearling-seed.testnet)
 
 # brain
 pnpm --filter brain dev
