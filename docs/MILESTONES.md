@@ -145,7 +145,7 @@ Goal: the contract pieces the hybrid scope (`CLAUDE.md` 1.1) adds from the Build
 - [ ] Brain-side `feed(pet)` after a NEAR Intents order settles (Role 2; contract side is the existing `feed`)
 - [x] Fix found on testnet: `register_pool` house deposit replaces the hardcoded first-deposit fee (the pool upgrade changed it)
 - [x] Deploy `pets-v8` (+ `register_pool`) and `shirts.nearling.testnet`; verified on testnet (see `CLAUDE.md` 14)
-- [ ] Redeploy `pets-demo` with the M5b code (old demo still runs M4b code)
+- [x] Redeploy `pets-demo` with the M5b code, pool registered, demo speed on
 
 **Pass:**
 - Unit tests: soul version increments, size cap enforced, only the allowed writer can set it; a charge takes exactly `fuel_price_micro`; shirt ownership follows transfer

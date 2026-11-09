@@ -15,6 +15,14 @@ fi
 FUND="${FUND:-4.5 NEAR}"   # wasm ~375 KB locks ~3.8 NEAR of storage, plus the house deposit
 HOUSE="${HOUSE:-0.2 NEAR}"  # register_pool: absorbs NEARON's one-time first-deposit fee
 
+# The parent pays FUND and HOUSE, and near-cli pre-checks 450 Tgas of register_pool gas (~0.45 NEAR).
+NEED=$(python3 -c "import sys; print(float(sys.argv[1].split()[0]) + float(sys.argv[2].split()[0]) + 0.5)" "$FUND" "$HOUSE")
+HAVE=$(near account view-account-summary "$NEAR_PARENT_ACCOUNT" network-config testnet now 2>/dev/null \
+  | grep -i "native account balance" | grep -oE '[0-9]+(\.[0-9]+)?' | head -1)
+if python3 -c "import sys; sys.exit(0 if float(sys.argv[1]) >= float(sys.argv[2]) else 1)" "$HAVE" "$NEED"; then :; else
+  echo "$NEAR_PARENT_ACCOUNT has $HAVE NEAR, needs about $NEED NEAR. Top it up first." >&2; exit 1
+fi
+
 echo "Building..."
 (cd "$ROOT/contract" && cargo near build non-reproducible-wasm)
 WASM="$ROOT/contract/target/near/nearling_pets.wasm"
