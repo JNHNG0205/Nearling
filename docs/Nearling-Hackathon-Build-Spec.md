@@ -48,7 +48,7 @@ The team adopted this spec's features and hardware with one change: **the pet's 
 | Brain Garden (stretch) | Already working: `stake(pet_id)` into NEARON, credit accrues per pet on chain, `self_sustaining` in `get_pet` |
 | Wallet and transfer approvals via backend + Meteor | Unchanged here; pet transfer is blocked while staked and resets the device and approvals on chain |
 
-Live contracts: `pets-v7.nearling.testnet` (current), `pets-demo.nearling.testnet` (about 100× speed for judges, labelled "demo speed").
+Live contracts: `pets-v8.nearling.testnet` (current), `shirts.nearling.testnet` (Closet shirts, one free claim per account), `pets-demo.nearling.testnet` (about 100× speed for judges, labelled "demo speed"). Fuel price: $0.001 per chat (`config.fuel_price_micro`). Soul: owner-only `set_soul`, at most 1 KB, version per change.
 
 ## Core features
 

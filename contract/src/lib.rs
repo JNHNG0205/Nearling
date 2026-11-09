@@ -8,6 +8,7 @@ mod items;
 mod nft;
 mod pet;
 mod play;
+mod soul;
 mod stake;
 
 use near_contract_standards::non_fungible_token::events::NftMint;
@@ -45,6 +46,8 @@ pub struct Config {
     pub mint_storage: NearToken,
     pub starter_food: NearToken,
     pub metabolism_micro_per_day: u64,
+    /// What the brain charges per chat: "1 fuel" (CLAUDE.md 1.1).
+    pub fuel_price_micro: u64,
     pub charge_max_per_call_micro: u64,
     pub charge_max_per_day_micro: u64,
     pub xp_max_per_call: u32,
@@ -52,8 +55,6 @@ pub struct Config {
     pub mood_delta_max: u8,
     pub credit_correction_max_micro: u64,
     pub min_stake: NearToken,
-    /// Taken once by the pool on the contract's first deposit (S6: 0.0055 NEAR).
-    pub pool_first_deposit_fee: NearToken,
     pub device_stake_min: NearToken,
     pub device_stake_max_per_action: NearToken,
     pub device_stake_max_per_day: NearToken,
@@ -87,6 +88,7 @@ impl Config {
             mint_storage: NearToken::from_millinear(100),
             starter_food: NearToken::from_millinear(100),
             metabolism_micro_per_day: 1_000,
+            fuel_price_micro: 1_000,
             charge_max_per_call_micro: 5_000,
             charge_max_per_day_micro: 100_000,
             xp_max_per_call: 5,
@@ -94,7 +96,6 @@ impl Config {
             mood_delta_max: 10,
             credit_correction_max_micro: 100_000,
             min_stake: NearToken::from_near(1),
-            pool_first_deposit_fee: NearToken::from_micronear(5_500),
             device_stake_min: NearToken::from_near(1),
             device_stake_max_per_action: NearToken::from_near(2),
             device_stake_max_per_day: NearToken::from_near(5),
@@ -116,7 +117,7 @@ pub struct Contract {
     tokens: NonFungibleToken,
     pets: LookupMap<TokenId, Pet>,
     next_id: u64,
-    /// The pool has taken its first-deposit fee from this contract.
+    /// `register_pool` succeeded: the pool took its first-deposit fee from the house deposit.
     pool_registered: bool,
     actions: LookupMap<u64, approvals::PendingAction>,
     next_action_id: u64,
@@ -160,6 +161,7 @@ pub struct PetView {
     pub items: Vec<u16>,
     pub device_pk: Option<PublicKey>,
     pub approval_mode: bool,
+    pub soul_version: u32,
 }
 
 #[near]
@@ -192,7 +194,7 @@ impl Contract {
     /// Attach exactly `mint_storage + starter_food`. `mint_storage` stays in the contract to pay
     /// for the pet's storage; `starter_food` becomes the pet's food.
     #[payable]
-    pub fn nft_mint_pet(&mut self, name: String) -> TokenId {
+    pub fn nft_mint_pet(&mut self, name: String, soul: Option<String>) -> TokenId {
         let price = self
             .config
             .mint_storage
@@ -212,7 +214,7 @@ impl Contract {
         let owner = env::predecessor_account_id();
         let seed = env::random_seed();
         let traits = [0, 1, 2, 3, 4].map(|i| seed[i] % 101);
-        let pet = Pet::new(
+        let mut pet = Pet::new(
             name.clone(),
             env::block_timestamp(),
             self.config.starter_food.as_yoctonear(),
@@ -224,6 +226,9 @@ impl Contract {
         };
         self.tokens
             .internal_mint_with_refund(id.clone(), owner.clone(), Some(metadata), None);
+        if let Some(prompt) = soul {
+            soul::write_soul(&id, &mut pet, prompt);
+        }
         self.pets.insert(id.clone(), pet);
         self.pets.flush();
 
@@ -271,6 +276,7 @@ impl Contract {
             items: pet.items,
             device_pk: pet.device_pk,
             approval_mode: pet.approval_mode,
+            soul_version: pet.soul_version,
         }
     }
 
@@ -336,7 +342,14 @@ mod tests {
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::testing_env;
 
+    /// Contract whose pool registration (`register_pool`) has already succeeded.
     fn setup() -> Contract {
+        let mut contract = unregistered();
+        contract.pool_registered = true;
+        contract
+    }
+
+    fn unregistered() -> Contract {
         testing_env!(VMContextBuilder::new()
             .predecessor_account_id(accounts(0))
             .build());
@@ -395,7 +408,7 @@ mod tests {
     fn minted() -> (Contract, TokenId) {
         let mut contract = setup();
         ctx(accounts(3), MINT, DAY);
-        let id = contract.nft_mint_pet("Mochi".into());
+        let id = contract.nft_mint_pet("Mochi".into(), None);
         (contract, id)
     }
 
@@ -425,7 +438,7 @@ mod tests {
     #[test]
     fn mint_ids_increment() {
         let (mut contract, _) = minted();
-        assert_eq!(contract.nft_mint_pet("Bao".into()), "1");
+        assert_eq!(contract.nft_mint_pet("Bao".into(), None), "1");
     }
 
     #[test]
@@ -433,7 +446,7 @@ mod tests {
     fn mint_rejects_wrong_deposit() {
         let mut contract = setup();
         ctx(accounts(3), NearToken::from_millinear(199), DAY);
-        contract.nft_mint_pet("Mochi".into());
+        contract.nft_mint_pet("Mochi".into(), None);
     }
 
     #[test]
@@ -441,7 +454,7 @@ mod tests {
     fn mint_rejects_long_name() {
         let mut contract = setup();
         ctx(accounts(3), MINT, DAY);
-        contract.nft_mint_pet("x".repeat(33));
+        contract.nft_mint_pet("x".repeat(33), None);
     }
 
     #[test]
@@ -449,7 +462,7 @@ mod tests {
         let mut contract = setup();
         ctx(accounts(3), MINT, DAY);
         let before = env::storage_usage();
-        contract.nft_mint_pet("x".repeat(32));
+        contract.nft_mint_pet("x".repeat(32), None);
         let cost = env::storage_byte_cost().saturating_mul((env::storage_usage() - before) as u128);
         assert!(
             cost <= contract.config().mint_storage,
@@ -638,7 +651,6 @@ mod tests {
     }
 
     const NEAR: u128 = 1_000_000_000_000_000_000_000_000;
-    const FEE: u128 = 5_500_000_000_000_000_000_000;
 
     fn pool() -> AccountId {
         "mw-pool-1024.testnet".parse().unwrap()
@@ -734,17 +746,13 @@ mod tests {
     }
 
     #[test]
-    fn successful_stake_is_recorded_less_the_one_time_pool_fee() {
+    fn successful_stake_is_recorded_one_to_one() {
         let (mut contract, id) = staked(10);
-        assert_eq!(contract.get_pet(id.clone()).staked.0, 10 * NEAR - FEE);
+        assert_eq!(contract.get_pet(id.clone()).staked.0, 10 * NEAR);
         assert!(events().iter().any(|e| e.contains("\"event\":\"staked\"")));
         callback(true);
         contract.on_stake(id.clone(), accounts(3), U128(NEAR));
-        assert_eq!(
-            contract.get_pet(id).staked.0,
-            11 * NEAR - FEE,
-            "fee only once"
-        );
+        assert_eq!(contract.get_pet(id).staked.0, 11 * NEAR);
     }
 
     #[test]
@@ -760,10 +768,7 @@ mod tests {
     fn get_pet_shows_self_sustaining_with_enough_stake() {
         let (contract, id) = staked(10);
         let view = contract.get_pet(id);
-        assert_eq!(
-            view.daily_credit_micro, 6_566,
-            "9.9945 NEAR after the pool fee"
-        );
+        assert_eq!(view.daily_credit_micro, 6_570);
         assert!(view.self_sustaining);
     }
 
@@ -775,7 +780,7 @@ mod tests {
         let args = format!("{{\"amount\":\"{}\"}}", 2 * NEAR);
         assert_eq!(pool_calls(), vec![("unstake".into(), args, 1, 400)]);
         let view = contract.get_pet(id);
-        assert_eq!(view.staked.0, 8 * NEAR - FEE);
+        assert_eq!(view.staked.0, 8 * NEAR);
         let pending = view.pending_unstake.unwrap();
         assert_eq!((pending.amount.0, pending.unlock_epoch.0), (2 * NEAR, 12));
     }
@@ -794,7 +799,7 @@ mod tests {
     fn unstake_more_than_staked_is_rejected() {
         let (mut contract, id) = staked(1);
         ctx_full(accounts(3), NearToken::from_yoctonear(0), DAY, 10);
-        let _ = contract.unstake(id, U128(NEAR));
+        let _ = contract.unstake(id, U128(NEAR + 1));
     }
 
     #[test]
@@ -805,7 +810,7 @@ mod tests {
         callback(false);
         contract.on_unstake(id.clone(), U128(2 * NEAR));
         let view = contract.get_pet(id);
-        assert_eq!(view.staked.0, 10 * NEAR - FEE);
+        assert_eq!(view.staked.0, 10 * NEAR);
         assert!(view.pending_unstake.is_none());
     }
 
@@ -969,7 +974,7 @@ mod tests {
         );
         callback(true);
         contract.on_stake_from_food(id.clone(), U128(NEAR));
-        assert_eq!(contract.get_pet(id).staked.0, NEAR - FEE);
+        assert_eq!(contract.get_pet(id).staked.0, NEAR);
         assert!(events().iter().any(|e| e.contains("staked_from_food")));
     }
 
@@ -1408,7 +1413,7 @@ mod tests {
         assert!(events().iter().any(|e| e.contains("action_approved")));
         callback(true);
         contract.on_stake(id.clone(), accounts(3), U128(2 * NEAR));
-        assert_eq!(contract.get_pet(id).staked.0, 2 * NEAR - FEE);
+        assert_eq!(contract.get_pet(id).staked.0, 2 * NEAR);
     }
 
     #[test]
@@ -1578,5 +1583,152 @@ mod tests {
         contract.nft_transfer(accounts(4), id.clone(), None, None);
         assert!(contract.get_pending_actions(id).is_empty());
         assert_eq!(transfers_to(&accounts(3)), vec![NearToken::from_near(2)]);
+    }
+
+    #[test]
+    fn fuel_price_defaults_to_one_tenth_of_a_cent() {
+        assert_eq!(setup().config().fuel_price_micro, 1_000);
+    }
+
+    #[test]
+    fn a_pet_can_be_minted_with_a_soul() {
+        let mut contract = setup();
+        ctx(accounts(3), MINT, DAY);
+        let id = contract.nft_mint_pet("Mochi".into(), Some("A shy, curious cat.".into()));
+        let soul = contract.get_soul(id.clone());
+        assert_eq!(
+            (soul.version, soul.prompt.as_str()),
+            (1, "A shy, curious cat.")
+        );
+        assert_eq!(contract.get_pet(id).soul_version, 1);
+    }
+
+    #[test]
+    fn a_pet_minted_without_a_soul_has_version_zero() {
+        let (contract, id) = minted();
+        assert_eq!(contract.get_soul(id).version, 0);
+    }
+
+    #[test]
+    fn the_owner_can_rewrite_the_soul_and_each_change_is_public() {
+        let (mut contract, id) = minted();
+        ctx(accounts(3), NearToken::from_yoctonear(0), DAY);
+        contract.set_soul(id.clone(), "Brave now.".into());
+        contract.set_soul(id.clone(), "Brave and kind.".into());
+        assert_eq!(contract.get_soul(id).version, 2);
+        let ev = events();
+        assert!(ev
+            .iter()
+            .any(|e| e.contains("soul_updated") && e.contains("Brave and kind.")));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_NOT_OWNER")]
+    fn a_stranger_cannot_change_the_soul() {
+        let (mut contract, id) = minted();
+        ctx(accounts(4), NearToken::from_yoctonear(0), DAY);
+        contract.set_soul(id, "Evil.".into());
+    }
+
+    #[test]
+    #[should_panic(expected = "E_SOUL_SIZE: Soul must be at most 1024 bytes")]
+    fn a_soul_is_at_most_one_kilobyte() {
+        let (mut contract, id) = minted();
+        ctx(accounts(3), NearToken::from_yoctonear(0), DAY);
+        contract.set_soul(id, "x".repeat(1025));
+    }
+
+    #[test]
+    fn mint_storage_covers_a_full_soul() {
+        let mut contract = setup();
+        ctx(accounts(3), MINT, DAY);
+        let before = env::storage_usage();
+        contract.nft_mint_pet("x".repeat(32), Some("y".repeat(1024)));
+        let cost = env::storage_byte_cost().saturating_mul((env::storage_usage() - before) as u128);
+        assert!(
+            cost <= contract.config().mint_storage,
+            "storage cost {cost}"
+        );
+    }
+
+    #[test]
+    fn the_soul_stays_with_the_pet_on_transfer() {
+        let mut contract = setup();
+        ctx(accounts(3), MINT, DAY);
+        let id = contract.nft_mint_pet("Mochi".into(), Some("Loyal.".into()));
+        ctx(accounts(3), NearToken::from_yoctonear(1), DAY);
+        contract.nft_transfer(accounts(4), id.clone(), None, None);
+        assert_eq!(contract.get_soul(id).prompt, "Loyal.");
+    }
+
+    #[test]
+    #[should_panic(expected = "E_POOL_NOT_READY")]
+    fn staking_waits_for_pool_registration() {
+        let mut contract = unregistered();
+        ctx(accounts(3), MINT, DAY);
+        let id = contract.nft_mint_pet("Mochi".into(), None);
+        ctx_full(accounts(3), NearToken::from_near(2), DAY, 10);
+        let _ = contract.stake(id);
+    }
+
+    #[test]
+    #[should_panic(expected = "E_POOL_NOT_READY")]
+    fn device_staking_waits_for_pool_registration() {
+        let mut contract = unregistered();
+        ctx(accounts(3), MINT, DAY);
+        let id = contract.nft_mint_pet("Mochi".into(), None);
+        ctx(accounts(3), NearToken::from_near(3), DAY);
+        contract.feed(id.clone());
+        ctx(accounts(3), NearToken::from_yoctonear(0), DAY);
+        contract.register_device(id.clone(), device_pk());
+        device_stake(&mut contract, &id, 1_000);
+    }
+
+    #[test]
+    fn registering_the_pool_makes_a_house_deposit() {
+        let mut contract = unregistered();
+        ctx_full(accounts(0), NearToken::from_millinear(200), DAY, 10);
+        let _ = contract.register_pool();
+        assert_eq!(
+            pool_calls(),
+            vec![(
+                "deposit_and_stake".into(),
+                "{}".into(),
+                200 * NEAR / 1_000,
+                400
+            )]
+        );
+        callback(true);
+        assert!(contract.on_register_pool(U128(200 * NEAR / 1_000)));
+        assert!(contract.pool_registered);
+        assert!(events().iter().any(|e| e.contains("pool_registered")));
+    }
+
+    #[test]
+    fn a_failed_registration_refunds_the_admin() {
+        let mut contract = unregistered();
+        callback(false);
+        assert!(!contract.on_register_pool(U128(200 * NEAR / 1_000)));
+        assert!(!contract.pool_registered);
+        assert_eq!(
+            transfers_to(&accounts(0)),
+            vec![NearToken::from_millinear(200)]
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "E_NOT_ADMIN")]
+    fn only_the_admin_registers_the_pool() {
+        let mut contract = unregistered();
+        ctx_full(accounts(3), NearToken::from_millinear(200), DAY, 10);
+        let _ = contract.register_pool();
+    }
+
+    #[test]
+    #[should_panic(expected = "E_POOL_READY: Pool already registered")]
+    fn the_pool_is_registered_once() {
+        let mut contract = setup();
+        ctx_full(accounts(0), NearToken::from_millinear(200), DAY, 10);
+        let _ = contract.register_pool();
     }
 }

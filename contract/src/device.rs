@@ -51,7 +51,7 @@ impl Contract {
             self.save_pet(&pet_id, pet);
             return false;
         }
-        let recorded = self.after_pool_fee(amount.0);
+        let recorded = amount.0;
         pet.staked += recorded;
         self.save_pet(&pet_id, pet);
         events::emit(
@@ -89,6 +89,7 @@ impl Contract {
 
     /// Food into stake, keeping a day of food. Device caps are checked by the caller.
     pub(crate) fn internal_stake_from_food(&mut self, pet_id: TokenId, amount: U128) -> Promise {
+        self.require_pool_ready();
         let mut pet = self.load_pet(&pet_id);
         let cfg = &self.config;
         let burn_micro = (cfg.metabolism_micro_per_day + pet.avg_daily_spend_micro) as u128;

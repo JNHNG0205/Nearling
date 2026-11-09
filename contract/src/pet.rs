@@ -86,6 +86,9 @@ pub struct Pet {
     /// Value actions need a device approval (CLAUDE.md 7.3).
     pub approval_mode: bool,
     pub pending_actions: Vec<u64>,
+    /// Public personality prompt; `soul_version` 0 means none set (brain uses its default).
+    pub soul: String,
+    pub soul_version: u32,
 }
 
 #[near(serializers = [json])]
@@ -167,6 +170,8 @@ impl Pet {
             recent_usage_refs: Vec::new(),
             approval_mode: false,
             pending_actions: Vec::new(),
+            soul: String::new(),
+            soul_version: 0,
         }
     }
 

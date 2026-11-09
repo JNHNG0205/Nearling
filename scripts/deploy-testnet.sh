@@ -12,7 +12,8 @@ if [ "${DEMO_SPEED:-0}" = 1 ]; then
 else
   CONTRACT="pets-v${PETS_VERSION}.${NEAR_PARENT_ACCOUNT}"
 fi
-FUND="${FUND:-4.2 NEAR}"   # wasm ~370 KB locks ~3.7 NEAR of storage
+FUND="${FUND:-4.5 NEAR}"   # wasm ~375 KB locks ~3.8 NEAR of storage, plus the house deposit
+HOUSE="${HOUSE:-0.2 NEAR}"  # register_pool: absorbs NEARON's one-time first-deposit fee
 
 echo "Building..."
 (cd "$ROOT/contract" && cargo near build non-reproducible-wasm)
@@ -30,6 +31,11 @@ echo "Deploying and calling new..."
 near contract deploy "$CONTRACT" use-file "$WASM" \
   with-init-call new json-args "$ARGS" prepaid-gas '30 Tgas' attached-deposit '0 NEAR' \
   network-config testnet sign-with-legacy-keychain send
+
+echo "Registering with the NEARON pool (house deposit $HOUSE)..."
+near contract call-function as-transaction "$CONTRACT" register_pool json-args '{}' \
+  prepaid-gas '450 Tgas' attached-deposit "$HOUSE" \
+  sign-as "$NEAR_PARENT_ACCOUNT" network-config testnet sign-with-legacy-keychain send
 
 if [ "${DEMO_SPEED:-0}" = 1 ]; then
   echo "Setting demo-speed config..."

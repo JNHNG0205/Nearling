@@ -21,6 +21,39 @@ const UNLOCK_EPOCHS: u64 = 2;
 
 #[near]
 impl Contract {
+    /// Admin, once, at deploy: a small house deposit so the pool takes its one-time
+    /// first-deposit fee from it. After this every pet stake mints iNEAR 1:1 (S6).
+    #[payable]
+    pub fn register_pool(&mut self) -> Promise {
+        require!(
+            env::predecessor_account_id() == self.config.admin,
+            "E_NOT_ADMIN: Only admin"
+        );
+        require!(
+            !self.pool_registered,
+            "E_POOL_READY: Pool already registered"
+        );
+        let amount = env::attached_deposit();
+        require!(!amount.is_zero(), "E_DEPOSIT: Attach the house deposit");
+        self.pool_call("deposit_and_stake", json!({}), amount).then(
+            self.callback()
+                .on_register_pool(U128(amount.as_yoctonear())),
+        )
+    }
+
+    #[private]
+    pub fn on_register_pool(&mut self, amount: U128) -> bool {
+        if !call_succeeded() {
+            Promise::new(self.config.admin.clone())
+                .transfer(NearToken::from_yoctonear(amount.0))
+                .detach();
+            return false;
+        }
+        self.pool_registered = true;
+        events::emit("pool_registered", json!({ "house_deposit": amount }));
+        true
+    }
+
     /// Owner only, at least `min_stake`. In approval mode, use `propose_action(Stake)`.
     #[payable]
     pub fn stake(&mut self, pet_id: TokenId) -> Promise {
@@ -54,7 +87,7 @@ impl Contract {
                 .detach();
             return false;
         }
-        let recorded = self.after_pool_fee(amount.0);
+        let recorded = amount.0;
         pet.staked += recorded;
         self.save_pet(&pet_id, pet);
         events::emit(
@@ -147,6 +180,7 @@ impl Contract {
         owner: AccountId,
         amount: NearToken,
     ) -> Promise {
+        self.require_pool_ready();
         let min = self.config.min_stake;
         require!(amount >= min, format!("E_MIN_STAKE: Stake at least {min}"));
         let mut pet = self.load_pet(&pet_id);
@@ -206,13 +240,12 @@ impl Contract {
         );
     }
 
-    /// The pool keeps a one-time fee from the contract's first deposit ever (S6).
-    pub(crate) fn after_pool_fee(&mut self, amount: u128) -> u128 {
-        if self.pool_registered {
-            return amount;
-        }
-        self.pool_registered = true;
-        amount - self.config.pool_first_deposit_fee.as_yoctonear()
+    /// Pet stakes mint 1:1 only after the pool took its first-deposit fee from the house.
+    pub(crate) fn require_pool_ready(&self) {
+        require!(
+            self.pool_registered,
+            "E_POOL_NOT_READY: Admin must register the pool first"
+        );
     }
 
     pub(crate) fn require_owner(&self, pet_id: &TokenId) -> AccountId {
