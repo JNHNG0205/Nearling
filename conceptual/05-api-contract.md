@@ -123,15 +123,15 @@ Status from Role 1 (2026-11-09, contract as built on `pets-v5.nearling.testnet`)
 
 | # | Status |
 |---|---|
-| C1 | **Mostly done.** `get_pet` returns `life_state`, `fullness`, `budget_micro`, `daily_credit_micro`, `self_sustaining`, `staked`, `pending_unstake`, `items`, `device_pk` (big numbers as strings). `daily_burn_micro` is not exposed yet (Role 1 to add) |
-| C2 | Open: Role 1 decision |
-| C3 | **Partly.** `thought { pet_id, cost_micro, usage_ref }` where `cost_micro` is the amount actually taken. No `source` yet: Role 1 decision |
-| C4 | Open: Role 1 decision. Current messages: "Only the owner", "Only brain", "Only the pet's device", "Cooldown: try again later", "Pet is asleep", "Unstake and withdraw before transfer", "Stake at least ...", "Unstake already pending", "Unstake still locked" |
-| C5 | Open: `persona_hash` is not stored yet |
-| C6 | Open: Role 1 decision |
+| C1 | **Mostly done.** `get_pet` returns `life_state`, `fullness`, `budget_micro`, `daily_credit_micro`, `self_sustaining`, `staked`, `pending_unstake`, `items`, `device_pk` (big numbers as strings). **Agreed:** `daily_burn_micro` added in M4b |
+| C2 | **Agreed (M4b):** a repeated `usage_ref` (among the pet's last 32 charges) is a no-op: no charge, no event. Retry blindly |
+| C3 | **Partly.** `thought { pet_id, cost_micro, usage_ref }` where `cost_micro` is the amount actually taken. **Agreed (M4b):** adds `source` = `credit` / `food` / `mixed` / `none` |
+| C4 | **Agreed (M4b):** every panic starts with a stable code, e.g. `E_NOT_OWNER: Only the owner`; full list in `CLAUDE.md` 7.2. Current messages (codes will be prefixed): "Only the owner", "Only brain", "Only the pet's device", "Cooldown: try again later", "Pet is asleep", "Unstake and withdraw before transfer", "Stake at least ...", "Unstake already pending", "Unstake still locked" |
+| C5 | **Agreed:** no `persona_hash` on chain; the brain keeps the persona |
+| C6 | **Agreed (M4b):** same wasm at `pets-demo.nearling.testnet`, about 100× faster rates via config, `config.demo_speed = true` so clients label it "demo speed" |
 | C7 | **Yes.** `charge` / `credit` check `predecessor == config.brain`, so any function-call key on the brain account works |
 | C8 | **Yes.** NEP-181 `nft_tokens(from_index, limit)` is implemented |
-| C9 | Open. Note: NEARON's `claimable` only updates after anyone calls `sync_from_farm()` (seen in S6) |
+| C9 | **Agreed (M4b):** `sweep_credit` calls `sync_from_farm()` then `claim_and_topup`, since `claimable` only updates after a sync (seen in S6) |
 
 
 | # | Ask | Why |
