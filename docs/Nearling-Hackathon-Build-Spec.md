@@ -34,6 +34,22 @@ Nearling is a physical AI Tamagotchi. You hatch and own a pet on NEAR, talk to i
 | **802535 800 mAh LiPo, protected TP4056 USB-C charger, MT3608 5 V booster, on/off rocker** | Test Wi-Fi, display, and audio together on battery power and verify boot and reconnect behavior. Keep the AI fuel meter distinct from battery charge. Show a battery percentage only if battery telemetry is implemented and calibrated. See the shopping list for the charging checks. |
 | **Jumper wires, MB-102 breadboard, 5 × 7 cm perfboard, 2.54 mm headers, existing USB-A to USB-C data cable** | Use these for bench bring-up and assembly. Verify programming and power on the finished wiring before testing device features. |
 
+## Contract view (hybrid scope, 2026-11-09)
+
+The team adopted this spec's features and hardware with one change: **the pet's fuel lives on chain**, so the NFT owns the money that pays for its brain (the `nfts` and `agents` track hook, and Illia's original idea). Full table in `CLAUDE.md` 1.1; contract details in `CLAUDE.md` 7.
+
+| This spec says | On chain (pets contract) |
+|---|---|
+| Fuel balance and ledger in the backend | The pet's budget: `get_pet(pet_id).budget_micro`, `fullness`, `life_state` (`Starving` / `Dormant` = Low Fuel) |
+| Reserve one fuel, debit on success, no double debit on retry | One `charge(pet_id, fuel_price_micro, usage_ref, ...)` per completed reply; a repeated `usage_ref` is a no-op |
+| Feed the Brain: order settles to the project account, then grant fuel once | After settlement, the backend calls `feed(pet_id)` with the delivered NEAR, once per order id |
+| Soul: public, versioned prompt on NEAR | `set_soul` / `get_soul` (new, contract milestone M5b) |
+| Closet shirt NFT | Shirt NFT (new, M5b) |
+| Brain Garden (stretch) | Already working: `stake(pet_id)` into NEARON, credit accrues per pet on chain, `self_sustaining` in `get_pet` |
+| Wallet and transfer approvals via backend + Meteor | Unchanged here; pet transfer is blocked while staked and resets the device and approvals on chain |
+
+Live contracts: `pets-v7.nearling.testnet` (current), `pets-demo.nearling.testnet` (about 100× speed for judges, labelled "demo speed").
+
 ## Core features
 
 ### 1. Hatch & Pair

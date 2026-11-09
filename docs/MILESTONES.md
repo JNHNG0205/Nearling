@@ -1,6 +1,6 @@
 # Contract milestones (Role 1)
 
-Owner: Role 1, Contract. Spec: `CLAUDE.md` sections 6 and 7. Dates follow `CLAUDE.md` section 13.
+Owner: Role 1, Contract. Spec: `CLAUDE.md` sections 6 and 7 (scope: hybrid, `CLAUDE.md` 1.1; product features in `docs/Nearling-Hackathon-Build-Spec.md`). Dates follow `CLAUDE.md` section 13.
 
 Each milestone is done only when its **Pass** checks run green (tests) or are seen on testnet. Tick a box only after the check passes.
 
@@ -103,16 +103,18 @@ Goal: the device can act for the pet, safely, and transfer is safe.
 
 Goal: settle the contract asks in `conceptual/05-api-contract.md` (C1 to C9) before M5 so brain and web can build on a stable interface.
 
-- [ ] C2: idempotent `charge` (repeat `usage_ref` among the pet's last 32 charges = no-op)
-- [ ] C3: `source` in the `thought` event
-- [ ] C4: stable `E_` panic codes on every message
-- [ ] C1: `daily_burn_micro` in `get_pet`
-- [ ] C6: mood, energy and dormant rates in `Config`, `demo_speed` flag; deploy `pets-demo.nearling.testnet` at about 100×
-- [ ] C9: `sweep_credit` = `sync_from_farm` then `claim_and_topup`
+- [x] C2: idempotent `charge` (repeat `usage_ref` among the pet's last 32 charges = no-op)
+- [x] C3: `source` in the `thought` event
+- [x] C4: stable `E_` panic codes on every message
+- [x] C1: `daily_burn_micro` in `get_pet`
+- [x] C6: mood, energy and dormant rates in `Config`, `demo_speed` flag
+- [ ] C6: deploy `pets-demo.nearling.testnet` at about 100× (needs ~3.8 NEAR)
+- [x] C9: `sweep_credit` = `sync_from_farm` then `claim_and_topup`
 
 **Pass:**
 - Unit tests: repeated `usage_ref` charges once; `source` correct for credit, food, mixed and empty budget; every `should_panic` test matches its `E_` code; `daily_burn_micro` = metabolism + average spend
 - On testnet: demo-speed pet goes hungry to starving to dormant within an hour; `sweep_credit` runs both pool calls in one transaction
+- Status 2026-11-09 on `pets-v6`: repeated `usage_ref` charged once, `source` reported, `E_NOT_OWNER` code seen, `daily_burn_micro` shown, sweep ran sync + claim in one tx (15 Tgas burnt). Demo deployment still open
 
 ---
 
@@ -120,15 +122,31 @@ Goal: settle the contract asks in `conceptual/05-api-contract.md` (C1 to C9) bef
 
 Goal: value actions need the pet's body when approval mode is on.
 
-- [ ] `set_approval_mode` (on direct, off gated), `propose_action`, `approve_action`, `cancel_action`, `get_pending_actions`
-- [ ] Actions: Stake, Unstake, Withdraw, StakeFromFood (above caps), SetApprovalMode off, RegisterDevice, Transfer
-- [ ] Execution inside `approve_action` with the held deposit; refund on NEARON failure
-- [ ] Direct wallet calls of gated methods rejected while approval mode is on
-- [ ] Events: `action_proposed`, `action_approved`, `action_cancelled`
+- [x] `set_approval_mode` (on direct, off gated), `propose_action`, `approve_action`, `cancel_action`, `get_pending_actions`
+- [x] Actions: Stake, Unstake, Withdraw, StakeFromFood (above caps), SetApprovalMode off, RegisterDevice, Transfer
+- [x] Execution inside `approve_action` with the held deposit; refund on NEARON failure
+- [x] Direct wallet calls of gated methods rejected while approval mode is on
+- [x] Events: `action_proposed`, `action_approved`, `action_cancelled`
 
 **Pass:**
 - Unit tests: same key cannot propose and approve; expired action rejected; cancel refunds; each gated direct call rejected in approval mode; stolen-wallet scenario (re-register device) blocked
 - End to end with Role 4 on testnet: web proposes Stake 10 NEAR, device approves, stake lands; wallet key calling `approve_action` is rejected
+- Status 2026-11-09: contract side verified on `pets-v7` with a real limited key signed from the CLI (Stake 1 NEAR proposed, approved by the device key, staked; wallet approve rejected). Role 4 still needs to sign `approve_action` from the ESP32
+
+---
+
+## M5b: Hybrid additions (Nov 10 to 11)
+
+Goal: the contract pieces the hybrid scope (`CLAUDE.md` 1.1) adds from the Build Spec.
+
+- [ ] Soul: `set_soul(pet_id, prompt)` / `get_soul(pet_id)` with a version per change (writer and size cap to decide)
+- [ ] `config.fuel_price_micro`; brain charges it per chat
+- [ ] Shirt NFT for the Closet (second collection in this contract or a separate contract, to decide)
+- [ ] Brain-side `feed(pet)` after a NEAR Intents order settles (with Role 2)
+
+**Pass:**
+- Unit tests: soul version increments, size cap enforced, only the allowed writer can set it; a charge takes exactly `fuel_price_micro`; shirt ownership follows transfer
+- On testnet: brain reads the Soul and charges one fuel per chat; a claimed shirt shows in `nft_tokens_for_owner`
 
 ---
 

@@ -2,6 +2,8 @@
 
 An AI pet that lives on NEAR and pays for its own brain. One pet, two bodies (web app and ESP32 device), one brain service, one on-chain state.
 
+**Scope update 2026-11-09:** the team adopted the hybrid scope in `CLAUDE.md` 1.1: product features and hardware from `docs/Nearling-Hackathon-Build-Spec.md`, fuel kept on chain. Where this document describes on-chain care stats, on-device signing or the on-chain approval flow as the demo path, those are now kept in code but not demoed; fuel, NEARON, the pet NFT and the transfer rules below still hold.
+
 Status: **draft for team review** (2026-11-08). Contract parts updated 2026-11-09 by Role 1 to match the contract as built (milestones M1 to M4, deployed at `pets-v5.nearling.testnet`) and the S5 / S6 spike results in `CLAUDE.md` 14. `CLAUDE.md` is the spec and wins on any conflict. Items marked [VERIFY] depend on spikes S1 to S7; items marked [PROPOSAL] need agreement from the owning role. Deep dives for web and brain are in [conceptual/](conceptual/README.md).
 
 ---
