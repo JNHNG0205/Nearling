@@ -83,6 +83,9 @@ pub struct Pet {
     pub stakes_in_flight: u8,
     /// First 8 bytes of sha256(usage_ref) of the last charges, oldest first.
     pub recent_usage_refs: Vec<u64>,
+    /// Value actions need a device approval (CLAUDE.md 7.3).
+    pub approval_mode: bool,
+    pub pending_actions: Vec<u64>,
 }
 
 #[near(serializers = [json])]
@@ -162,6 +165,8 @@ impl Pet {
             device_staked_today: 0,
             stakes_in_flight: 0,
             recent_usage_refs: Vec::new(),
+            approval_mode: false,
+            pending_actions: Vec::new(),
         }
     }
 

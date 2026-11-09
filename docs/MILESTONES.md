@@ -122,15 +122,16 @@ Goal: settle the contract asks in `conceptual/05-api-contract.md` (C1 to C9) bef
 
 Goal: value actions need the pet's body when approval mode is on.
 
-- [ ] `set_approval_mode` (on direct, off gated), `propose_action`, `approve_action`, `cancel_action`, `get_pending_actions`
-- [ ] Actions: Stake, Unstake, Withdraw, StakeFromFood (above caps), SetApprovalMode off, RegisterDevice, Transfer
-- [ ] Execution inside `approve_action` with the held deposit; refund on NEARON failure
-- [ ] Direct wallet calls of gated methods rejected while approval mode is on
-- [ ] Events: `action_proposed`, `action_approved`, `action_cancelled`
+- [x] `set_approval_mode` (on direct, off gated), `propose_action`, `approve_action`, `cancel_action`, `get_pending_actions`
+- [x] Actions: Stake, Unstake, Withdraw, StakeFromFood (above caps), SetApprovalMode off, RegisterDevice, Transfer
+- [x] Execution inside `approve_action` with the held deposit; refund on NEARON failure
+- [x] Direct wallet calls of gated methods rejected while approval mode is on
+- [x] Events: `action_proposed`, `action_approved`, `action_cancelled`
 
 **Pass:**
 - Unit tests: same key cannot propose and approve; expired action rejected; cancel refunds; each gated direct call rejected in approval mode; stolen-wallet scenario (re-register device) blocked
 - End to end with Role 4 on testnet: web proposes Stake 10 NEAR, device approves, stake lands; wallet key calling `approve_action` is rejected
+- Status 2026-11-09: contract side verified on `pets-v7` with a real limited key signed from the CLI (Stake 1 NEAR proposed, approved by the device key, staked; wallet approve rejected). Role 4 still needs to sign `approve_action` from the ESP32
 
 ---
 

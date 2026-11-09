@@ -24,6 +24,7 @@ impl NonFungibleTokenCore for Contract {
         approval_id: Option<u64>,
         memo: Option<String>,
     ) {
+        self.require_direct(&token_id);
         self.before_transfer(&token_id);
         self.tokens
             .nft_transfer(receiver_id, token_id, approval_id, memo)
@@ -38,6 +39,7 @@ impl NonFungibleTokenCore for Contract {
         memo: Option<String>,
         msg: String,
     ) -> PromiseOrValue<bool> {
+        self.require_direct(&token_id);
         self.before_transfer(&token_id);
         self.tokens
             .nft_transfer_call(receiver_id, token_id, approval_id, memo, msg)
@@ -50,8 +52,10 @@ impl NonFungibleTokenCore for Contract {
 
 impl Contract {
     /// Stake belongs to the owner, so it must be unstaked and withdrawn first. The new owner
-    /// starts with no device; old device keys live on the old owner's account anyway.
-    fn before_transfer(&mut self, token_id: &TokenId) {
+    /// starts with no device and approval mode off; old device keys live on the old owner's
+    /// account anyway. Pending actions are dropped and their deposits refunded.
+    pub(crate) fn before_transfer(&mut self, token_id: &TokenId) {
+        let owner = self.owner_of(token_id);
         let mut pet = self.load_pet(token_id);
         require!(
             pet.staked == 0 && pet.pending_unstake.is_none() && pet.stakes_in_flight == 0,
@@ -63,6 +67,8 @@ impl Contract {
                 json!({ "pet_id": token_id, "public_key": old }),
             );
         }
+        pet.approval_mode = false;
+        self.drop_pending_actions(&mut pet, &owner);
         self.save_pet(token_id, pet);
     }
 }

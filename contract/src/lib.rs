@@ -1,5 +1,6 @@
 //! Nearling pets contract. Spec: CLAUDE.md sections 6 and 7.
 
+mod approvals;
 mod budget;
 mod device;
 mod events;
@@ -117,6 +118,8 @@ pub struct Contract {
     next_id: u64,
     /// The pool has taken its first-deposit fee from this contract.
     pool_registered: bool,
+    actions: LookupMap<u64, approvals::PendingAction>,
+    next_action_id: u64,
 }
 
 #[near]
@@ -126,6 +129,7 @@ enum StorageKey {
     TokenMetadata,
     Enumeration,
     Pets,
+    Actions,
 }
 
 /// `get_pet` result: the pet settled to the current block time. Big numbers are strings.
@@ -155,6 +159,7 @@ pub struct PetView {
     pub self_sustaining: bool,
     pub items: Vec<u16>,
     pub device_pk: Option<PublicKey>,
+    pub approval_mode: bool,
 }
 
 #[near]
@@ -179,6 +184,8 @@ impl Contract {
             pets: LookupMap::new(StorageKey::Pets),
             next_id: 0,
             pool_registered: false,
+            actions: LookupMap::new(StorageKey::Actions),
+            next_action_id: 0,
         }
     }
 
@@ -263,6 +270,7 @@ impl Contract {
             pending_unstake: pet.pending_unstake,
             items: pet.items,
             device_pk: pet.device_pk,
+            approval_mode: pet.approval_mode,
         }
     }
 
@@ -1224,5 +1232,351 @@ mod tests {
         ctx(accounts(4), NearToken::from_yoctonear(0), 2 * DAY);
         // metabolism 1_000 + average spend (0 * 3 + 4_000) / 4
         assert_eq!(contract.get_pet(id).daily_burn_micro, 2_000);
+    }
+
+    use approvals::Action;
+
+    const MIN: u64 = 60_000_000_000;
+
+    /// Pet with 3 NEAR extra food, a device, and approval mode on.
+    fn guarded() -> (Contract, TokenId) {
+        let (mut contract, id) = with_device();
+        contract.set_approval_mode(id.clone(), true);
+        (contract, id)
+    }
+
+    fn wallet(deposit: NearToken) {
+        ctx_signed(accounts(3), wallet_pk(), deposit);
+    }
+
+    fn device() {
+        ctx_signed(accounts(3), device_pk(), NearToken::from_yoctonear(0));
+    }
+
+    fn propose(contract: &mut Contract, id: &TokenId, action: Action, deposit: NearToken) -> U64 {
+        wallet(deposit);
+        contract.propose_action(id.clone(), action)
+    }
+
+    fn stake_action(near: u128) -> Action {
+        Action::Stake {
+            amount: U128(near * NEAR),
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "E_NOT_DEVICE: Register a device first")]
+    fn approval_mode_needs_a_device() {
+        let (mut contract, id) = minted();
+        ctx(accounts(3), NearToken::from_yoctonear(0), DAY);
+        contract.set_approval_mode(id, true);
+    }
+
+    #[test]
+    #[should_panic(expected = "E_APPROVAL_MODE")]
+    fn approval_mode_cannot_be_turned_off_directly() {
+        let (mut contract, id) = guarded();
+        contract.set_approval_mode(id, false);
+    }
+
+    #[test]
+    #[should_panic(expected = "E_APPROVAL_MODE")]
+    fn direct_stake_is_rejected_in_approval_mode() {
+        let (mut contract, id) = guarded();
+        wallet(NearToken::from_near(2));
+        let _ = contract.stake(id);
+    }
+
+    #[test]
+    #[should_panic(expected = "E_APPROVAL_MODE")]
+    fn direct_unstake_is_rejected_in_approval_mode() {
+        let (mut contract, id) = guarded();
+        wallet(NearToken::from_yoctonear(0));
+        let _ = contract.unstake(id, U128(NEAR));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_APPROVAL_MODE")]
+    fn direct_withdraw_is_rejected_in_approval_mode() {
+        let (mut contract, id) = guarded();
+        wallet(NearToken::from_yoctonear(0));
+        let _ = contract.withdraw(id);
+    }
+
+    #[test]
+    #[should_panic(expected = "E_APPROVAL_MODE")]
+    fn swapping_the_device_key_is_rejected_in_approval_mode() {
+        let (mut contract, id) = guarded();
+        wallet(NearToken::from_yoctonear(0));
+        contract.register_device(id, wallet_pk());
+    }
+
+    #[test]
+    #[should_panic(expected = "E_APPROVAL_MODE")]
+    fn direct_transfer_is_rejected_in_approval_mode() {
+        let (mut contract, id) = guarded();
+        wallet(NearToken::from_yoctonear(1));
+        contract.nft_transfer(accounts(4), id, None, None);
+    }
+
+    #[test]
+    fn care_actions_stay_direct_in_approval_mode() {
+        let (mut contract, id) = guarded();
+        wallet(NearToken::from_near(1));
+        contract.feed(id.clone());
+        wallet(NearToken::from_yoctonear(0));
+        contract.play(id.clone(), pet::PlayAction::Pet);
+        device_stake(&mut contract, &id, 1_000);
+        assert_eq!(
+            pool_calls().len(),
+            1,
+            "device stake within caps is not gated"
+        );
+    }
+
+    #[test]
+    fn a_proposal_is_listed_with_its_proposer_key_and_expiry() {
+        let (mut contract, id) = guarded();
+        let action_id = propose(&mut contract, &id, stake_action(2), NearToken::from_near(2));
+        let pending = contract.get_pending_actions(id);
+        assert_eq!(pending.len(), 1);
+        let p = &pending[0];
+        assert_eq!((p.id, p.proposer_pk.clone()), (action_id, wallet_pk()));
+        assert_eq!((p.deposit.0, p.expires_at_ns.0), (2 * NEAR, DAY + 10 * MIN));
+        assert!(events().iter().any(|e| e.contains("action_proposed")));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_APPROVAL_MODE: Approval mode is off")]
+    fn proposing_needs_approval_mode() {
+        let (mut contract, id) = with_device();
+        propose(&mut contract, &id, stake_action(2), NearToken::from_near(2));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_NOT_OWNER")]
+    fn only_the_owner_can_propose() {
+        let (mut contract, id) = guarded();
+        ctx_signed(accounts(4), wallet_pk(), NearToken::from_near(2));
+        contract.propose_action(id, stake_action(2));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_DEPOSIT")]
+    fn a_stake_proposal_must_hold_its_amount() {
+        let (mut contract, id) = guarded();
+        propose(&mut contract, &id, stake_action(2), NearToken::from_near(1));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_DEPOSIT")]
+    fn other_proposals_hold_no_deposit() {
+        let (mut contract, id) = guarded();
+        propose(
+            &mut contract,
+            &id,
+            Action::Withdraw,
+            NearToken::from_near(1),
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "E_TOO_MANY_ACTIONS")]
+    fn a_pet_has_at_most_five_pending_actions() {
+        let (mut contract, id) = guarded();
+        for _ in 0..6 {
+            propose(
+                &mut contract,
+                &id,
+                Action::Withdraw,
+                NearToken::from_yoctonear(0),
+            );
+        }
+    }
+
+    #[test]
+    fn device_approval_runs_the_stake_with_the_held_deposit() {
+        let (mut contract, id) = guarded();
+        let action_id = propose(&mut contract, &id, stake_action(2), NearToken::from_near(2));
+        device();
+        let _ = contract.approve_action(action_id);
+        assert_eq!(
+            pool_calls(),
+            vec![("deposit_and_stake".into(), "{}".into(), 2 * NEAR, 400)]
+        );
+        assert!(contract.get_pending_actions(id.clone()).is_empty());
+        assert!(events().iter().any(|e| e.contains("action_approved")));
+        callback(true);
+        contract.on_stake(id.clone(), accounts(3), U128(2 * NEAR));
+        assert_eq!(contract.get_pet(id).staked.0, 2 * NEAR - FEE);
+    }
+
+    #[test]
+    #[should_panic(expected = "E_NOT_DEVICE")]
+    fn the_wallet_key_cannot_approve() {
+        let (mut contract, id) = guarded();
+        let action_id = propose(&mut contract, &id, stake_action(2), NearToken::from_near(2));
+        wallet(NearToken::from_yoctonear(0));
+        let _ = contract.approve_action(action_id);
+    }
+
+    #[test]
+    #[should_panic(expected = "E_SAME_KEY")]
+    fn the_proposing_key_cannot_approve() {
+        let (mut contract, id) = guarded();
+        ctx_signed(accounts(3), device_pk(), NearToken::from_yoctonear(0));
+        let action_id = contract.propose_action(id, Action::Withdraw);
+        let _ = contract.approve_action(action_id);
+    }
+
+    #[test]
+    #[should_panic(expected = "E_EXPIRED")]
+    fn an_expired_action_cannot_be_approved() {
+        let (mut contract, id) = guarded();
+        let action_id = propose(&mut contract, &id, stake_action(2), NearToken::from_near(2));
+        testing_env!(VMContextBuilder::new()
+            .predecessor_account_id(accounts(3))
+            .signer_account_pk(device_pk())
+            .block_timestamp(DAY + 10 * MIN + 1)
+            .prepaid_gas(near_sdk::Gas::from_tgas(450))
+            .build());
+        let _ = contract.approve_action(action_id);
+    }
+
+    #[test]
+    fn cancelling_refunds_the_deposit() {
+        let (mut contract, id) = guarded();
+        let action_id = propose(&mut contract, &id, stake_action(2), NearToken::from_near(2));
+        wallet(NearToken::from_yoctonear(0));
+        contract.cancel_action(action_id);
+        assert_eq!(transfers_to(&accounts(3)), vec![NearToken::from_near(2)]);
+        assert!(contract.get_pending_actions(id).is_empty());
+        assert!(events().iter().any(|e| e.contains("action_cancelled")));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_NOT_OWNER")]
+    fn a_stranger_cannot_cancel() {
+        let (mut contract, id) = guarded();
+        let action_id = propose(&mut contract, &id, stake_action(2), NearToken::from_near(2));
+        ctx(accounts(4), NearToken::from_yoctonear(0), DAY);
+        contract.cancel_action(action_id);
+    }
+
+    fn approve(contract: &mut Contract, id: &TokenId, action: Action) {
+        let action_id = propose(contract, id, action, NearToken::from_yoctonear(0));
+        device();
+        let _ = contract.approve_action(action_id);
+    }
+
+    #[test]
+    fn approval_can_turn_approval_mode_off() {
+        let (mut contract, id) = guarded();
+        approve(&mut contract, &id, Action::SetApprovalMode { on: false });
+        assert!(!contract.get_pet(id.clone()).approval_mode);
+        wallet(NearToken::from_near(2));
+        let _ = contract.stake(id);
+    }
+
+    #[test]
+    fn approval_can_unstake_and_withdraw() {
+        let (mut contract, id) = guarded();
+        callback(true);
+        contract.on_stake(id.clone(), accounts(3), U128(3 * NEAR));
+        approve(&mut contract, &id, Action::Unstake { amount: U128(NEAR) });
+        let args = format!("{{\"amount\":\"{NEAR}\"}}");
+        assert_eq!(pool_calls(), vec![("unstake".into(), args, 1, 400)]);
+        callback(true);
+        contract.on_unstake(id.clone(), U128(NEAR));
+        testing_env!(VMContextBuilder::new()
+            .predecessor_account_id(accounts(3))
+            .signer_account_pk(wallet_pk())
+            .block_timestamp(DAY)
+            .epoch_height(12)
+            .build());
+        let action_id = contract.propose_action(id.clone(), Action::Withdraw);
+        testing_env!(VMContextBuilder::new()
+            .predecessor_account_id(accounts(3))
+            .signer_account_pk(device_pk())
+            .block_timestamp(DAY)
+            .epoch_height(12)
+            .prepaid_gas(near_sdk::Gas::from_tgas(450))
+            .build());
+        let _ = contract.approve_action(action_id);
+        assert_eq!(pool_calls(), vec![("withdraw".into(), "{}".into(), 1, 400)]);
+    }
+
+    #[test]
+    fn approval_can_stake_food_above_the_device_cap() {
+        let (mut contract, id) = guarded();
+        approve(
+            &mut contract,
+            &id,
+            Action::StakeFromFood {
+                amount: U128(3 * NEAR),
+            },
+        );
+        assert_eq!(
+            pool_calls(),
+            vec![("deposit_and_stake".into(), "{}".into(), 3 * NEAR, 400)]
+        );
+        assert_eq!(
+            contract.get_pet(id).food_yocto.0,
+            3_100 * NEAR / 1_000 - 3 * NEAR
+        );
+    }
+
+    #[test]
+    fn approval_can_replace_the_device_and_drops_other_proposals() {
+        let (mut contract, id) = guarded();
+        propose(&mut contract, &id, stake_action(2), NearToken::from_near(2));
+        approve(
+            &mut contract,
+            &id,
+            Action::RegisterDevice {
+                public_key: wallet_pk(),
+            },
+        );
+        let view = contract.get_pet(id.clone());
+        assert_eq!(view.device_pk, Some(wallet_pk()));
+        assert!(contract.get_pending_actions(id).is_empty());
+        assert_eq!(
+            transfers_to(&accounts(3)),
+            vec![NearToken::from_near(2)],
+            "refund"
+        );
+    }
+
+    #[test]
+    fn approval_can_transfer_and_the_new_owner_starts_clean() {
+        let (mut contract, id) = guarded();
+        propose(&mut contract, &id, stake_action(2), NearToken::from_near(2));
+        approve(
+            &mut contract,
+            &id,
+            Action::Transfer {
+                receiver_id: accounts(4),
+            },
+        );
+        let view = contract.get_pet(id.clone());
+        assert_eq!(view.owner, accounts(4));
+        assert_eq!((view.device_pk, view.approval_mode), (None, false));
+        assert!(contract.get_pending_actions(id).is_empty());
+        assert_eq!(
+            transfers_to(&accounts(3)),
+            vec![NearToken::from_near(2)],
+            "refund"
+        );
+    }
+
+    #[test]
+    fn a_direct_transfer_refunds_pending_proposals() {
+        let (mut contract, id) = guarded();
+        propose(&mut contract, &id, stake_action(2), NearToken::from_near(2));
+        approve(&mut contract, &id, Action::SetApprovalMode { on: false });
+        wallet(NearToken::from_yoctonear(1));
+        contract.nft_transfer(accounts(4), id.clone(), None, None);
+        assert!(contract.get_pending_actions(id).is_empty());
+        assert_eq!(transfers_to(&accounts(3)), vec![NearToken::from_near(2)]);
     }
 }

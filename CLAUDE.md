@@ -228,7 +228,7 @@ Docs confirm a contract can be holder and router. Sub-pool beneficiaries need an
 
 Start from **near-contract-standards**: NEP-171 (core), NEP-177 (metadata), NEP-181 (enumeration), NEP-297 / NEP-256 (events) [FIXED]. **No NEP-145:** the mint price covers the pet's storage (asserted in tests). NEP-178 approvals and NEP-199 payouts only if a marketplace is needed (cut for MVP). Token ids are incrementing integers stored as strings (`"0"`, `"1"`, ...).
 
-**Demo speed [FIXED, M4b]:** the same wasm is also deployed as `pets-demo.nearling.testnet` with `config.demo_speed = true` and about 100× faster rates (metabolism, mood decay, energy gain, dormant after about 43 min), so judges can watch hungry to starving to dormant in minutes. Web and README label it "demo speed" (rule 5). This needs the mood, energy and dormant rates in `Config` instead of constants.
+**Demo speed [FIXED, M4b]:** the same wasm is also deployed as `pets-demo.nearling.testnet` with `config.demo_speed = true` and about 100× faster rates (metabolism, mood decay, energy gain, dormant after about 43 min), so judges can watch hungry to starving to dormant in minutes. Web and README label it "demo speed" (rule 5). Deployed 2026-11-09 with `DEMO_SPEED=1 ./scripts/deploy-testnet.sh`: metabolism, mood decay and energy gain ×100 (metabolism $0.10/day, mood -1 per 18 s, energy +1 per 4.5 s), dormant after 43.2 min, and `starter_food` 0.005 NEAR so a fresh demo pet starves in about 14 min (mint price there: 0.105 NEAR). 0.1 NEAR of food buys about 4.8 h.
 
 **Redeploys [FIXED]:** no migration code. Any breaking state change deploys to a fresh account `pets-vN.<team>.testnet` via `deploy-testnet.sh`, then `seed-demo.sh`. Brain, web and firmware read the contract id from config / `.env`.
 
@@ -255,6 +255,7 @@ Pet {
   last_pet_ns, last_play_ns: Option<u64>,   // cooldowns
   device_pk: Option<PublicKey>,             // one device per pet, one pet per device
   approval_mode: bool,
+  pending_actions: Vec<u64>,                // ids into the contract's actions map, max 5 per pet
   device_staked_today: u128,                // reset on day rollover with the other daily counters
   stakes_in_flight: u8,                     // stake / stake_from_food sent to the pool, callback pending; blocks transfer
 }
@@ -308,7 +309,7 @@ Brain only:
 - `charge(pet_id, cost_micro_usd: u64, usage_ref: String, trait_deltas: Option<[i8;5]>, xp_gain: u32, mood_delta: i8)`: settles, then spends credit first, then food (converted at `near_usd_rate_micro`); food spent goes to `treasury`. **Never panics for lack of funds or caps:** cost is clamped to the per-call cap ($0.005), the daily cap ($0.10 per pet) and what is left; if short, the pet becomes starving. Deltas are clamped: xp ≤ 5 per call and ≤ 50 per day (the check-in bonus is on top), mood ±10, traits ±2 per trait per day (0 to 100). Each chat also costs 3 energy (5.2). Emits `thought { pet_id, cost_micro, usage_ref, source }` with the amount actually charged and `source` = `credit` / `food` / `mixed` / `none` (C3, M4b). **Idempotent (C2, M4b):** a `usage_ref` already among the pet's last 32 charges is a no-op (no charge, no event), so the brain can retry blindly. Only thought spending goes to the treasury; food burnt by metabolism stays in the contract.
 - `credit(pet_id, micro_usd: u64, ref: String)`: capped correction only (credit normally accrues lazily). Above `credit_correction_max_micro` it panics (a correction that large is a bug, not a retry). Clears starving if the budget is now above 0. Emits `credited`.
 
-**Panic codes [FIXED, M4b] (C4):** every panic message starts with a stable code and a colon, e.g. `E_NOT_OWNER: Only the owner`, so the web can map it to a friendly line. Codes: `E_NOT_ADMIN`, `E_NOT_BRAIN`, `E_NOT_OWNER`, `E_NOT_DEVICE`, `E_UNKNOWN_PET`, `E_DEPOSIT`, `E_NAME`, `E_GAS`, `E_COOLDOWN`, `E_ASLEEP`, `E_MIN_STAKE`, `E_NO_STAKE`, `E_UNSTAKE_PENDING`, `E_NO_UNSTAKE`, `E_LOCKED`, `E_DEVICE_CAP`, `E_FOOD_RESERVE`, `E_STAKED`, `E_ITEM`, `E_CREDIT_CAP`, `E_STORAGE`, plus `E_APPROVAL_MODE`, `E_EXPIRED`, `E_SAME_KEY` in M5.
+**Panic codes [FIXED, M4b] (C4):** every panic message starts with a stable code and a colon, e.g. `E_NOT_OWNER: Only the owner`, so the web can map it to a friendly line. Codes: `E_NOT_ADMIN`, `E_NOT_BRAIN`, `E_NOT_OWNER`, `E_NOT_DEVICE`, `E_UNKNOWN_PET`, `E_DEPOSIT`, `E_NAME`, `E_GAS`, `E_COOLDOWN`, `E_ASLEEP`, `E_MIN_STAKE`, `E_NO_STAKE`, `E_UNSTAKE_PENDING`, `E_NO_UNSTAKE`, `E_LOCKED`, `E_DEVICE_CAP`, `E_FOOD_RESERVE`, `E_STAKED`, `E_ITEM`, `E_CREDIT_CAP`, `E_STORAGE`, `E_APPROVAL_MODE`, `E_EXPIRED`, `E_SAME_KEY`, `E_NO_ACTION`, `E_TOO_MANY_ACTIONS`.
 
 **persona_hash (C5):** not stored on chain; the brain keeps the persona.
 
@@ -318,10 +319,10 @@ Views: `get_pet(pet_id) -> PetView` settled to current block time: `id, owner, n
 
 ### 7.3 Device approval flow [FIXED design, VERIFY S5]
 "What you see is what you sign" on the pet's body.
-1. **Propose (web, owner wallet):** `propose_action(pet_id, action)` payable where needed. Actions: `Stake { amount }`, `Unstake { amount }`, `Withdraw`, `StakeFromFood { amount }` above the device caps, `SetApprovalMode { off }`, `RegisterDevice { public_key }`, `Transfer { receiver_id }`. Creates `PendingAction { id, pet_id, action, deposit, proposer_pk, expires_at = now + 10 min }`.
+1. **Propose (web, owner wallet):** `propose_action(pet_id, action)` payable where needed. Actions: `Stake { amount }`, `Unstake { amount }`, `Withdraw`, `StakeFromFood { amount }` above the device caps, `SetApprovalMode { on }`, `RegisterDevice { public_key }`, `Transfer { receiver_id }` (JSON: `{"Stake":{"amount":"…"}}`, `"Withdraw"`). Needs approval mode on. `Stake` attaches exactly `amount` (≥ `min_stake`); every other action attaches nothing. At most 5 pending per pet (`E_TOO_MANY_ACTIONS`: each one costs contract storage). Creates `PendingAction { id, pet_id, action, deposit, proposer_pk = signer_account_pk, expires_at_ns = now + 10 min }` and emits `action_proposed` with it. View: `get_pending_actions(pet_id)`.
 2. **Show (device):** polls the brain for pending actions and shows the exact action and amount on screen.
-3. **Approve (device):** owner holds the on-screen Approve button for 2 s; device signs `approve_action(action_id)` with its key and enough gas for the action (Stake / Unstake / Withdraw include the 400+ Tgas NEARON call and its callback; max gas per tx [VERIFY S6]).
-4. **Execute (contract):** only if `signer_account_pk() == pet.device_pk`, `signer_account_pk() != proposer_pk` (one key cannot both propose and approve), not expired, and approval mode is on. Otherwise reject. The action runs inside `approve_action`, using the deposit held since the proposal; a failed NEARON call refunds it in the callback. `cancel_action(action_id)` from the owner refunds any deposit.
+3. **Approve (device):** owner holds the on-screen Approve button for 2 s; device signs `approve_action(action_id)` with its key and enough gas for the action (Stake / Unstake / Withdraw / StakeFromFood include the 400 Tgas NEARON call and its callback: attach 450 Tgas; max per tx is 1000 Tgas, S6).
+4. **Execute (contract):** only if `signer_account_pk() == pet.device_pk`, `signer_account_pk() != proposer_pk` (one key cannot both propose and approve), not expired, and approval mode is on. Otherwise reject. The action runs inside `approve_action`, using the deposit held since the proposal; a failed NEARON call refunds it in the callback. `cancel_action(action_id)` from the owner refunds any deposit, also for expired actions. An approved `StakeFromFood` skips the device caps but still keeps a day of food. Approved `RegisterDevice` and any transfer drop (cancel and refund) all other pending actions; a transfer also turns approval mode off, since the new owner has no device.
 5. **While approval mode is on**, the direct wallet calls `stake`, `unstake`, `withdraw`, `register_device`, `set_approval_mode(false)` and `nft_transfer` are rejected; they only run through steps 1 to 4. `feed`, `play` and `buy_item` stay direct. When approval mode is off, everything runs directly from the wallet.
 
 Key point: wallet and device keys both belong to the owner's account, so `predecessor` alone cannot tell them apart. The contract tells them apart by `env::signer_account_pk()`. Gating `register_device` closes the hole where a stolen wallet key swaps in its own device key and approves itself.
@@ -500,7 +501,7 @@ Record results here.
 M3 on testnet (2026-11-07, `pets-v4`, player `nearling-player1.testnet`): stake 2 NEAR recorded 1.9945 = pool iNEAR balance; `self_sustaining: true` at 1310 µ$/day; unstake 0.5 NEAR queued at epoch 5424 in both the pet and the pool; early withdraw rejected. Stake tx `6btDMVHSYj5P3koLiGQP33WBKRqbE5i2EqWbf1VAyFfL`.
 
 ### S5 contract side (2026-11-08, `pets-v5`, CLI signing with a real limited access key; the ESP32 part is Role 4)
-Limited key on `nearling-player1.testnet`: receiver `pets-v5.nearling.testnet`, methods `play, stake_from_food, approve_action`, allowance 1 NEAR (`near account add-key ... grant-function-call-access`).
+Function-call keys are bound to one receiver contract, so each new `pets-vN` needs a new device key (AddKey again). Limited key on `nearling-player1.testnet`: receiver `pets-v5.nearling.testnet`, methods `play, stake_from_food, approve_action`, allowance 1 NEAR (`near account add-key ... grant-function-call-access`).
 | Check | Result |
 |---|---|
 | `register_device` from the wallet | `device_registered` |
@@ -508,7 +509,7 @@ Limited key on `nearling-player1.testnet`: receiver `pets-v5.nearling.testnet`, 
 | `stake_from_food` signed by the wallet key | Rejected: "Only the pet's device" |
 | `play("pet")` signed by the device key | Works |
 | Device key call with a deposit | Rejected: function-call access keys cannot attach deposits |
-| `approve_action` | M5 |
+| Approval flow (M5, `pets-v7`, new limited key for v7) | Wallet `propose_action(Stake 1 NEAR)` held the deposit; device key `approve_action` ran the stake (0.9945 staked) and cleared the action; wallet key approving: `E_NOT_DEVICE`; direct `stake` in approval mode: `E_APPROVAL_MODE`; `cancel_action` emitted `action_cancelled` |
 
 Evidence: stake tx `FLjbh7CA1tRw9TknMGRctba4DjFnQr9dCKQgmiFF9sT6`; failed unstake without 1 yocto `5GpH91VtbhCdVXF4mTyceBwDsdSmoQWwb7b4LA1PPHBq`.
 

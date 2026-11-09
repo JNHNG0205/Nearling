@@ -128,7 +128,7 @@ Status from Role 1 (2026-11-09, contract as built on `pets-v5.nearling.testnet`)
 | C3 | **Partly.** `thought { pet_id, cost_micro, usage_ref }` where `cost_micro` is the amount actually taken. **Done (M4b):** `source` = `credit` / `food` / `mixed` / `none` |
 | C4 | **Done (M4b):** every panic starts with a stable code, e.g. `E_NOT_OWNER: Only the owner`; full list in `CLAUDE.md` 7.2. Messages behind the codes: "Only the owner", "Only brain", "Only the pet's device", "Cooldown: try again later", "Pet is asleep", "Unstake and withdraw before transfer", "Stake at least ...", "Unstake already pending", "Unstake still locked" |
 | C5 | **Agreed:** no `persona_hash` on chain; the brain keeps the persona |
-| C6 | **Contract done (M4b), deployment pending:** same wasm at `pets-demo.nearling.testnet`, about 100× faster rates via config, `config.demo_speed = true` so clients label it "demo speed" |
+| C6 | **Done (M4b):** live at `pets-demo.nearling.testnet` (mint 0.105 NEAR, starves in about 14 min, dormant 43 min later); same wasm at `pets-demo.nearling.testnet`, about 100× faster rates via config, `config.demo_speed = true` so clients label it "demo speed" |
 | C7 | **Yes.** `charge` / `credit` check `predecessor == config.brain`, so any function-call key on the brain account works |
 | C8 | **Yes.** NEP-181 `nft_tokens(from_index, limit)` is implemented |
 | C9 | **Done (M4b, `pets-v6`):** `sweep_credit` calls `sync_from_farm()` then `claim_and_topup` in one tx; attach ≥ 600 Tgas (about 15 Tgas burnt). Nothing claimable = no `credit_swept` event |

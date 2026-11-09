@@ -21,21 +21,26 @@ const UNLOCK_EPOCHS: u64 = 2;
 
 #[near]
 impl Contract {
-    /// Owner only, at least `min_stake`.
+    /// Owner only, at least `min_stake`. In approval mode, use `propose_action(Stake)`.
     #[payable]
     pub fn stake(&mut self, pet_id: TokenId) -> Promise {
         let owner = self.require_owner(&pet_id);
-        let amount = env::attached_deposit();
-        let min = self.config.min_stake;
-        require!(amount >= min, format!("E_MIN_STAKE: Stake at least {min}"));
-        let mut pet = self.load_pet(&pet_id);
-        pet.stakes_in_flight += 1;
-        self.save_pet(&pet_id, pet);
-        self.pool_call("deposit_and_stake", json!({}), amount)
-            .then(
-                self.callback()
-                    .on_stake(pet_id, owner, U128(amount.as_yoctonear())),
-            )
+        self.require_direct(&pet_id);
+        self.internal_stake(pet_id, owner, env::attached_deposit())
+    }
+
+    /// Owner only; one pending unstake per pet, always treated as pending (S6).
+    pub fn unstake(&mut self, pet_id: TokenId, amount: U128) -> Promise {
+        self.require_owner(&pet_id);
+        self.require_direct(&pet_id);
+        self.internal_unstake(pet_id, amount)
+    }
+
+    /// Owner only, after `unlock_epoch`.
+    pub fn withdraw(&mut self, pet_id: TokenId) -> Promise {
+        let owner = self.require_owner(&pet_id);
+        self.require_direct(&pet_id);
+        self.internal_withdraw(pet_id, owner)
     }
 
     #[private]
@@ -59,32 +64,6 @@ impl Contract {
         true
     }
 
-    /// Owner only; one pending unstake per pet, always treated as pending (S6).
-    pub fn unstake(&mut self, pet_id: TokenId, amount: U128) -> Promise {
-        self.require_owner(&pet_id);
-        let mut pet = self.load_pet(&pet_id);
-        require!(
-            pet.pending_unstake.is_none(),
-            "E_UNSTAKE_PENDING: Unstake already pending"
-        );
-        require!(
-            amount.0 > 0 && amount.0 <= pet.staked,
-            "E_NO_STAKE: Not enough stake"
-        );
-        pet.staked -= amount.0;
-        pet.pending_unstake = Some(PendingUnstake {
-            amount,
-            unlock_epoch: U64(env::epoch_height() + UNLOCK_EPOCHS),
-        });
-        self.save_pet(&pet_id, pet);
-        self.pool_call(
-            "unstake",
-            json!({ "amount": amount }),
-            NearToken::from_yoctonear(1),
-        )
-        .then(self.callback().on_unstake(pet_id, amount))
-    }
-
     #[private]
     pub fn on_unstake(&mut self, pet_id: TokenId, amount: U128) -> bool {
         let mut pet = self.load_pet(&pet_id);
@@ -99,23 +78,6 @@ impl Contract {
             json!({ "pet_id": pet_id, "amount": amount, "pending": pet.pending_unstake }),
         );
         true
-    }
-
-    /// Owner only, after `unlock_epoch`.
-    pub fn withdraw(&mut self, pet_id: TokenId) -> Promise {
-        let owner = self.require_owner(&pet_id);
-        let mut pet = self.load_pet(&pet_id);
-        let pending = pet
-            .pending_unstake
-            .take()
-            .unwrap_or_else(|| env::panic_str("E_NO_UNSTAKE: No unstake pending"));
-        require!(
-            env::epoch_height() >= pending.unlock_epoch.0,
-            "E_LOCKED: Unstake still locked"
-        );
-        self.save_pet(&pet_id, pet);
-        self.pool_call("withdraw", json!({}), NearToken::from_yoctonear(1))
-            .then(self.callback().on_withdraw(pet_id, owner, pending.amount))
     }
 
     #[private]
@@ -179,6 +141,71 @@ impl Contract {
 }
 
 impl Contract {
+    pub(crate) fn internal_stake(
+        &mut self,
+        pet_id: TokenId,
+        owner: AccountId,
+        amount: NearToken,
+    ) -> Promise {
+        let min = self.config.min_stake;
+        require!(amount >= min, format!("E_MIN_STAKE: Stake at least {min}"));
+        let mut pet = self.load_pet(&pet_id);
+        pet.stakes_in_flight += 1;
+        self.save_pet(&pet_id, pet);
+        self.pool_call("deposit_and_stake", json!({}), amount)
+            .then(
+                self.callback()
+                    .on_stake(pet_id, owner, U128(amount.as_yoctonear())),
+            )
+    }
+
+    pub(crate) fn internal_unstake(&mut self, pet_id: TokenId, amount: U128) -> Promise {
+        let mut pet = self.load_pet(&pet_id);
+        require!(
+            pet.pending_unstake.is_none(),
+            "E_UNSTAKE_PENDING: Unstake already pending"
+        );
+        require!(
+            amount.0 > 0 && amount.0 <= pet.staked,
+            "E_NO_STAKE: Not enough stake"
+        );
+        pet.staked -= amount.0;
+        pet.pending_unstake = Some(PendingUnstake {
+            amount,
+            unlock_epoch: U64(env::epoch_height() + UNLOCK_EPOCHS),
+        });
+        self.save_pet(&pet_id, pet);
+        self.pool_call(
+            "unstake",
+            json!({ "amount": amount }),
+            NearToken::from_yoctonear(1),
+        )
+        .then(self.callback().on_unstake(pet_id, amount))
+    }
+
+    pub(crate) fn internal_withdraw(&mut self, pet_id: TokenId, owner: AccountId) -> Promise {
+        let mut pet = self.load_pet(&pet_id);
+        let pending = pet
+            .pending_unstake
+            .take()
+            .unwrap_or_else(|| env::panic_str("E_NO_UNSTAKE: No unstake pending"));
+        require!(
+            env::epoch_height() >= pending.unlock_epoch.0,
+            "E_LOCKED: Unstake still locked"
+        );
+        self.save_pet(&pet_id, pet);
+        self.pool_call("withdraw", json!({}), NearToken::from_yoctonear(1))
+            .then(self.callback().on_withdraw(pet_id, owner, pending.amount))
+    }
+
+    /// Value actions run directly only when approval mode is off (CLAUDE.md 7.3).
+    pub(crate) fn require_direct(&self, pet_id: &TokenId) {
+        require!(
+            !self.stored_pet(pet_id).approval_mode,
+            "E_APPROVAL_MODE: Approve this on your device"
+        );
+    }
+
     /// The pool keeps a one-time fee from the contract's first deposit ever (S6).
     pub(crate) fn after_pool_fee(&mut self, amount: u128) -> u128 {
         if self.pool_registered {
