@@ -166,7 +166,7 @@ Goal: other roles build on a stable deployment; demo pets are ready.
 **Pass:**
 - `cargo test` (unit + integration) green, `clippy -D warnings` clean
 - Each seeded pet shows its intended `life_state` from `get_pet` on testnet
-- Status 2026-11-09: cargo test green (pets 138, shirts 5), clippy clean; seeded `pets-v8` #1 Happy, #2 Hungry, #3 Starving, #4 Happy + self_sustaining; demo pet checked at 13:50 UTC
+- Status 2026-11-09: cargo test green (pets 138, shirts 5), clippy clean; seeded `pets-v8` #1 Happy, #2 Hungry, #3 Starving, #4 Happy + self_sustaining; demo pet Blink on `pets-demo` was Dormant at 13:50 UTC, about an hour after minting, as designed
 - Brain, web and device all read the same pet from the new deployment
 
 ---
