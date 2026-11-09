@@ -173,7 +173,8 @@ Goal: other roles build on a stable deployment; demo pets are ready.
 
 ## M7: Final deploy and README (Nov 14)
 
-- [ ] Final testnet deploy and re-seed
-- [ ] README contract sections: NEAR standards used, NEARON flow, security model (device key, approvals, caps), limitations
+- [ ] Final testnet deploy and re-seed (after Roles 2 to 4 integrate against `pets-v8`, so their changes land in one deploy)
+- [x] README contract sections: NEAR standards used, NEARON flow, security model, limitations; "do X, see Y" steps 1 to 7 with CLI commands against the live seeded pets (steps 1, 2, 5 re-run on testnet 2026-11-09). Other roles' sections are placeholders
+- [x] Wasm size: profile variants tried (`strip`, `opt-level = "s"`) did not shrink it; kept at about 378 KB
 
 **Pass:** the README "do X, see Y" contract steps work from a fresh wallet on testnet. The human submits before 2026-11-14T23:59Z.
