@@ -15,7 +15,10 @@ export const MISSED_AFTER_MS = 24 * 3600 * 1000;
 
 /** A memory fact with a follow-up date (owned by the memory module). */
 export interface FollowUp {
+  /** stable hash of the fact (stored in `proactive_pet.state`, so never the text itself) */
   id: string;
+  /** the fact text, in memory only; passed to the billed turn's prompt */
+  fact?: string;
 }
 
 export interface PetFacts {

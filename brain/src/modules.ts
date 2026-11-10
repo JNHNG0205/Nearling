@@ -5,7 +5,7 @@ import { closetModule } from "./identity/closet";
 import { devicesModule } from "./identity/devices";
 import { receiptsModule } from "./receipts/receipts";
 import { inboxModule } from "./proactive/inbox";
-import { proactiveModule } from "./proactive/scheduler";
+import { createProactiveModule } from "./proactive/scheduler";
 import { raceModule } from "./race/routes";
 import { petsModule } from "./routes/pets";
 import { streamModule } from "./stream/stream";
@@ -14,7 +14,8 @@ import { gardenModule } from "./fuel/garden";
 import { ordersModule } from "./fuel/orders";
 import { walletModule } from "./wallet/wallet";
 import { chargeModule } from "./fuel/charge";
-import { talkModule } from "./talk/talk";
+import { dueFollowUps } from "./talk/memory";
+import { generateProactive, talkModule } from "./talk/talk";
 
 // Each feature area registers here (one line each). Keep alphabetical-ish to ease merges.
 export const MODULES: Module[] = [
@@ -25,7 +26,7 @@ export const MODULES: Module[] = [
   closetModule,
   receiptsModule,
   inboxModule,
-  proactiveModule,
+  createProactiveModule((deps) => ({ generateProactive, dueFollowUps: async (ref, owner, day) => dueFollowUps(deps, ref, owner, day) })),
   streamModule,
   timelineModule,
   ordersModule(),

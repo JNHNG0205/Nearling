@@ -101,6 +101,24 @@ export function onFed(deps: Deps, petRef: string, data: Record<string, unknown>)
   log.info("proactive sent", { pet_ref: petRef, trigger: "fed", inbox_id: item.id, canned: true });
 }
 
+/**
+ * Nearling Run finished (`race_result` from the race hub): one canned, free line per match and
+ * pet, not counted in the daily max (it answers the owner's own play).
+ */
+export function onRaceResult(deps: Deps, petRef: string, data: Record<string, unknown>): void {
+  const matchId = typeof data.match_id === "string" && data.match_id ? data.match_id : null;
+  const profile = getProfile(deps.db, petRef);
+  if (!matchId || !profile) return;
+  const trigger = `race:${matchId}`;
+  if (deps.db.prepare("SELECT 1 FROM inbox WHERE pet_ref = ? AND trigger = ?").get(petRef, trigger)) return;
+  const text =
+    data.won === true ? "I won the race! Thank you for cheering me on!"
+    : data.draw === true ? "We tied the race! That was so much fun. Rematch?"
+    : "I didn't win this time, but racing with you was so much fun!";
+  const item = pushInbox(deps, petRef, profile.owner_account, trigger, text);
+  log.info("proactive sent", { pet_ref: petRef, trigger: "race", inbox_id: item.id, canned: true });
+}
+
 async function petPass(deps: Deps, hooks: ProactiveHooks, p: KnownPet): Promise<void> {
   const pet = await deps.chain.getPet(p.contract, p.tokenId);
   if (!pet) return;
@@ -177,11 +195,12 @@ export async function runProactivePass(deps: Deps, hooks: ProactiveHooks = {}): 
   }
 }
 
-/** Pass the talk and memory hooks here in modules.ts once they exist. */
-export function createProactiveModule(hooks: ProactiveHooks = {}): Module {
+/** modules.ts passes the talk and memory hooks; a function builds them from deps at start. */
+export function createProactiveModule(hooksIn: ProactiveHooks | ((deps: Deps) => ProactiveHooks) = {}): Module {
   return {
     name: "proactive",
     start(deps) {
+      const hooks = typeof hooksIn === "function" ? hooksIn(deps) : hooksIn;
       let running = false;
       const tick = async () => {
         if (running) return; // overlap guard
@@ -195,9 +214,10 @@ export function createProactiveModule(hooks: ProactiveHooks = {}): Module {
         }
       };
       const unsubscribe = subscribeAll((e) => {
-        if (e.type !== "evolved" && e.type !== "fuel_added") return;
+        if (e.type !== "evolved" && e.type !== "fuel_added" && e.type !== "race_result") return;
         try {
           if (e.type === "evolved") onEvolved(deps, e.petRef);
+          else if (e.type === "race_result") onRaceResult(deps, e.petRef, e.data);
           else onFed(deps, e.petRef, e.data);
         } catch (err) {
           log.warn(`${e.type} inbox failed`, { pet_ref: e.petRef, error: err instanceof Error ? err.name : "unknown" });

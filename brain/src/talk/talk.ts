@@ -3,7 +3,7 @@ import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
 import { STAGES, displayState, fuelLeft, parsePetRef, type Emotion, type PetView, type TalkResponse } from "@nearling/shared";
-import { createMockNearAi, createNearAi, costNano, NearAiError, type NearAi } from "../ai/nearai";
+import { createMockNearAi, createNearAi, costNano, NearAiError, type ChatResult, type NearAi } from "../ai/nearai";
 import { createTts, clipForVoice, type TtsProvider } from "../ai/tts";
 import { ensureAttestation } from "../ai/attestation";
 import { submitForVerification } from "../ai/verify";
@@ -14,7 +14,9 @@ import { log } from "../log";
 import { ensureProfile } from "../profiles";
 import { checkAudio, MAX_AUDIO_BYTES } from "./audio";
 import { loadMemory, maybeSummarise, noteTurn, SUMMARY_EVERY } from "./memory";
-import { buildMessages, parseEmotion, type Channel } from "./prompt";
+import type { BilledTrigger, FollowUp } from "../proactive/rules";
+import type { GenerateProactive } from "../proactive/scheduler";
+import { buildMessages, parseEmotion, PROACTIVE_NUDGE, proactiveTask, type Channel } from "./prompt";
 import { addSpend, overSpendCap, utcDay } from "./spend";
 
 /**
@@ -82,6 +84,127 @@ function localParts(now: number, tz: string | null): { time: string; day: string
 
 const isLowFuel = (pet: PetView, config: PetsConfig) =>
   pet.life_state === "Starving" || pet.life_state === "Dormant" || pet.budget_micro < config.fuel_price_micro;
+
+export interface TurnInput {
+  petRef: string;
+  contract: string;
+  tokenId: string;
+  owner: string;
+  channel: Channel;
+  /** id of the turn row, already inserted with status `processing` */
+  turnId: string;
+  pet: PetView;
+  config: PetsConfig;
+  /** the turn's start time (prompt clock, sleep check) */
+  at: number;
+  ask: { kind: "user"; text: string } | { kind: "proactive"; trigger: BilledTrigger; fact?: string };
+}
+
+export interface TurnOutput {
+  reply: string;
+  emotion: Emotion;
+  soul: { version: number; prompt: string };
+  res: ChatResult;
+  cost: number | null;
+}
+
+/**
+ * One billed thought, shared by the talk route and proactive messages: Soul + state + memory
+ * prompt, attestation, private-model call, then the reply and its charge_job saved in one
+ * transaction, verification and memory bookkeeping. Throws on failure; the caller marks the
+ * turn failed. Proactive turns do not count as owner turns (`last_owner_turn_at`, summary).
+ */
+export async function runTurn(deps: Deps, ai: NearAi, input: TurnInput): Promise<TurnOutput> {
+  const { cfg, db, chain, sealer, now } = deps;
+  const { petRef, contract, tokenId, owner, channel, turnId, pet, config, at: t, ask } = input;
+  const left = fuelLeft(pet.budget_micro, config.fuel_price_micro);
+  const model = cfg.NEARAI_CHAT_MODEL;
+  const price = await ai.checkModel(model);
+
+  let soul: { version: number; prompt: string } = { version: 0, prompt: "" };
+  try {
+    soul = await chain.getSoul(contract, tokenId);
+  } catch {
+    log.warn("soul fetch failed; default persona", { pet_ref: petRef });
+  }
+
+  const profile = ensureProfile(db, petRef, pet.owner, t);
+  const nickRow = db.prepare("SELECT nickname_enc FROM pet_profile WHERE pet_ref = ?").get(petRef) as { nickname_enc: Buffer | null } | undefined;
+  let nickname: string | null = null;
+  try {
+    nickname = nickRow?.nickname_enc ? sealer.open(petRef, nickRow.nickname_enc) : null;
+  } catch {
+    nickname = null;
+  }
+  const sleeping = profile.sleeping_until !== null && profile.sleeping_until > t;
+  const local = localParts(t, profile.owner_tz);
+  const mem = loadMemory(deps, petRef, owner);
+
+  const messages = buildMessages({
+    soul: soul.version > 0 ? soul.prompt : null,
+    state: {
+      name: pet.name,
+      stage: STAGES[pet.stage] ?? "adult",
+      form: profile.form,
+      shirt: profile.equipped_shirt,
+      fuelLeft: left,
+      displayState: displayState(pet.life_state, profile.care_mood, sleeping),
+      nickname,
+      ownerLocalTime: local.time,
+      channel,
+    },
+    summary: mem.summary,
+    facts: mem.facts,
+    today: local.day,
+    history: mem.history,
+    userText: ask.kind === "user" ? ask.text : PROACTIVE_NUDGE,
+    ...(ask.kind === "proactive" ? { task: proactiveTask(ask.trigger, ask.fact) } : {}),
+  });
+
+  // Attest before the call (03 section 7). A failure never blocks the turn; the receipt is then unverified.
+  if (!cfg.MOCK_AI) {
+    try {
+      await ensureAttestation(deps, model);
+    } catch {
+      log.warn("attestation refresh failed", { model });
+    }
+  }
+
+  const res = await ai.chat(messages, { model });
+  const { emotion, text: reply } = parseEmotion(res.text);
+  if (!reply) throw new NearAiError("upstream");
+  const cost = costNano(res.usage, price);
+
+  let sinceSummary = 0;
+  db.transaction(() => {
+    db.prepare(
+      `UPDATE turn SET status = 'done', reply_text_enc = ?, emotion = ?, soul_version = ?, model = ?, inference_id = ?, chat_id = ?,
+         prompt_tokens = ?, completion_tokens = ?, provider_cost_nano = ?, llm_ms = ?, completed_at = ? WHERE id = ?`,
+    ).run(
+      sealer.seal(petRef, reply), emotion, soul.version, res.model, res.inferenceId, res.chatId,
+      res.usage.prompt_tokens, res.usage.completion_tokens, cost, res.ms, now(), turnId,
+    );
+    db.prepare(
+      `INSERT INTO charge_job (turn_id, pet_ref, cost_micro, status, attempts, next_attempt_at, created_at, updated_at)
+       VALUES (?, ?, ?, 'queued', 0, ?, ?, ?)`,
+    ).run(turnId, petRef, config.fuel_price_micro, now(), now(), now());
+    addSpend(db, now(), cost ?? 0);
+    if (ask.kind === "user") {
+      sinceSummary = noteTurn(db, petRef, owner);
+      db.prepare("UPDATE pet_profile SET last_owner_turn_at = ? WHERE pet_ref = ?").run(now(), petRef);
+    }
+  })();
+
+  try {
+    submitForVerification(deps, { turnId, petRef, model: res.model, chatId: res.chatId, rawRequest: res.rawRequest, rawResponse: res.rawResponse });
+  } catch (err) {
+    log.warn("verify submit failed", { turn_id: turnId, error: err instanceof Error ? err.name : "unknown" });
+  }
+
+  if (sinceSummary >= SUMMARY_EVERY) void maybeSummarise(deps, ai, petRef, owner, local.day);
+
+  return { reply, emotion, soul, res, cost };
+}
 
 const JsonBody = z.object({
   request_id: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
@@ -278,87 +401,9 @@ export function createTalk(deps: Deps, overrides: TalkOverrides = {}) {
         userText = input.text;
       }
 
-      const model = cfg.NEARAI_CHAT_MODEL;
-      const price = await ai.checkModel(model);
-
-      let soul: { version: number; prompt: string } = { version: 0, prompt: "" };
-      try {
-        soul = await chain.getSoul(contract, tokenId);
-      } catch {
-        log.warn("soul fetch failed; default persona", { pet_ref: petRef });
-      }
-
-      const profile = ensureProfile(db, petRef, pet.owner, t);
-      const nickRow = db.prepare("SELECT nickname_enc FROM pet_profile WHERE pet_ref = ?").get(petRef) as { nickname_enc: Buffer | null } | undefined;
-      let nickname: string | null = null;
-      try {
-        nickname = nickRow?.nickname_enc ? sealer.open(petRef, nickRow.nickname_enc) : null;
-      } catch {
-        nickname = null;
-      }
-      const sleeping = profile.sleeping_until !== null && profile.sleeping_until > t;
-      const local = localParts(t, profile.owner_tz);
-      const mem = loadMemory(deps, petRef, owner);
-
-      const messages = buildMessages({
-        soul: soul.version > 0 ? soul.prompt : null,
-        state: {
-          name: pet.name,
-          stage: STAGES[pet.stage] ?? "adult",
-          form: profile.form,
-          shirt: profile.equipped_shirt,
-          fuelLeft: left,
-          displayState: displayState(pet.life_state, profile.care_mood, sleeping),
-          nickname,
-          ownerLocalTime: local.time,
-          channel,
-        },
-        summary: mem.summary,
-        facts: mem.facts,
-        today: local.day,
-        history: mem.history,
-        userText,
+      const { reply, emotion, soul, res, cost } = await runTurn(deps, ai, {
+        petRef, contract, tokenId, owner, channel, turnId, pet, config, at: t, ask: { kind: "user", text: userText },
       });
-
-      // Attest before the call (03 section 7). A failure never blocks the turn; the receipt is then unverified.
-      if (!cfg.MOCK_AI) {
-        try {
-          await ensureAttestation(deps, model);
-        } catch {
-          log.warn("attestation refresh failed", { model });
-        }
-      }
-
-      const res = await ai.chat(messages, { model });
-      const { emotion, text: reply } = parseEmotion(res.text);
-      if (!reply) throw new NearAiError("upstream");
-      const cost = costNano(res.usage, price);
-
-      let sinceSummary = 0;
-      db.transaction(() => {
-        db.prepare(
-          `UPDATE turn SET status = 'done', reply_text_enc = ?, emotion = ?, soul_version = ?, model = ?, inference_id = ?, chat_id = ?,
-             prompt_tokens = ?, completion_tokens = ?, provider_cost_nano = ?, llm_ms = ?, completed_at = ? WHERE id = ?`,
-        ).run(
-          sealer.seal(petRef, reply), emotion, soul.version, res.model, res.inferenceId, res.chatId,
-          res.usage.prompt_tokens, res.usage.completion_tokens, cost, res.ms, now(), turnId,
-        );
-        db.prepare(
-          `INSERT INTO charge_job (turn_id, pet_ref, cost_micro, status, attempts, next_attempt_at, created_at, updated_at)
-           VALUES (?, ?, ?, 'queued', 0, ?, ?, ?)`,
-        ).run(turnId, petRef, config.fuel_price_micro, now(), now(), now());
-        addSpend(db, now(), cost ?? 0);
-        sinceSummary = noteTurn(db, petRef, owner);
-        db.prepare("UPDATE pet_profile SET last_owner_turn_at = ? WHERE pet_ref = ?").run(now(), petRef);
-      })();
-
-      try {
-        submitForVerification(deps, { turnId, petRef, model: res.model, chatId: res.chatId, rawRequest: res.rawRequest, rawResponse: res.rawResponse });
-      } catch (err) {
-        log.warn("verify submit failed", { turn_id: turnId, error: err instanceof Error ? err.name : "unknown" });
-      }
-
-      if (sinceSummary >= SUMMARY_EVERY) void maybeSummarise(deps, ai, petRef, owner, local.day);
 
       const key = input.voice ? await synth(turnId, reply) : null;
 
@@ -395,6 +440,54 @@ export function createTalk(deps: Deps, overrides: TalkOverrides = {}) {
         body: { turn_id: turnId, status: "failed", reply: LINES.tangled.reply, emotion: LINES.tangled.emotion, fuel: { left }, audio_url: null, receipt_url: null } satisfies TalkResponse,
       };
     }
+  }
+
+  /**
+   * Billed proactive message (07 section 3): a real turn with `channel = proactive`, one
+   * charge_job and a receipt, no TTS. Null when it cannot run (Low Fuel, NEAR AI not set up,
+   * resting, spend cap, failure), so the scheduler sends a free canned line instead.
+   */
+  async function proactive(
+    petRefIn: string,
+    trigger: BilledTrigger,
+    ctx: { owner: string; followUp?: FollowUp },
+  ): Promise<{ text: string; turnId: string } | null> {
+    const ref = parsePetRef(petRefIn);
+    if (!ref || !allowedContracts.includes(ref.contract)) return null;
+    const petRef = `${ref.contract}:${ref.tokenId}`;
+    return withLock(petRef, async () => {
+      const [pet, config] = await Promise.all([chain.getPet(ref.contract, ref.tokenId), chain.getConfig(ref.contract)]);
+      if (!pet || isLowFuel(pet, config)) return null;
+      const t = now();
+      if (t < restingUntil || overSpendCap(db, t, cfg.GLOBAL_DAILY_SPEND_CAP_USD)) return null;
+      if (!cfg.MOCK_AI && !cfg.NEARAI_API_KEY && !overrides.ai) return null;
+
+      const turnId = uuidv7(t);
+      db.prepare(
+        `INSERT INTO turn (id, pet_ref, owner_account, device_id, request_id, channel, status, user_text_enc, created_at)
+         VALUES (?, ?, ?, NULL, ?, 'proactive', 'processing', NULL, ?)`,
+      ).run(turnId, petRef, ctx.owner, `proactive-${turnId}`, t);
+      try {
+        const out = await runTurn(deps, ai, {
+          petRef, contract: ref.contract, tokenId: ref.tokenId, owner: ctx.owner, channel: "proactive", turnId, pet, config, at: t,
+          ask: { kind: "proactive", trigger, ...(ctx.followUp?.fact ? { fact: ctx.followUp.fact } : {}) },
+        });
+        log.info("proactive turn done", {
+          turn_id: turnId, pet_ref: petRef, trigger, model: out.res.model, inference_id: out.res.inferenceId, chat_id: out.res.chatId,
+          prompt_tokens: out.res.usage.prompt_tokens, completion_tokens: out.res.usage.completion_tokens, cost_nano: out.cost, llm_ms: out.res.ms,
+        });
+        return { text: out.reply, turnId };
+      } catch (err) {
+        const kind = err instanceof NearAiError ? err.kind : "internal";
+        db.prepare("UPDATE turn SET status = 'failed', error_code = ?, completed_at = ? WHERE id = ?").run(kind, now(), turnId);
+        if (kind === "resting") {
+          restingUntil = now() + RESTING_BACKOFF_MS;
+          log.alert("nearai out of credit (402); brain resting", { turn_id: turnId });
+        }
+        log.warn("proactive turn failed", { turn_id: turnId, pet_ref: petRef, trigger, error: kind });
+        return null;
+      }
+    });
   }
 
   const app = new Hono<AuthEnv>();
@@ -494,7 +587,7 @@ export function createTalk(deps: Deps, overrides: TalkOverrides = {}) {
     return () => clearInterval(timer);
   }
 
-  return { app, start, ai };
+  return { app, start, ai, proactive };
 }
 
 const instances = new WeakMap<Deps, ReturnType<typeof createTalk>>();
@@ -503,6 +596,9 @@ const talkFor = (deps: Deps) => {
   if (!t) instances.set(deps, (t = createTalk(deps)));
   return t;
 };
+
+/** Scheduler hook: shares the talk module's NEAR AI client, per-pet lock and resting state. */
+export const generateProactive: GenerateProactive = (deps, petRef, trigger, ctx) => talkFor(deps).proactive(petRef, trigger, ctx);
 
 export const talkModule: Module = {
   name: "talk",

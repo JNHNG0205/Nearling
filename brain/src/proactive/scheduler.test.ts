@@ -108,6 +108,22 @@ describe("proactive scheduler", () => {
     onEvolved(s.deps, "pets-v8.nearling.testnet:404"); // unknown pet: ignored
   });
 
+  it("race_result writes one free line per match, outside the daily max", async () => {
+    const s = setup();
+    const stop = proactiveModule.start!(s.deps);
+    publish(REF, "race_result", { match_id: "m1", won: true, draw: false });
+    publish(REF, "race_result", { match_id: "m1", won: true, draw: false });
+    publish(REF, "race_result", { match_id: "m2", won: false, draw: true });
+    publish(REF, "race_result", { match_id: "m3", won: false, draw: false });
+    stop();
+    expect(s.inbox().filter((r) => r.trigger.startsWith("race:"))).toEqual([
+      { trigger: "race:m1", turn_id: null, text: "I won the race! Thank you for cheering me on!" },
+      { trigger: "race:m2", turn_id: null, text: expect.stringContaining("tied") },
+      { trigger: "race:m3", turn_id: null, text: expect.stringContaining("didn't win") },
+    ]);
+    expect(s.deps.db.prepare("SELECT count(*) n FROM proactive_day").get()).toEqual({ n: 0 });
+  });
+
   it("missed_you after 24 h without an owner turn uses the inference hook", async () => {
     const s = setup({ lastTurn: T0 - 25 * HOUR });
     const calls: unknown[] = [];
