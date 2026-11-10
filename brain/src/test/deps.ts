@@ -24,6 +24,10 @@ export function testDeps(opts: { pets?: Record<string, PetView>; now?: () => num
   const chain: Chain = {
     getPet: async (_contract, id) => pets[id] ?? null,
     getConfig: async () => TEST_CONFIG,
+    getSoul: async () => ({ version: 1, prompt: "A cheerful pet who loves gardens." }),
+    view: async () => {
+      throw new Error("testDeps: stub chain.view for this test");
+    },
   };
   return {
     cfg: loadConfig({ DB_PATH: ":memory:" }),

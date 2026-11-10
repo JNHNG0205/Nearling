@@ -1,5 +1,5 @@
 import { JsonRpcProvider } from "near-api-js";
-import type { PetView } from "@nearling/shared";
+import type { PetView, SoulView } from "@nearling/shared";
 
 /** Subset of the pets contract `config()` view the brain reads. */
 export interface PetsConfig {
@@ -12,6 +12,10 @@ export interface PetsConfig {
 export interface Chain {
   getPet(contract: string, tokenId: string): Promise<PetView | null>;
   getConfig(contract: string): Promise<PetsConfig>;
+  /** Pet Soul (public prompt). Cached per pet for 30 s; key by soul_version when it matters. */
+  getSoul(contract: string, tokenId: string): Promise<SoulView>;
+  /** Any view call (shirts, NEARON pool, validator pools...). Throws on contract panics. */
+  view<T>(contractId: string, method: string, args?: Record<string, unknown>): Promise<T>;
 }
 
 const PET_TTL_MS = 5_000;
@@ -29,6 +33,7 @@ export function createChain(rpcUrls: string[]): Chain {
   const providers = rpcUrls.map((url) => new JsonRpcProvider({ url }));
   const pets = new Map<string, { at: number; value: PetView | null }>();
   const configs = new Map<string, { at: number; value: PetsConfig }>();
+  const souls = new Map<string, { at: number; value: SoulView }>();
 
   async function view<T>(contractId: string, method: string, args: Record<string, unknown>): Promise<T> {
     let last: unknown;
@@ -59,6 +64,17 @@ export function createChain(rpcUrls: string[]): Chain {
       pets.set(key, { at: Date.now(), value });
       return value;
     },
+
+    async getSoul(contract, tokenId) {
+      const key = `${contract}:${tokenId}`;
+      const hit = souls.get(key);
+      if (hit && Date.now() - hit.at < 30_000) return hit.value;
+      const value = await view<SoulView>(contract, "get_soul", { pet_id: tokenId });
+      souls.set(key, { at: Date.now(), value });
+      return value;
+    },
+
+    view: (contractId, method, args = {}) => view(contractId, method, args),
 
     async getConfig(contract) {
       const hit = configs.get(contract);
