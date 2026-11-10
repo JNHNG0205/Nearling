@@ -81,7 +81,7 @@ Sentence case everywhere; no all-caps labels (skill rule). Minimum text size 14 
 
 ## 4. Pixel rules
 
-- **Sprites:** 64×64 source, drawn at **integer scale only** (×2, ×3, ×4) with `image-rendering: pixelated`. Never a fractional scale (uneven pixels).
+- **Sprites:** 32×32 procedural pets ([07-pet-animation.md](07-pet-animation.md)), drawn at **integer scale only** (×2, ×3, ×4) with `image-rendering: pixelated`. Never a fractional scale (uneven pixels).
 - **Device screen:** the browser Nearling is a 240×240 canvas inside a bezel (`--n-surface-2`, 2 px `--n-line`, 4 px hard shadow). It scales to the largest integer that fits: ×1 under 520 px wide, ×2 above. On a phone the pet home shows the screen at ×1 with the controls under it, like holding the device.
 - **Borders and shadows:** 2 px solid borders; shadow `4px 4px 0 #000`, never blurred, never a glow.
 - **Icons:** 16×16 pixel icons on a 1 px grid (fuel drop, heart, moon, shirt, wing, seed, coin, check, warning), drawn by the art owner or taken from a pixel set with a licence listed in the README. Wallet and chain logos (NEAR, Meteor) use their real marks, as the skill asks for known products.

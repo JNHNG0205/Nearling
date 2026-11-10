@@ -99,6 +99,9 @@ export interface PetState {
   name: string;
   owner: string;
   stage: Stage;
+  /** contract stage index 0..3 and the five traits; the sprite look derives from these */
+  stage_index: number;
+  traits: number[];
   form: "base" | "winged";
   display_state: DisplayState;
   chain_life_state: ChainLifeState;

@@ -14,6 +14,8 @@ The Build Spec calls this the **phone web app**: wallet connection, pet and shir
 | [04-components-state-rendering.md](04-components-state-rendering.md) | Component tree, data fetching and SSE, browser Nearling simulator, sprite renderer, audio, race client |
 | [05-ux-copy-and-states.md](05-ux-copy-and-states.md) | Display states, labels ("demo speed", "simulated"), error copy for `E_` codes, empty and loading states |
 | [06-build-plan.md](06-build-plan.md) | Nov 10 to 14 plan and dependencies |
+| [07-pet-animation.md](07-pet-animation.md) | Procedural pixel pets: look from on-chain traits, every action and idle animation, web component, device header export |
+| [design.md](design.md) | Pixel design system (taste-skill deal, tokens, type, components, screens) |
 
 ## Principles
 

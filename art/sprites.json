@@ -1,0 +1,834 @@
+{
+  "size": 32,
+  "bitsPerPixel": 4,
+  "clips": [
+    {
+      "anim": "egg_idle",
+      "stage": "egg",
+      "winged": false,
+      "fps": 3,
+      "loop": true,
+      "grey": false,
+      "frames": 6
+    },
+    {
+      "anim": "egg_hatch",
+      "stage": "egg",
+      "winged": false,
+      "fps": 6,
+      "loop": false,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "idle",
+      "stage": "baby",
+      "winged": false,
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "sad",
+      "stage": "baby",
+      "winged": false,
+      "fps": 3,
+      "loop": true,
+      "grey": false,
+      "frames": 6
+    },
+    {
+      "anim": "hungry",
+      "stage": "baby",
+      "winged": false,
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "sleep",
+      "stage": "baby",
+      "winged": false,
+      "fps": 2,
+      "loop": true,
+      "grey": false,
+      "frames": 6
+    },
+    {
+      "anim": "starving",
+      "stage": "baby",
+      "winged": false,
+      "fps": 2,
+      "loop": true,
+      "grey": true,
+      "frames": 4
+    },
+    {
+      "anim": "dormant",
+      "stage": "baby",
+      "winged": false,
+      "fps": 1,
+      "loop": true,
+      "grey": true,
+      "frames": 4
+    },
+    {
+      "anim": "listen",
+      "stage": "baby",
+      "winged": false,
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "think",
+      "stage": "baby",
+      "winged": false,
+      "fps": 3,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "talk",
+      "stage": "baby",
+      "winged": false,
+      "fps": 8,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "pat",
+      "stage": "baby",
+      "winged": false,
+      "fps": 8,
+      "loop": false,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "rock",
+      "stage": "baby",
+      "winged": false,
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "dizzy",
+      "stage": "baby",
+      "winged": false,
+      "fps": 10,
+      "loop": true,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "eat",
+      "stage": "baby",
+      "winged": false,
+      "fps": 8,
+      "loop": false,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "celebrate",
+      "stage": "baby",
+      "winged": false,
+      "fps": 10,
+      "loop": false,
+      "grey": false,
+      "frames": 10
+    },
+    {
+      "anim": "evolve",
+      "stage": "baby",
+      "winged": false,
+      "fps": 8,
+      "loop": false,
+      "grey": false,
+      "frames": 12
+    },
+    {
+      "anim": "idle",
+      "stage": "baby",
+      "winged": true,
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "sad",
+      "stage": "baby",
+      "winged": true,
+      "fps": 3,
+      "loop": true,
+      "grey": false,
+      "frames": 6
+    },
+    {
+      "anim": "hungry",
+      "stage": "baby",
+      "winged": true,
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "sleep",
+      "stage": "baby",
+      "winged": true,
+      "fps": 2,
+      "loop": true,
+      "grey": false,
+      "frames": 6
+    },
+    {
+      "anim": "starving",
+      "stage": "baby",
+      "winged": true,
+      "fps": 2,
+      "loop": true,
+      "grey": true,
+      "frames": 4
+    },
+    {
+      "anim": "dormant",
+      "stage": "baby",
+      "winged": true,
+      "fps": 1,
+      "loop": true,
+      "grey": true,
+      "frames": 4
+    },
+    {
+      "anim": "listen",
+      "stage": "baby",
+      "winged": true,
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "think",
+      "stage": "baby",
+      "winged": true,
+      "fps": 3,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "talk",
+      "stage": "baby",
+      "winged": true,
+      "fps": 8,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "pat",
+      "stage": "baby",
+      "winged": true,
+      "fps": 8,
+      "loop": false,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "rock",
+      "stage": "baby",
+      "winged": true,
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "dizzy",
+      "stage": "baby",
+      "winged": true,
+      "fps": 10,
+      "loop": true,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "eat",
+      "stage": "baby",
+      "winged": true,
+      "fps": 8,
+      "loop": false,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "celebrate",
+      "stage": "baby",
+      "winged": true,
+      "fps": 10,
+      "loop": false,
+      "grey": false,
+      "frames": 10
+    },
+    {
+      "anim": "evolve",
+      "stage": "baby",
+      "winged": true,
+      "fps": 8,
+      "loop": false,
+      "grey": false,
+      "frames": 12
+    },
+    {
+      "anim": "idle",
+      "stage": "teen",
+      "winged": false,
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "sad",
+      "stage": "teen",
+      "winged": false,
+      "fps": 3,
+      "loop": true,
+      "grey": false,
+      "frames": 6
+    },
+    {
+      "anim": "hungry",
+      "stage": "teen",
+      "winged": false,
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "sleep",
+      "stage": "teen",
+      "winged": false,
+      "fps": 2,
+      "loop": true,
+      "grey": false,
+      "frames": 6
+    },
+    {
+      "anim": "starving",
+      "stage": "teen",
+      "winged": false,
+      "fps": 2,
+      "loop": true,
+      "grey": true,
+      "frames": 4
+    },
+    {
+      "anim": "dormant",
+      "stage": "teen",
+      "winged": false,
+      "fps": 1,
+      "loop": true,
+      "grey": true,
+      "frames": 4
+    },
+    {
+      "anim": "listen",
+      "stage": "teen",
+      "winged": false,
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "think",
+      "stage": "teen",
+      "winged": false,
+      "fps": 3,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "talk",
+      "stage": "teen",
+      "winged": false,
+      "fps": 8,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "pat",
+      "stage": "teen",
+      "winged": false,
+      "fps": 8,
+      "loop": false,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "rock",
+      "stage": "teen",
+      "winged": false,
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "dizzy",
+      "stage": "teen",
+      "winged": false,
+      "fps": 10,
+      "loop": true,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "eat",
+      "stage": "teen",
+      "winged": false,
+      "fps": 8,
+      "loop": false,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "celebrate",
+      "stage": "teen",
+      "winged": false,
+      "fps": 10,
+      "loop": false,
+      "grey": false,
+      "frames": 10
+    },
+    {
+      "anim": "evolve",
+      "stage": "teen",
+      "winged": false,
+      "fps": 8,
+      "loop": false,
+      "grey": false,
+      "frames": 12
+    },
+    {
+      "anim": "idle",
+      "stage": "teen",
+      "winged": true,
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "sad",
+      "stage": "teen",
+      "winged": true,
+      "fps": 3,
+      "loop": true,
+      "grey": false,
+      "frames": 6
+    },
+    {
+      "anim": "hungry",
+      "stage": "teen",
+      "winged": true,
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "sleep",
+      "stage": "teen",
+      "winged": true,
+      "fps": 2,
+      "loop": true,
+      "grey": false,
+      "frames": 6
+    },
+    {
+      "anim": "starving",
+      "stage": "teen",
+      "winged": true,
+      "fps": 2,
+      "loop": true,
+      "grey": true,
+      "frames": 4
+    },
+    {
+      "anim": "dormant",
+      "stage": "teen",
+      "winged": true,
+      "fps": 1,
+      "loop": true,
+      "grey": true,
+      "frames": 4
+    },
+    {
+      "anim": "listen",
+      "stage": "teen",
+      "winged": true,
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "think",
+      "stage": "teen",
+      "winged": true,
+      "fps": 3,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "talk",
+      "stage": "teen",
+      "winged": true,
+      "fps": 8,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "pat",
+      "stage": "teen",
+      "winged": true,
+      "fps": 8,
+      "loop": false,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "rock",
+      "stage": "teen",
+      "winged": true,
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "dizzy",
+      "stage": "teen",
+      "winged": true,
+      "fps": 10,
+      "loop": true,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "eat",
+      "stage": "teen",
+      "winged": true,
+      "fps": 8,
+      "loop": false,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "celebrate",
+      "stage": "teen",
+      "winged": true,
+      "fps": 10,
+      "loop": false,
+      "grey": false,
+      "frames": 10
+    },
+    {
+      "anim": "evolve",
+      "stage": "teen",
+      "winged": true,
+      "fps": 8,
+      "loop": false,
+      "grey": false,
+      "frames": 12
+    },
+    {
+      "anim": "idle",
+      "stage": "adult",
+      "winged": false,
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "sad",
+      "stage": "adult",
+      "winged": false,
+      "fps": 3,
+      "loop": true,
+      "grey": false,
+      "frames": 6
+    },
+    {
+      "anim": "hungry",
+      "stage": "adult",
+      "winged": false,
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "sleep",
+      "stage": "adult",
+      "winged": false,
+      "fps": 2,
+      "loop": true,
+      "grey": false,
+      "frames": 6
+    },
+    {
+      "anim": "starving",
+      "stage": "adult",
+      "winged": false,
+      "fps": 2,
+      "loop": true,
+      "grey": true,
+      "frames": 4
+    },
+    {
+      "anim": "dormant",
+      "stage": "adult",
+      "winged": false,
+      "fps": 1,
+      "loop": true,
+      "grey": true,
+      "frames": 4
+    },
+    {
+      "anim": "listen",
+      "stage": "adult",
+      "winged": false,
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "think",
+      "stage": "adult",
+      "winged": false,
+      "fps": 3,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "talk",
+      "stage": "adult",
+      "winged": false,
+      "fps": 8,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "pat",
+      "stage": "adult",
+      "winged": false,
+      "fps": 8,
+      "loop": false,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "rock",
+      "stage": "adult",
+      "winged": false,
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "dizzy",
+      "stage": "adult",
+      "winged": false,
+      "fps": 10,
+      "loop": true,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "eat",
+      "stage": "adult",
+      "winged": false,
+      "fps": 8,
+      "loop": false,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "celebrate",
+      "stage": "adult",
+      "winged": false,
+      "fps": 10,
+      "loop": false,
+      "grey": false,
+      "frames": 10
+    },
+    {
+      "anim": "evolve",
+      "stage": "adult",
+      "winged": false,
+      "fps": 8,
+      "loop": false,
+      "grey": false,
+      "frames": 12
+    },
+    {
+      "anim": "idle",
+      "stage": "adult",
+      "winged": true,
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "sad",
+      "stage": "adult",
+      "winged": true,
+      "fps": 3,
+      "loop": true,
+      "grey": false,
+      "frames": 6
+    },
+    {
+      "anim": "hungry",
+      "stage": "adult",
+      "winged": true,
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "sleep",
+      "stage": "adult",
+      "winged": true,
+      "fps": 2,
+      "loop": true,
+      "grey": false,
+      "frames": 6
+    },
+    {
+      "anim": "starving",
+      "stage": "adult",
+      "winged": true,
+      "fps": 2,
+      "loop": true,
+      "grey": true,
+      "frames": 4
+    },
+    {
+      "anim": "dormant",
+      "stage": "adult",
+      "winged": true,
+      "fps": 1,
+      "loop": true,
+      "grey": true,
+      "frames": 4
+    },
+    {
+      "anim": "listen",
+      "stage": "adult",
+      "winged": true,
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "think",
+      "stage": "adult",
+      "winged": true,
+      "fps": 3,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "talk",
+      "stage": "adult",
+      "winged": true,
+      "fps": 8,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "pat",
+      "stage": "adult",
+      "winged": true,
+      "fps": 8,
+      "loop": false,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "rock",
+      "stage": "adult",
+      "winged": true,
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 4
+    },
+    {
+      "anim": "dizzy",
+      "stage": "adult",
+      "winged": true,
+      "fps": 10,
+      "loop": true,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "eat",
+      "stage": "adult",
+      "winged": true,
+      "fps": 8,
+      "loop": false,
+      "grey": false,
+      "frames": 8
+    },
+    {
+      "anim": "celebrate",
+      "stage": "adult",
+      "winged": true,
+      "fps": 10,
+      "loop": false,
+      "grey": false,
+      "frames": 10
+    },
+    {
+      "anim": "evolve",
+      "stage": "adult",
+      "winged": true,
+      "fps": 8,
+      "loop": false,
+      "grey": false,
+      "frames": 12
+    }
+  ]
+}
