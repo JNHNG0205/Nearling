@@ -6,26 +6,14 @@ import {
   parsePetRef,
   type PetState,
 } from "@nearling/shared";
-import type { Chain } from "../chain/near";
+import type { Deps, Module } from "../deps";
+import { ensureProfile } from "../profiles";
 
 const LOW_FUEL = 5;
 
-/**
- * Off-chain profile defaults until the pet_profile table lands (care sync,
- * evolution, closet, pairing). A new pet starts at care mood 80 (CLAUDE.md 5.3).
- */
-const DEFAULT_PROFILE = {
-  form: "base" as const,
-  careMood: 80,
-  sleeping: false,
-  milestones: { pat: false, rock: false, sleep: false },
-  equippedShirt: null,
-  paired: false,
-  lastSeenAt: null,
-};
-
-export function petRoutes(chain: Chain, allowedContracts: string[]) {
+export function petRoutes({ chain, cfg, db, now }: Deps) {
   const app = new Hono();
+  const allowedContracts = [cfg.PETS_CONTRACT, cfg.DEMO_PETS_CONTRACT];
 
   app.get("/pets/:petRef/state", async (c) => {
     const ref = parsePetRef(c.req.param("petRef"));
@@ -38,7 +26,8 @@ export function petRoutes(chain: Chain, allowedContracts: string[]) {
     ]);
     if (!pet) return c.json({ error: { code: "not_found", message: "No such pet" } }, 404);
 
-    const p = DEFAULT_PROFILE;
+    const p = ensureProfile(db, `${ref.contract}:${ref.tokenId}`, pet.owner, now());
+    const sleeping = p.sleeping_until !== null && p.sleeping_until > now();
     const left = fuelLeft(pet.budget_micro, config.fuel_price_micro);
     const state: PetState = {
       pet_ref: `${ref.contract}:${ref.tokenId}`,
@@ -48,8 +37,10 @@ export function petRoutes(chain: Chain, allowedContracts: string[]) {
       name: pet.name,
       owner: pet.owner,
       stage: STAGES[pet.stage] ?? "adult",
+      stage_index: pet.stage,
+      traits: pet.traits,
       form: p.form,
-      display_state: displayState(pet.life_state, p.careMood, p.sleeping),
+      display_state: displayState(pet.life_state, p.care_mood, sleeping),
       chain_life_state: pet.life_state,
       fuel: {
         left,
@@ -66,9 +57,9 @@ export function petRoutes(chain: Chain, allowedContracts: string[]) {
         pending_unstake: pet.pending_unstake,
       },
       soul_version: pet.soul_version,
-      equipped_shirt: p.equippedShirt,
-      care: { mood: p.careMood, milestones: p.milestones },
-      device: { paired: p.paired, last_seen_at: p.lastSeenAt },
+      equipped_shirt: p.equipped_shirt,
+      care: { mood: p.care_mood, milestones: { pat: !!p.care_pat, rock: !!p.care_rock, sleep: !!p.care_sleep } },
+      device: { paired: false, last_seen_at: null }, // filled by the devices module
       as_of: Date.now(),
     };
     return c.json(state);
@@ -76,3 +67,5 @@ export function petRoutes(chain: Chain, allowedContracts: string[]) {
 
   return app;
 }
+
+export const petsModule: Module = { name: "pets", routes: petRoutes };

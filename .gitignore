@@ -11,3 +11,8 @@ coverage/
 .taste-skill/
 firmware/include/secrets.h
 target/
+
+# build caches
+*.tsbuildinfo
+next-env.d.ts
+brain/data/

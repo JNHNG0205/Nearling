@@ -11,7 +11,12 @@ const Env = z.object({
   PETS_CONTRACT: z.string().default("pets-v8.nearling.testnet"),
   DEMO_PETS_CONTRACT: z.string().default("pets-demo.nearling.testnet"),
   PORT: z.coerce.number().int().default(8787),
+  DB_PATH: z.string().default("./data/nearling.db"),
+  /** 32 bytes, base64. Required outside tests; generate with `openssl rand -base64 32`. */
+  MEMORY_MASTER_KEY: z.string().optional(),
   WEB_ORIGIN: z.string().default("http://localhost:3000"),
+  /** HS256 secret for owner sessions, base64. Required outside tests. */
+  SESSION_JWT_SECRET: z.string().default("dev-only-insecure-session-secret-change-me"),
 });
 
 export type Config = z.infer<typeof Env>;

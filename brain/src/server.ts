@@ -1,11 +1,42 @@
 import { serve } from "@hono/node-server";
+import { randomBytes } from "node:crypto";
 import { createApp } from "./app";
 import { createChain } from "./chain/near";
 import { loadConfig } from "./config";
+import { createSealer } from "./crypto";
+import { openDb } from "./db/db";
+import type { Deps } from "./deps";
+import { log } from "./log";
+import { MODULES } from "./modules";
 
 const cfg = loadConfig();
-const app = createApp(cfg, createChain(cfg.NEAR_RPC_URLS));
+let master = cfg.MEMORY_MASTER_KEY ? Buffer.from(cfg.MEMORY_MASTER_KEY, "base64") : null;
+if (!master) {
+  // Dev convenience only: memories written with a throwaway key are unreadable after restart.
+  log.warn("MEMORY_MASTER_KEY not set; using a throwaway key (dev only)");
+  master = randomBytes(32);
+}
 
-serve({ fetch: app.fetch, port: cfg.PORT }, (info) => {
-  console.log(JSON.stringify({ level: "info", msg: "brain listening", port: info.port }));
+const deps: Deps = {
+  cfg,
+  chain: createChain(cfg.NEAR_RPC_URLS),
+  db: openDb(cfg.DB_PATH),
+  sealer: createSealer(master),
+  now: () => Date.now(),
+};
+
+const stops = MODULES.flatMap((m) => (m.start ? [m.start(deps)] : []));
+const app = createApp(deps);
+
+const server = serve({ fetch: app.fetch, port: cfg.PORT }, (info) => {
+  log.info("brain listening", { port: info.port });
 });
+
+for (const sig of ["SIGINT", "SIGTERM"] as const) {
+  process.on(sig, () => {
+    stops.forEach((s) => s());
+    server.close();
+    deps.db.close();
+    process.exit(0);
+  });
+}
