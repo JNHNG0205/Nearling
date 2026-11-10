@@ -28,7 +28,7 @@ AI pets usually run on a company's servers and a company's bill. Nearling makes 
 ```
 
 - **The chain is the pet's bank:** ownership, fuel (food + staking credit), stake, Soul, events. Contract details: [`docs/CONTRACT_INTERFACE.md`](docs/CONTRACT_INTERFACE.md), full spec: [`CLAUDE.md`](CLAUDE.md) 6 and 7.
-- **One reply = one fuel:** the brain calls `charge(pet, $0.001, inference id)`. Retries with the same id never double-charge; an empty budget makes the pet Starving (Low Fuel), and 72 hours later Dormant. Pets never die.
+- **One reply = one fuel:** the brain calls `charge(pet, $0.001, turn id)`. Retries with the same id never double-charge; an empty budget makes the pet Starving (Low Fuel), and 72 hours later Dormant. Pets never die.
 - **Product and device:** [`docs/Nearling-Hackathon-Build-Spec.md`](docs/Nearling-Hackathon-Build-Spec.md).
 
 ## Try it on testnet
