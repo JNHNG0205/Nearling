@@ -35,6 +35,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 /** The reply receipt (design.md 6.2). `sample` marks example data on the landing page. */
 export function ReceiptCard({ receipt, footer, sample }: { receipt: Receipt; footer?: ReactNode; sample?: boolean }) {
   const checks = receiptChecks(receipt);
+  const fuel = receipt.fuel;
   const ref = encodeURIComponent(receipt.pet_ref);
   return (
     <article className="pixel-panel flex flex-col gap-3 p-4" aria-label={sample ? "Sample receipt" : "Reply receipt"}>
@@ -47,14 +48,14 @@ export function ReceiptCard({ receipt, footer, sample }: { receipt: Receipt; foo
       )}
       <dl>
         <Row label="Soul">
-          {receipt.soul_version > 0 ? (
+          {(receipt.soul_version ?? 0) > 0 ? (
             <>
               <span className="font-mono">v{receipt.soul_version}</span>{" "}
               {!sample && <Link href={`/pet/${ref}/soul`} className="text-accent underline underline-offset-4">View the Soul</Link>}
             </>
           ) : "Default personality (no Soul set)"}
         </Row>
-        <Row label="Model"><span className="font-mono">{receipt.model}</span> (private, runs in a TEE)</Row>
+        <Row label="Model">{receipt.model ? <><span className="font-mono">{receipt.model}</span> (private, runs in a TEE)</> : "Not recorded"}</Row>
         <Row label="Checks">
           <ul className="flex flex-col gap-1">
             {checks.map((c) => (
@@ -68,10 +69,10 @@ export function ReceiptCard({ receipt, footer, sample }: { receipt: Receipt; foo
         <Row label="Fuel">
           <span className="font-mono">
             1 thought
-            {receipt.fuel.source ? ` . ${SOURCE[receipt.fuel.source] ?? receipt.fuel.source}` : ""}
-            {receipt.fuel.tx ? (
-              sample ? ` . tx ${shortHash(receipt.fuel.tx)}` : (
-                <> . <a className={`${css.txLink} text-accent`} href={`${EXPLORER_TX}${receipt.fuel.tx}`} target="_blank" rel="noreferrer">tx {shortHash(receipt.fuel.tx)}</a></>
+            {fuel?.source ? ` . ${SOURCE[fuel.source] ?? fuel.source}` : ""}
+            {fuel?.tx ? (
+              sample ? ` . tx ${shortHash(fuel.tx)}` : (
+                <> . <a className={`${css.txLink} text-accent`} href={`${EXPLORER_TX}${fuel.tx}`} target="_blank" rel="noreferrer">tx {shortHash(fuel.tx)}</a></>
               )
             ) : " . charging"}
           </span>
@@ -81,7 +82,9 @@ export function ReceiptCard({ receipt, footer, sample }: { receipt: Receipt; foo
             ? `${voiceName(receipt.voice.provider)} (${receipt.voice.note ?? "reply text sent to a third-party voice service"})`
             : "No voice for this reply. The text stayed with the brain."}
         </Row>
-        <Row label="When"><span className="font-mono">{new Date(receipt.at).toISOString().replace("T", " ").slice(0, 16)} UTC</span></Row>
+        {receipt.at != null && (
+          <Row label="When"><span className="font-mono">{new Date(receipt.at).toISOString().replace("T", " ").slice(0, 16)} UTC</span></Row>
+        )}
       </dl>
       {footer}
     </article>

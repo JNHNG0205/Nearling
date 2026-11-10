@@ -91,8 +91,8 @@ export default async function PublicPet({ params }: { params: Promise<{ petRef: 
               <li key={r.turn_id}>
                 <Link href={`/receipt/${encodeURIComponent(r.turn_id)}`} className="pixel-panel flex flex-col gap-2 p-3">
                   <VerifyChip status={r.verification.status} />
-                  <span className="font-mono text-sm">{r.model} . Soul v{r.soul_version}</span>
-                  <span className="font-mono text-sm text-muted">{r.fuel.tx ? `tx ${shortHash(r.fuel.tx)}` : "charging"}</span>
+                  <span className="font-mono text-sm">{r.model ?? "model not recorded"} . Soul v{r.soul_version ?? 0}</span>
+                  <span className="font-mono text-sm text-muted">{r.fuel?.tx ? `tx ${shortHash(r.fuel.tx)}` : "charging"}</span>
                 </Link>
               </li>
             ))}

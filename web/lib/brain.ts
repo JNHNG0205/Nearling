@@ -131,9 +131,9 @@ export async function getTurns(petRef: string, headers: Record<string, string>, 
 export interface Receipt {
   turn_id: string;
   pet_ref: string;
-  at: number;
-  soul_version: number;
-  model: string;
+  at: number | null;
+  soul_version: number | null;
+  model: string | null;
   verification: {
     status: VerifyStatus;
     signature_kind?: "provider_tee" | "gateway" | string | null;
@@ -142,9 +142,9 @@ export interface Receipt {
     resp_hash?: string | null;
     reason?: string | null;
     public?: boolean;
-    attestation?: { fetched_at?: number | null; nras?: string | null; tdx?: string | null } | null;
+    attestation?: { fetched_at?: number | null; nras?: string | null; tdx?: string | null; nras_jwt_signature?: string | null } | null;
   };
-  fuel: { cost_micro: number; source: FuelSource | null; tx: string | null };
+  fuel: { cost_micro: number | null; source: FuelSource | null; tx: string | null; status?: string | null } | null;
   provider_cost_usd?: number | null;
   voice?: { provider: string; note?: string } | null;
 }
@@ -205,7 +205,7 @@ export async function postCare(
   return json(await fetch(`${pet(petRef)}/care`, {
     method: "POST",
     headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify({ events, source: "web-sim" }),
+    body: JSON.stringify({ events }),
   }));
 }
 
@@ -275,7 +275,8 @@ export function normalizeAttestation(body: unknown): AttestationSummary[] {
       return {
         model,
         fetched_at: typeof r.fetched_at === "number" ? r.fetched_at : null,
-        ok: r.ok === true || r.ok === 1,
+        // brain: { models: [{ model, fetched_at, fresh, nras: "pass"|"fail", ... }] }
+        ok: r.ok === true || r.ok === 1 || (nras === "pass" && r.fresh !== false),
         nras,
         signers,
         gateway_signer: str(r.gateway_signer),

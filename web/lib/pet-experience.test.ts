@@ -6,7 +6,7 @@ import { fuelSegments, thoughts } from "@/components/FuelMeter";
 import {
   BrainRequestError, normalizeAttestation, normalizeInbox, normalizeTimeline, normalizeTurn, type Receipt,
 } from "./brain";
-import { withOneRetry } from "./useTalk";
+import { FailedTurn, withOneRetry } from "./useTalk";
 
 describe("withOneRetry", () => {
   it("retries once after a network error, then succeeds", async () => {
@@ -31,6 +31,12 @@ describe("withOneRetry", () => {
   it("gives up after the second failure", async () => {
     const send = vi.fn().mockRejectedValue(new TypeError("offline"));
     await expect(withOneRetry(send, 1000)).rejects.toThrow("offline");
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries a failed generation once (same request_id) and gives up after two", async () => {
+    const send = vi.fn().mockRejectedValue(new FailedTurn());
+    await expect(withOneRetry(send, 1000)).rejects.toBeInstanceOf(FailedTurn);
     expect(send).toHaveBeenCalledTimes(2);
   });
 
@@ -97,7 +103,7 @@ describe("receiptChecks", () => {
 
   it("lists passed checks and what is not checked", () => {
     const c = receiptChecks(base, 12 * 60_000);
-    expect(c.map((x) => x.state)).toEqual(["ok", "ok", "ok", "not_checked", "not_checked"]);
+    expect(c.map((x) => x.state)).toEqual(["ok", "ok", "ok", "not_checked", "not_checked", "not_checked"]);
     expect(c[0]!.text).toContain("12 min ago");
   });
 
@@ -118,12 +124,16 @@ describe("small helpers", () => {
   it("writes timeline lines", () => {
     const t = normalizeTimeline({ kind: "fed", actor: "bob.testnet", amount: "100000000000000000000000", block_ts: 3 }, 0)!;
     expect(timelineLine(t)).toBe("Fed by bob.testnet (0.1 NEAR)");
-    expect(timelineLine(normalizeTimeline({ kind: "soul_updated", version: 3 }, 1)!)).toBe("Soul updated to v3");
+    expect(timelineLine(normalizeTimeline({ kind: "soul_updated", amount: "3", at: 1 }, 1)!)).toBe("Soul updated to v3");
+    expect(timelineLine(normalizeTimeline({ id: 7, kind: "stage_up", actor: null, amount: "2", at: 1 }, 2)!)).toBe("Grew up to teen");
+    expect(timelineLine(normalizeTimeline({ id: 8, kind: "fed", actor: null, amount: "1000000000000000000000000", at: 1 }, 3)!)).toBe("Fed (1 NEAR)");
   });
 
   it("normalises inbox and attestation", () => {
     expect(normalizeInbox({ id: "4", text: "I missed you" })).toMatchObject({ id: 4, text: "I missed you" });
     expect(normalizeInbox({ id: 1 })).toBeNull();
+    expect(normalizeAttestation({ models: [{ model: "m", fetched_at: 1, fresh: true, nras: "pass", model_signers: [] }] })[0]).toMatchObject({ model: "m", ok: true, nras: "pass" });
+    expect(normalizeAttestation({ models: [{ model: "m", fetched_at: 1, fresh: false, nras: "pass" }] })[0]!.ok).toBe(false);
     expect(normalizeAttestation({ "z-ai/glm": { ok: 1, fetched_at: 7, model_signers: ["0xabc"] } })).toEqual([
       { model: "z-ai/glm", fetched_at: 7, ok: true, nras: null, signers: ["0xabc"], gateway_signer: null },
     ]);

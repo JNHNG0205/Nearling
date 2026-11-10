@@ -24,7 +24,8 @@ export function receiptChecks(r: Receipt, now = Date.now()): Check[] {
   if (v.req_hash && v.resp_hash && (v.status === "model_verified" || v.status === "gateway_verified")) {
     checks.push({ state: "ok", text: `Signature covers request hash ${shortHash(v.req_hash)} and response hash ${shortHash(v.resp_hash)}` });
   }
-  checks.push({ state: "not_checked", text: `Intel TDX quote: ${att?.tdx ?? "not checked in app"}` });
+  checks.push({ state: "not_checked", text: `Intel TDX quote: ${typeof att?.tdx === "string" ? att.tdx : "not checked in app"}` });
+  checks.push({ state: "not_checked", text: `NVIDIA NRAS token signature: ${att?.nras_jwt_signature ?? "not checked in app"}` });
   checks.push({ state: "not_checked", text: "The prompt and reply bytes are not kept, only their hashes" });
   return checks;
 }

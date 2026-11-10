@@ -38,6 +38,13 @@ export async function withOneRetry<T>(
   }
 }
 
+/** A 200 reply with status "failed": the brain made no charge, so the same request_id may be retried. */
+export class FailedTurn extends Error {
+  constructor() {
+    super("upstream");
+  }
+}
+
 /** Sprite phases of one talk (07-pet-animation section 4): listen -> think -> talk -> emotion -> loop. */
 export type TalkPhase = "idle" | "listening" | "thinking" | "talking" | "reacting";
 
@@ -125,7 +132,12 @@ export function useTalk({ petRef, name, onSent, onReply, onError }: UseTalkOptio
     setPhase("thinking");
     cb.current.onSent(local);
     try {
-      const res = await withOneRetry((signal) => postTalk(petRef, local.requestId, input, authHeaders(), signal));
+      // A failed generation is HTTP 200 with status "failed" and no charge: retry it once with the same request_id.
+      const res = await withOneRetry(async (signal) => {
+        const r = await postTalk(petRef, local.requestId, input, authHeaders(), signal);
+        if (r.status === "failed") throw new FailedTurn();
+        return r;
+      });
       cb.current.onReply(local, res);
       showReply(res, "audio" in input);
     } catch (err) {

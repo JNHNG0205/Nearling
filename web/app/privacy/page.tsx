@@ -51,7 +51,7 @@ export default async function Privacy() {
                 <span className="font-mono">{a.model}</span>
                 <span className={a.ok ? "text-fuel" : "text-warn"}>
                   <span aria-hidden>{a.ok ? "✓ " : "! "}</span>
-                  {a.ok ? "GPU attestation passed" : "GPU attestation not passing"}
+                  {a.ok ? "GPU attestation passed" : a.nras === "pass" ? "GPU attestation passed, a refresh is due" : "GPU attestation not passing"}
                   {a.fetched_at ? `, ${minutesAgo(a.fetched_at, now)}` : ""}
                 </span>
                 {a.signers.length > 0 && (

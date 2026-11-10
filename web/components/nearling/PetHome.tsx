@@ -8,6 +8,7 @@ import { FuelMeter } from "@/components/FuelMeter";
 import { PetScreen } from "@/components/PetScreen";
 import { ChatLog, type ChatEntry } from "@/components/talk/ChatLog";
 import { TalkBar } from "@/components/talk/TalkBar";
+import { ConnectButton } from "@/components/wallet/ConnectButton";
 import {
   ackInbox, errorCopy, getInbox, getPetState, getTurns, normalizeInbox, normalizeTurn, postCare,
   type InboxItem, type Turn,
@@ -220,10 +221,10 @@ export function PetHome({ initial }: { initial: PetState }) {
           {session ? (
             <p>Only {pet.name}&apos;s owner can talk to {pet.name}. Anyone can feed the brain.</p>
           ) : (
-            <p>
-              Connect your wallet to talk. Use the connect button at the top of the page, or{" "}
-              <Link href="/adopt" className="text-accent underline underline-offset-4">hatch a pet of your own</Link>.
-            </p>
+            <>
+              <p>Connect your wallet to talk.</p>
+              <div className="self-start"><ConnectButton /></div>
+            </>
           )}
           <Link href={`/feed/${ref}`} className="pixel-btn self-start">Feed {pet.name}</Link>
         </div>
