@@ -8,12 +8,14 @@
     "build": "next build",
     "start": "next start --port 3000",
     "typecheck": "tsc --noEmit",
-    "test": "echo \"no web tests yet\""
+    "test": "vitest run"
   },
   "dependencies": {
+    "@hot-labs/near-connect": "0.12.0",
     "@nearling/race": "workspace:*",
     "@nearling/shared": "workspace:*",
     "@nearling/sprites": "workspace:*",
+    "near-api-js": "7.4.0",
     "next": "16.4.6",
     "qrcode-generator": "2.0.4",
     "react": "19.3.1",
@@ -25,6 +27,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "tailwindcss": "4.3.5",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "3.2.4"
   }
 }
