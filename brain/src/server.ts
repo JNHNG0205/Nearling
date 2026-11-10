@@ -8,6 +8,7 @@ import { openDb } from "./db/db";
 import type { Deps } from "./deps";
 import { log } from "./log";
 import { MODULES } from "./modules";
+import { attachWebSockets } from "./race/ws";
 
 const cfg = loadConfig();
 let master = cfg.MEMORY_MASTER_KEY ? Buffer.from(cfg.MEMORY_MASTER_KEY, "base64") : null;
@@ -31,6 +32,7 @@ const app = createApp(deps);
 const server = serve({ fetch: app.fetch, port: cfg.PORT }, (info) => {
   log.info("brain listening", { port: info.port });
 });
+attachWebSockets(server, app);
 
 for (const sig of ["SIGINT", "SIGTERM"] as const) {
   process.on(sig, () => {

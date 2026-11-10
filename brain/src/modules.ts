@@ -6,6 +6,7 @@ import { devicesModule } from "./identity/devices";
 import { receiptsModule } from "./receipts/receipts";
 import { inboxModule } from "./proactive/inbox";
 import { proactiveModule } from "./proactive/scheduler";
+import { raceModule } from "./race/routes";
 import { petsModule } from "./routes/pets";
 import { streamModule } from "./stream/stream";
 import { timelineModule } from "./timeline/timeline";
@@ -28,4 +29,5 @@ export const MODULES: Module[] = [
   ordersModule(),
   gardenModule(),
   walletModule(),
+  raceModule,
 ];
