@@ -55,7 +55,9 @@ export async function postTalk(
     const form = new FormData();
     form.set("request_id", requestId);
     form.set("audio", input.audio, "talk.webm");
-    form.set("voice", "1");
+    // No synthesis from the web: ElevenLabs credits (about 130 replies) are kept for the device
+    // (AI-brain 03 section 6). Replies still show as text; "Play voice" appears only if the brain sent audio.
+    form.set("voice", "0");
     init = { method: "POST", headers, body: form, signal };
   }
   return json<TalkResponse>(await fetch(`${pet(petRef)}/talk`, init));
