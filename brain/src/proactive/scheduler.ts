@@ -1,7 +1,9 @@
 import { fuelLeft } from "@nearling/shared";
 import type { Deps, Module } from "../deps";
+import { subscribeAll } from "../events";
+import { decay } from "../identity/care";
 import { log } from "../log";
-import { ensureProfile } from "../profiles";
+import { ensureProfile, getProfile } from "../profiles";
 import { pushInbox } from "./inbox";
 import { listPets, type KnownPet } from "./pets";
 import {
@@ -65,6 +67,21 @@ function saveMemory(deps: Deps, petRef: string, m: ProactiveMemory) {
     .run(petRef, JSON.stringify(m));
 }
 
+const evolvedSent = (deps: Deps, petRef: string) =>
+  !!deps.db.prepare("SELECT 1 FROM inbox WHERE pet_ref = ? AND trigger LIKE 'evolved%'").get(petRef);
+
+/**
+ * The care module publishes `evolved` on the bus when a pet grows wings; this writes the one-time
+ * canned inbox line (free). The 15 min pass is a backstop if the brain restarted in between.
+ * Not counted in the daily proactive max: it answers the owner's own care.
+ */
+export function onEvolved(deps: Deps, petRef: string): void {
+  const profile = getProfile(deps.db, petRef);
+  if (!profile || evolvedSent(deps, petRef)) return;
+  const item = pushInbox(deps, petRef, profile.owner_account, "evolved", cannedLine("evolved", "", 0));
+  log.info("proactive sent", { pet_ref: petRef, trigger: "evolved", inbox_id: item.id, canned: true });
+}
+
 async function petPass(deps: Deps, hooks: ProactiveHooks, p: KnownPet): Promise<void> {
   const pet = await deps.chain.getPet(p.contract, p.tokenId);
   if (!pet) return;
@@ -79,9 +96,10 @@ async function petPass(deps: Deps, hooks: ProactiveHooks, p: KnownPet): Promise<
     lifeState: pet.life_state,
     fuelLeft: fuelLeft(pet.budget_micro, config.fuel_price_micro),
     form: profile.form,
-    careMood: profile.care_mood,
-    lastOwnerTurnAt: profile.last_owner_turn_at,
-    evolvedSent: !!deps.db.prepare("SELECT 1 FROM inbox WHERE pet_ref = ? AND trigger LIKE 'evolved%'").get(p.petRef),
+    // care_mood is only decayed on sync; decay on read like /state does
+    careMood: profile.care_mood_at === null ? profile.care_mood : decay(profile.care_mood, profile.care_mood_at, now)[0],
+    lastOwnerTurnAt: profile.last_owner_turn_at ?? null, // set by the talk module; null = never
+    evolvedSent: evolvedSent(deps, p.petRef),
     now,
     localHour: local.hour,
     localDay: local.day,
@@ -157,9 +175,20 @@ export function createProactiveModule(hooks: ProactiveHooks = {}): Module {
           running = false;
         }
       };
+      const unsubscribe = subscribeAll((e) => {
+        if (e.type !== "evolved") return;
+        try {
+          onEvolved(deps, e.petRef);
+        } catch (err) {
+          log.warn("evolved inbox failed", { pet_ref: e.petRef, error: err instanceof Error ? err.name : "unknown" });
+        }
+      });
       void tick();
       const timer = setInterval(() => void tick(), PASS_MS);
-      return () => clearInterval(timer);
+      return () => {
+        clearInterval(timer);
+        unsubscribe();
+      };
     },
   };
 }

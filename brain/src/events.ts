@@ -26,3 +26,9 @@ export function subscribe(petRef: string, fn: (e: PetEvent) => void): () => void
   bus.on("pet", h);
   return () => bus.off("pet", h);
 }
+
+/** Every pet's events (background jobs that react to any pet, e.g. the evolved inbox line). */
+export function subscribeAll(fn: (e: PetEvent) => void): () => void {
+  bus.on("pet", fn);
+  return () => bus.off("pet", fn);
+}

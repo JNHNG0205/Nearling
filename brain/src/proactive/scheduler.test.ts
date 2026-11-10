@@ -4,7 +4,8 @@ import { ensureProfile } from "../profiles";
 import { TEST_PET, testDeps } from "../test/deps";
 import { pushInbox } from "./inbox";
 import { listPets } from "./pets";
-import { localTime, runProactivePass, type ProactiveHooks } from "./scheduler";
+import { publish } from "../events";
+import { localTime, onEvolved, proactiveModule, runProactivePass, type ProactiveHooks } from "./scheduler";
 
 const REF = "pets-v8.nearling.testnet:1";
 const T0 = 1_800_000_000_000; // 2027-01-15 08:00 UTC
@@ -83,6 +84,28 @@ describe("proactive scheduler", () => {
     s.profile("care_mood = 10");
     await s.pass();
     expect(s.triggers()).toEqual(["lonely", "lonely"]);
+  });
+
+  it("lonely uses care mood decayed to now (2 per hour since the last sync)", async () => {
+    const s = setup({ care: 50 });
+    s.profile("care_mood_at = ?", T0 - 12 * HOUR); // 50 - 24 = 26
+    await s.pass();
+    expect(s.triggers()).toEqual(["lonely"]);
+  });
+
+  it("the evolved bus event writes 'I grew wings!' once, outside the daily max", async () => {
+    const s = setup();
+    const stop = proactiveModule.start!(s.deps);
+    publish(REF, "evolved", { form: "winged" });
+    publish(REF, "evolved", { form: "winged" });
+    stop();
+    expect(s.inbox().filter((r) => r.trigger === "evolved")).toEqual([
+      { trigger: "evolved", turn_id: null, text: expect.stringMatching(/^I grew wings!/) },
+    ]);
+    s.profile("form = 'winged'");
+    await s.pass();
+    expect(s.triggers().filter((t) => t === "evolved")).toHaveLength(1);
+    onEvolved(s.deps, "pets-v8.nearling.testnet:404"); // unknown pet: ignored
   });
 
   it("missed_you after 24 h without an owner turn uses the inference hook", async () => {

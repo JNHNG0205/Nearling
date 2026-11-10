@@ -120,7 +120,7 @@ const LINES: Record<ProactiveTrigger, ((name: string) => string)[]> = {
     () => "I'm awake again! Thank you for the snack. I missed you!",
     () => "Yum, fuel! My brain feels sparkly again. Want to chat?",
   ],
-  evolved: [() => "Look, I grew wings! Thank you for taking such good care of me!"],
+  evolved: [() => "I grew wings! Thank you for taking such good care of me!"],
   lonely: [
     () => "I'm feeling a bit lonely. Could you give me a pat?",
     () => "Hey, I miss you! A little pat or a rock would make me so happy.",
