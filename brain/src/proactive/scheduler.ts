@@ -82,6 +82,25 @@ export function onEvolved(deps: Deps, petRef: string): void {
   log.info("proactive sent", { pet_ref: petRef, trigger: "evolved", inbox_id: item.id, canned: true });
 }
 
+/**
+ * Feed the Brain settled (`fuel_added` from the orders module): one thank-you line per order,
+ * canned and free, not counted in the daily max (it answers the payer's own action).
+ */
+export function onFed(deps: Deps, petRef: string, data: Record<string, unknown>): void {
+  const orderId = typeof data.order_id === "string" ? data.order_id : null;
+  const profile = getProfile(deps.db, petRef);
+  if (!orderId || !profile) return;
+  const trigger = `fed:${orderId}`;
+  if (deps.db.prepare("SELECT 1 FROM inbox WHERE pet_ref = ? AND trigger = ?").get(petRef, trigger)) return;
+  const payer = typeof data.payer === "string" && data.payer !== profile.owner_account ? data.payer : null;
+  const fuel = typeof data.fuel === "number" ? data.fuel : null;
+  const text = payer
+    ? `Yum! Thank you, ${payer}! My brain has ${fuel ?? "more"} new thoughts to think.`
+    : `Yum, that was tasty! ${fuel ? `${fuel} new thoughts` : "More thoughts"} for me. Want to chat?`;
+  const item = pushInbox(deps, petRef, profile.owner_account, trigger, text);
+  log.info("proactive sent", { pet_ref: petRef, trigger: "fed", inbox_id: item.id, canned: true });
+}
+
 async function petPass(deps: Deps, hooks: ProactiveHooks, p: KnownPet): Promise<void> {
   const pet = await deps.chain.getPet(p.contract, p.tokenId);
   if (!pet) return;
@@ -176,11 +195,12 @@ export function createProactiveModule(hooks: ProactiveHooks = {}): Module {
         }
       };
       const unsubscribe = subscribeAll((e) => {
-        if (e.type !== "evolved") return;
+        if (e.type !== "evolved" && e.type !== "fuel_added") return;
         try {
-          onEvolved(deps, e.petRef);
+          if (e.type === "evolved") onEvolved(deps, e.petRef);
+          else onFed(deps, e.petRef, e.data);
         } catch (err) {
-          log.warn("evolved inbox failed", { pet_ref: e.petRef, error: err instanceof Error ? err.name : "unknown" });
+          log.warn(`${e.type} inbox failed`, { pet_ref: e.petRef, error: err instanceof Error ? err.name : "unknown" });
         }
       });
       void tick();

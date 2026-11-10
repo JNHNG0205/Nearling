@@ -5,7 +5,7 @@ import { TEST_PET, testDeps } from "../test/deps";
 import { pushInbox } from "./inbox";
 import { listPets } from "./pets";
 import { publish } from "../events";
-import { localTime, onEvolved, proactiveModule, runProactivePass, type ProactiveHooks } from "./scheduler";
+import { localTime, onEvolved, onFed, proactiveModule, runProactivePass, type ProactiveHooks } from "./scheduler";
 
 const REF = "pets-v8.nearling.testnet:1";
 const T0 = 1_800_000_000_000; // 2027-01-15 08:00 UTC
@@ -219,5 +219,20 @@ describe("pet enumeration and local time", () => {
   it("falls back to UTC for an unknown time zone", () => {
     expect(localTime(T0, "Mars/Olympus")).toEqual({ hour: 8, day: "2027-01-15" });
     expect(localTime(T0, KL)).toEqual({ hour: 16, day: "2027-01-15" });
+  });
+});
+
+describe("fed thank-you", () => {
+  it("writes one line per order and names a friend who paid", () => {
+    const deps = testDeps();
+    const ref = "pets-v8.nearling.testnet:1";
+    ensureProfile(deps.db, ref, "alice.testnet", deps.now());
+    onFed(deps, ref, { order_id: "o1", payer: "bob.testnet", fuel: 100 });
+    onFed(deps, ref, { order_id: "o1", payer: "bob.testnet", fuel: 100 }); // duplicate settlement
+    onFed(deps, ref, { order_id: "o2", payer: "alice.testnet", fuel: 20 });
+    const rows = deps.db.prepare("SELECT trigger, text_enc FROM inbox WHERE pet_ref = ? ORDER BY id").all(ref) as { trigger: string; text_enc: Buffer }[];
+    expect(rows.map((r) => r.trigger)).toEqual(["fed:o1", "fed:o2"]);
+    expect(deps.sealer.open(ref, rows[0]!.text_enc)).toContain("bob.testnet");
+    expect(deps.sealer.open(ref, rows[1]!.text_enc)).not.toContain("alice.testnet");
   });
 });
