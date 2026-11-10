@@ -1,0 +1,86 @@
+/* Pixel parts of the pet experience (design.md sections 4 and 5). Square, 2 px borders, hard shadows. */
+
+.bezel {
+  background: var(--n-surface-2);
+  border: var(--n-border) solid var(--n-line);
+  box-shadow: var(--n-shadow-off) var(--n-shadow-off) 0 var(--n-shadow);
+}
+
+.screen {
+  background: var(--n-screen);
+  border: var(--n-border) solid var(--n-shadow);
+}
+
+.hwBtn {
+  font-family: var(--font-pixel), system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 16px;
+  min-width: 64px;
+  min-height: 44px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--p-surface);
+  color: var(--p-ink);
+  border: var(--n-border) solid var(--n-line);
+  box-shadow: 0 var(--n-shadow-off) 0 var(--n-shadow);
+  transition: transform 80ms steps(2), box-shadow 80ms steps(2);
+}
+button.hwBtn:active,
+button.hwBtn[data-held="true"] {
+  transform: translateY(4px);
+  box-shadow: 0 0 0 var(--n-shadow);
+}
+button.hwBtn:disabled { opacity: 0.5; }
+
+/* Stepped corners and a tail, no curves. */
+.bubble {
+  position: relative;
+  background: var(--p-ink);
+  color: var(--p-inv-ink);
+  padding: 8px 12px;
+  border: var(--n-border) solid var(--n-shadow);
+  box-shadow: 0 0 0 var(--n-border) var(--p-ink);
+  clip-path: polygon(0 4px, 4px 4px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 4px, 100% 4px,
+    100% calc(100% - 4px), calc(100% - 4px) calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%,
+    4px calc(100% - 4px), 0 calc(100% - 4px));
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 0 8px;
+  border: var(--n-border) solid currentColor;
+  background: var(--p-surface);
+  font-family: var(--font-pixel), system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 16px;
+  transition: transform 80ms steps(2);
+}
+a.chip:hover { transform: translate(-2px, -2px); }
+
+.txLink { text-decoration: underline 2px transparent; text-underline-offset: 4px; transition: text-decoration-color 120ms steps(2); }
+.txLink:hover { text-decoration-color: currentColor; }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  width: min(448px, calc(100vw - 32px));
+  z-index: 50;
+}
+
+.dither {
+  background-color: var(--p-surface);
+  background-image: conic-gradient(var(--n-surface-2) 25%, transparent 0 50%, var(--n-surface-2) 0 75%, transparent 0);
+  background-size: 4px 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hwBtn, button.hwBtn:active, button.hwBtn[data-held="true"], a.chip:hover { transition: none; transform: none; }
+  .txLink { transition: none; }
+}

@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { careAnim, type AnyAnim, type CareEvent, type DisplayState } from "@nearling/sprites";
 import { PetSprite } from "./PetSprite";
+import { NearlingFrame } from "./nearling/NearlingFrame";
+import { SpeechBubble } from "./nearling/SpeechBubble";
 
 const CARE: { event: CareEvent; label: string }[] = [
   { event: "pat", label: "Pat" },
@@ -12,9 +14,12 @@ const CARE: { event: CareEvent; label: string }[] = [
 ];
 
 /**
- * Browser Nearling: the 240x240 device screen with the pet, and the care inputs the
- * device has (touch pad, motion, light). Care is local and costs no fuel (Build Spec 4);
- * syncing events to the brain's /care route comes next.
+ * Browser Nearling: the 240x240 device screen with the pet, and the care inputs the device
+ * has (touch pad, motion, light). The local animation always plays at once; `onCare` lets the
+ * page sync the event to the brain. Care costs no fuel (Build Spec 4).
+ *
+ * What plays (07-pet-animation section 4): talk flow (`talk`) > one-shot event (`event`) >
+ * care > state loop.
  */
 export function PetScreen(props: {
   traits: number[];
@@ -22,21 +27,44 @@ export function PetScreen(props: {
   winged: boolean;
   state: DisplayState;
   name: string;
+  talk?: AnyAnim | null;
+  event?: { anim: AnyAnim; key: number } | null;
+  onEventDone?: () => void;
+  bubble?: string | null;
+  onCare?: (event: CareEvent) => void;
+  buttons?: ReactNode;
+  scale?: number;
 }) {
-  const [play, setPlay] = useState<AnyAnim | null>(null);
-  const [key, setKey] = useState(0);
+  const [care, setCare] = useState<AnyAnim | null>(null);
+  const [careKey, setCareKey] = useState(0);
   // rock and sleep are loops: they play until another input (a real device stops on its own)
-  const trigger = (anim: AnyAnim) => {
-    setPlay(anim);
-    setKey((k) => k + 1);
+  const trigger = (event: CareEvent) => {
+    setCare(careAnim(event));
+    setCareKey((k) => k + 1);
+    props.onCare?.(event);
   };
+
+  let play: AnyAnim | null = care;
+  let key = `c${careKey}`;
+  let onDone = () => setCare(null);
+  if (props.talk) {
+    play = props.talk;
+    key = `t${props.talk}`;
+    onDone = () => undefined;
+  } else if (props.event) {
+    play = props.event.anim;
+    key = `e${props.event.key}`;
+    onDone = () => props.onEventDone?.();
+  }
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <div
-        className="pixel-panel flex h-[240px] w-[240px] items-end justify-center bg-[var(--n-screen)] pb-6"
-        aria-label={`${props.name}'s screen`}
-      >
+      <NearlingFrame label={`${props.name}'s screen`} buttons={props.buttons ?? null}>
+        {props.bubble && (
+          <div className="absolute inset-x-3 top-3">
+            <SpeechBubble text={props.bubble} className="max-h-[96px] overflow-hidden text-[14px] leading-4" />
+          </div>
+        )}
         <PetSprite
           traits={props.traits}
           stageIndex={props.stageIndex}
@@ -44,20 +72,20 @@ export function PetScreen(props: {
           state={props.state}
           play={play}
           playKey={key}
-          onDone={() => setPlay(null)}
-          scale={6}
+          onDone={onDone}
+          scale={props.scale ?? (props.bubble ? 4 : 6)}
           label={props.name}
         />
-      </div>
-      <div className="flex flex-wrap justify-center gap-2">
+      </NearlingFrame>
+      <div className="flex flex-wrap justify-center gap-2" role="group" aria-label="Care">
         {CARE.map((c) => (
           <button key={c.event} type="button" className="pixel-btn pixel-btn--secondary text-sm"
-            onClick={() => trigger(careAnim(c.event))}>
+            onClick={() => trigger(c.event)}>
             {c.label}
           </button>
         ))}
-        {play && (
-          <button type="button" className="pixel-btn pixel-btn--secondary text-sm" onClick={() => setPlay(null)}>
+        {care && !props.talk && (
+          <button type="button" className="pixel-btn pixel-btn--secondary text-sm" onClick={() => setCare(null)}>
             Stop
           </button>
         )}
