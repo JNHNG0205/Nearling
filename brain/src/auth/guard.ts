@@ -30,7 +30,8 @@ export async function issueSession(deps: Deps, account: string): Promise<{ token
   return { token, expires_at: exp * 1000 };
 }
 
-async function readCaller(deps: Deps, header: string | undefined): Promise<Caller | null> {
+/** Parses an `Authorization` header value (Bearer session or Device token). Exported for SSE `?t=`. */
+export async function readCaller(deps: Deps, header: string | undefined): Promise<Caller | null> {
   if (!header) return null;
   const [scheme, value] = header.split(" ");
   if (!value) return null;
