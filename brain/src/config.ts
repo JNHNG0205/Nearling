@@ -17,6 +17,30 @@ const Env = z.object({
   WEB_ORIGIN: z.string().default("http://localhost:3000"),
   /** HS256 secret for owner sessions, base64. Required outside tests. */
   SESSION_JWT_SECRET: z.string().default("dev-only-insecure-session-secret-change-me"),
+  // ---- fuel / orders / garden / wallet (AI-brain 04, 05 section 5) ----
+  /**
+   * Feed the Brain payment modes. `direct` is always on. `simulated` adds the labelled
+   * "Pay (simulated)" button. `live` adds NEAR Intents 1Click and keeps simulated on as the
+   * demo fallback (needs SETTLEMENT_ACCOUNT_MAINNET).
+   */
+  INTENTS_MODE: z.enum(["direct", "live", "simulated"]).default("direct"),
+  ONECLICK_BASE_URL: z.string().default("https://1click.chaindefuser.com"),
+  ONECLICK_JWT: z.string().optional(),
+  SETTLEMENT_ACCOUNT_MAINNET: z.string().optional(),
+  /**
+   * Set to "1" only by a human (CLAUDE.md rule 1). Without it live orders request `dry: true`
+   * quotes only, so no deposit address exists and no mainnet money can move.
+   */
+  INTENTS_LIVE_CONFIRMED: z.string().default("0"),
+  FEEDER_ACCOUNT_ID: z.string().default(""),
+  FEEDER_KEY: z.string().default(""),
+  FEEDER_DAILY_CAP_NEAR: z.coerce.number().positive().default(10),
+  NEARON_POOL: z.string().default("mw-pool-1024.testnet"),
+  BRAIN_ACCOUNT_ID: z.string().default(""),
+  /** Comma-separated ed25519 secret keys (FC keys) of BRAIN_ACCOUNT_ID. */
+  BRAIN_KEYS: z.string().default(""),
+  /** Testnet validator pool for Wallet staking (`get_account_staked_balance`). [VERIFY] the pool is live. */
+  WALLET_VALIDATOR_POOL: z.string().default("legends.pool.f863973.m0"),
 });
 
 export type Config = z.infer<typeof Env>;
