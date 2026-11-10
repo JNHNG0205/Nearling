@@ -34,7 +34,7 @@ The Build Spec calls this service "the backend". It is one Node process: the pet
 | # | Question | My recommendation |
 |---|---|---|
 | Q1 | NEAR Intents has **no testnet** (HACKATHON.md). How do we demo Feed the Brain? | Three modes, one order pipeline: **Direct** (payer's testnet wallet calls `feed`, real, default), **Intents live** (tiny mainnet payment to the project's mainnet account, then the feeder feeds on testnet; each live run needs explicit human approval, `CLAUDE.md` rule 1), **Simulated** (labelled). See 04 |
-| Q2 | TTS provider: ElevenLabs sends reply text to a third party (weakens the privacy story); Kokoro self-hosted keeps it in house | Ship ElevenLabs first behind a `TtsProvider` interface, disclose it on the receipt and README; swap to Kokoro if time allows |
+| Q2 | ~~TTS provider~~ **Decided 2026-11-10: ElevenLabs Flash v2.5** (10,000 team credits, about 130 spoken replies), disclosed on receipts; Kokoro kept as fallback. Budget rules in 03 section 6 | done |
 | Q3 | Chain `life_state` drifts to `Sad` because care is device-local and on-chain mood only decays | Brain computes `display_state`: fuel states from chain (Dormant, Starving, Hungry), mood from device care sync. Web and device show `display_state` |
 | Q4 | Who draws the sprite sheet (`art/`: pet stages, winged form, shirt layer, emotions) used by both web and firmware? Nobody on the team has it yet | I start with placeholder shapes; whoever has time first takes it (AI-generated pixel art is fine if listed in the README) |
 

@@ -36,7 +36,7 @@ flowchart LR
   Pool[(NEARON pool)]
   AI[NEAR AI Cloud staging<br/>chat, whisper, attestation]
   NRAS[NVIDIA NRAS]
-  TTS[TTS: ElevenLabs or Kokoro]
+  TTS[ElevenLabs Flash v2.5<br/>Kokoro fallback]
   OneClick[NEAR Intents 1Click API<br/>mainnet]
 
   Phone -- HTTPS, SSE --> HTTP
@@ -148,7 +148,8 @@ NEARAI_BASE_URL=https://cloud-stg-api.near.ai/v1
 NEARAI_API_KEY=
 NEARAI_CHAT_MODEL=z-ai/glm-5.3-flash
 NEARAI_STT_MODEL=openai/whisper-large-v3
-TTS_PROVIDER=elevenlabs           # elevenlabs | kokoro | none
+TTS_PROVIDER=elevenlabs           # elevenlabs (default) | kokoro (fallback) | none
+TTS_MODEL=eleven_flash_v2_5
 TTS_API_KEY=
 TTS_VOICE_ID=
 INTENTS_MODE=direct               # direct | live | simulated

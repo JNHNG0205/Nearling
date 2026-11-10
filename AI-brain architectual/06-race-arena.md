@@ -11,13 +11,13 @@ The rules are the contract between brain, browser and firmware. Version them: `R
 | Fixed step | 30 ticks per second (33.3 ms) |
 | Lanes | 2 (0, 1); pet starts in lane 0 |
 | PRNG | mulberry32(seed), uint32 seed from the server |
-| Obstacle spawn | every `gap(t)` ticks, lane = `rng() < 0.5 ? 0 : 1`; `gap` starts at 45 ticks and shrinks by 1 every 150 ticks to a floor of 15 |
+| Obstacle spawn | every `gap(t)` ticks, lane = top bit of the uint32 `rng()` (`rng() >>> 31`, no floats); `gap` starts at 45 ticks and shrinks by 1 every 150 ticks to a floor of 15 |
 | Speed | `speed(t) = 2 + floor(t / 300) * 0.5` px per tick, cap 6 (240 px track) |
 | Collision | obstacle reaches the pet row (y ≥ 200 and y < 200 + 16) while in the pet's lane |
 | Lane switch | input applied at the next tick boundary; instant |
 | Result | first crash tick loses; same tick = draw; no crash in 120 s = draw |
 
-Exact functions (TS reference, firmware must match bit for bit):
+Reference implementation: `packages/race/src/index.ts` (step order: lane switch, spawn, move, collide). Golden vectors the C++ port must reproduce: `packages/race/src/index.test.ts` (`GOLDEN`). Sketch:
 
 ```ts
 export function mulberry32(a: number) { return () => { a |= 0; a = (a + 0x6D2B79F5) | 0;

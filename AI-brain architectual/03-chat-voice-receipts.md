@@ -105,12 +105,25 @@ Why the Soul is wrapped: an owner can write anything into the public Soul (1 KB)
 interface TtsProvider { synth(text: string, voice: string): Promise<{ mime: string; bytes: Uint8Array }> }
 ```
 
-- `elevenlabs`: request PCM 16 kHz (or MP3 if the device decodes it; agree with firmware), store in `audio_blob` 24 h, return `audio_url`.
-- `kokoro`: HTTP to a small self-hosted container, same interface.
+**Provider decided: ElevenLabs** (team has 10,000 credits). Kokoro stays as the fallback backend of the same interface.
+
+- `elevenlabs`: model **Flash v2.5** (about 0.5 credit per character, lowest latency [VERIFY on our plan's pricing page]); output **PCM 16 kHz** or WAV so the ESP32 plays it through the MAX98357 without an MP3 decoder (confirm with firmware); store in `audio_blob` 24 h, return `audio_url`.
+- `kokoro`: fallback only (self-hosted container, same interface), switched on with `TTS_PROVIDER=kokoro` if credits run out.
 - `none`: text only.
 - TTS failure never fails the turn: `audio_url` = null, the device shows the text (Build Spec: "text remains available").
-- Receipt states the TTS provider. With ElevenLabs the reply text leaves the TEE; the receipt says so (Q2).
-- Cap 300 characters per reply for TTS spend; `spend_daily.tts_chars` counts it.
+- Receipt states the TTS provider. With ElevenLabs the reply text leaves the TEE; the receipt says so.
+
+### Credit budget (10,000 credits)
+
+A reply is about 100 to 150 characters, so about 75 credits on Flash: **about 130 spoken replies** in total. Rules to make them last:
+
+| Rule | Detail |
+|---|---|
+| Speak where it matters | Device talk replies are spoken. Web: audio only when the user taps play. Proactive messages: text only |
+| Cache canned lines | Low Fuel, evolution, greetings, race results synthesised once, stored as static files, replayed free |
+| Cap length | Never voice more than 200 characters |
+| Track credits | Read remaining credits from the ElevenLabs API at boot and hourly; show on `/ops`; below 1,000 credits the brain switches to text only (no broken audio for judges) |
+| No spend in dev | `MOCK_AI=1` and `TTS_PROVIDER=none` in tests and local dev unless testing voice |
 
 ## 7. Verification and receipts
 

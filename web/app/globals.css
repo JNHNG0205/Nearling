@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+/* Tokens: "web-app architectual/design.md" section 2 (taste-skill deal + Nearling additions). */
+:root {
+  --p-bg: #0c0a08; --p-surface: #181512; --p-ink: #ffffff; --p-muted: #8f8a84;
+  --p-accent: #c9a45a; --p-accent-ink: #0c0a08; --p-action: #c9a45a; --p-action-ink: #0c0a08;
+  --p-inv-bg: #ffffff; --p-inv-surface: #ebebeb; --p-inv-ink: #0c0a08; --p-inv-muted: #5c5b59;
+
+  --n-surface-2: #231f1a;
+  --n-line: #3a332b;
+  --n-shadow: #000000;
+  --n-screen: #0f140c;
+
+  --n-fuel: #9ad46a;
+  --n-warn: #e8913a;
+  --n-danger: #e25c4f;
+  --n-sleep: #7a8fd6;
+  --n-verified: #9ad46a;
+  --n-gateway: #6fb7e0;
+  --n-unverified: #e8913a;
+
+  --n-u: 4px;
+  --n-border: 2px;
+  --n-shadow-off: 4px;
+}
+
+@theme inline {
+  --color-bg: var(--p-bg);
+  --color-surface: var(--p-surface);
+  --color-surface-2: var(--n-surface-2);
+  --color-ink: var(--p-ink);
+  --color-muted: var(--p-muted);
+  --color-accent: var(--p-accent);
+  --color-line: var(--n-line);
+  --color-fuel: var(--n-fuel);
+  --color-warn: var(--n-warn);
+  --color-danger: var(--n-danger);
+  --color-sleep: var(--n-sleep);
+  --font-display: var(--font-pixel), "Bricolage Grotesque", system-ui, sans-serif;
+  --font-text: var(--font-figtree), system-ui, sans-serif;
+  --font-mono: var(--font-dm-mono), ui-monospace, Menlo, monospace;
+  --radius-*: initial; /* square corners: no rounded-* utilities (design.md deviation 2) */
+}
+
+html { background: var(--p-bg); color: var(--p-ink); }
+body { font-family: var(--font-text); font-size: 16px; line-height: 24px; }
+
+/* Pixel primitives (design.md sections 4 and 5) */
+.pixel-panel {
+  background: var(--p-surface);
+  border: var(--n-border) solid var(--n-line);
+  box-shadow: var(--n-shadow-off) var(--n-shadow-off) 0 var(--n-shadow);
+}
+.pixel-btn {
+  font-family: var(--font-pixel), system-ui, sans-serif;
+  font-weight: 500;
+  min-height: 48px;
+  padding: 0 20px;
+  background: var(--p-action);
+  color: var(--p-action-ink);
+  border: var(--n-border) solid var(--n-shadow);
+  box-shadow: var(--n-shadow-off) var(--n-shadow-off) 0 var(--n-shadow);
+  transition: transform 80ms steps(2), box-shadow 80ms steps(2);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.pixel-btn:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--n-shadow); }
+.pixel-btn:active { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--n-shadow); }
+.pixel-btn--secondary { background: var(--p-surface); color: var(--p-ink); border-color: var(--n-line); }
+.pixelated { image-rendering: pixelated; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pixel-btn, .pixel-btn:hover, .pixel-btn:active { transition: none; transform: none; }
+}

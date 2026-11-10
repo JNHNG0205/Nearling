@@ -1,0 +1,13 @@
+node_modules/
+.env
+.env.*
+!.env.example
+*.db
+*.db-*
+.next/
+out/
+dist/
+coverage/
+.taste-skill/
+firmware/include/secrets.h
+target/
