@@ -7,6 +7,8 @@ import {
   type PetState,
 } from "@nearling/shared";
 import type { Deps, Module } from "../deps";
+import { decay } from "../identity/care";
+import { deviceStatus } from "../identity/devices";
 import { ensureProfile } from "../profiles";
 
 const LOW_FUEL = 5;
@@ -28,6 +30,8 @@ export function petRoutes({ chain, cfg, db, now }: Deps) {
 
     const p = ensureProfile(db, `${ref.contract}:${ref.tokenId}`, pet.owner, now());
     const sleeping = p.sleeping_until !== null && p.sleeping_until > now();
+    // decay on read so a neglected pet does not look happy until its next care sync
+    const careMood = p.care_mood_at === null ? p.care_mood : decay(p.care_mood, p.care_mood_at, now())[0];
     const left = fuelLeft(pet.budget_micro, config.fuel_price_micro);
     const state: PetState = {
       pet_ref: `${ref.contract}:${ref.tokenId}`,
@@ -40,7 +44,7 @@ export function petRoutes({ chain, cfg, db, now }: Deps) {
       stage_index: pet.stage,
       traits: pet.traits,
       form: p.form,
-      display_state: displayState(pet.life_state, p.care_mood, sleeping),
+      display_state: displayState(pet.life_state, careMood, sleeping),
       chain_life_state: pet.life_state,
       fuel: {
         left,
@@ -58,8 +62,8 @@ export function petRoutes({ chain, cfg, db, now }: Deps) {
       },
       soul_version: pet.soul_version,
       equipped_shirt: p.equipped_shirt,
-      care: { mood: p.care_mood, milestones: { pat: !!p.care_pat, rock: !!p.care_rock, sleep: !!p.care_sleep } },
-      device: { paired: false, last_seen_at: null }, // filled by the devices module
+      care: { mood: careMood, milestones: { pat: !!p.care_pat, rock: !!p.care_rock, sleep: !!p.care_sleep } },
+      device: deviceStatus(db, `${ref.contract}:${ref.tokenId}`),
       as_of: Date.now(),
     };
     return c.json(state);

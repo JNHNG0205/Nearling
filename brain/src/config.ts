@@ -19,6 +19,9 @@ const Env = z.object({
   SHIRTS_CONTRACT: z.string().default("shirts.nearling.testnet"),
   /** HS256 secret for owner sessions, base64. Required outside tests. */
   SESSION_JWT_SECRET: z.string().default("dev-only-insecure-session-secret-change-me"),
+  /** NEAR AI Cloud, OpenAI-compatible (CLAUDE.md 8.1). Staging for the hackathon. */
+  NEARAI_BASE_URL: z.string().default("https://cloud-stg-api.near.ai/v1"),
+  NEARAI_API_KEY: z.string().optional(),
 });
 
 export type Config = z.infer<typeof Env>;

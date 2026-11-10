@@ -23,7 +23,8 @@ const CareBody = z.object({
 });
 
 /** Decays mood by whole hours only, advancing the as-of time by the hours used (no rounding loss). */
-function decay(mood: number, moodAt: number, to: number): [number, number] {
+/** Care mood decayed to `to` (2 per whole hour); also used by /state so reads match the next sync. */
+export function decay(mood: number, moodAt: number, to: number): [number, number] {
   if (to <= moodAt) return [mood, moodAt];
   const hours = Math.floor((to - moodAt) / HOUR_MS);
   return [clamp(mood - hours * DECAY_PER_HOUR), moodAt + hours * HOUR_MS];
