@@ -45,6 +45,10 @@ One order pipeline, three payment modes (Q1). The QR on the device opens `PUBLIC
 
 Every live payment is a mainnet transaction with real money: it needs explicit human approval each time (`CLAUDE.md` rule 1). Start with 1Click `dry: true` quotes only.
 
+Enabled modes (`GET /feed/packs`): `direct` always; `INTENTS_MODE=simulated` adds `simulated`; `INTENTS_MODE=live` adds `live` (only with `SETTLEMENT_ACCOUNT_MAINNET` set) and keeps `simulated` as the demo fallback. Live orders request `dry: true` quotes (price only, no deposit address, order stays `created` with `quote_only: true`) unless a human sets `INTENTS_LIVE_CONFIRMED=1`; the 1Click client itself refuses `dry: false` without it.
+
+Direct-tx lookup: RPC `tx` needs the sender, so the web may pass `signer_id` as a hint (default: the pet owner). The verified payer is always the tx's own `signer_id`. A tx that does not match the order is rejected and the order goes back to `created`; a matching tx that failed on chain fails the order.
+
 ### Order state machine
 
 ```mermaid
