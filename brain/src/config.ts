@@ -17,6 +17,31 @@ const Env = z.object({
   WEB_ORIGIN: z.string().default("http://localhost:3000"),
   /** HS256 secret for owner sessions, base64. Required outside tests. */
   SESSION_JWT_SECRET: z.string().default("dev-only-insecure-session-secret-change-me"),
+
+  // Talk, NEAR AI, TTS, charging (AI-brain 03, 04 section 2)
+  NEARAI_BASE_URL: z.string().default("https://cloud-stg-api.near.ai/v1"),
+  NEARAI_API_KEY: z.string().optional(),
+  NEARAI_CHAT_MODEL: z.string().default("z-ai/glm-5.3-flash"),
+  NEARAI_STT_MODEL: z.string().default("openai/whisper-large-v3"),
+  TTS_PROVIDER: z.enum(["elevenlabs", "kokoro", "none"]).default("none"),
+  TTS_MODEL: z.string().default("eleven_flash_v2_5"),
+  TTS_API_KEY: z.string().optional(),
+  TTS_VOICE_ID: z.string().optional(),
+  /** Kokoro only: OpenAI-compatible base URL of the self-hosted container. */
+  TTS_BASE_URL: z.string().default("http://localhost:8880/v1"),
+  BRAIN_ACCOUNT_ID: z.string().default("brain.nearling.testnet"),
+  BRAIN_KEYS: z
+    .string()
+    .default("")
+    .transform((s) => s.split(",").map((k) => k.trim()).filter(Boolean)),
+  GLOBAL_DAILY_SPEND_CAP_USD: z.coerce.number().nonnegative().default(5),
+  /** Tests only (CLAUDE.md rule 5): canned fake inference, never in the demo path. */
+  MOCK_AI: z
+    .string()
+    .default("0")
+    .transform((s) => s === "1" || s === "true"),
+  /** Web origin used in receipt and feed links (device QR codes). */
+  PUBLIC_WEB_URL: z.string().default("http://localhost:3000"),
 });
 
 export type Config = z.infer<typeof Env>;
