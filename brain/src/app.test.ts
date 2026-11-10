@@ -27,3 +27,16 @@ describe("GET /pets/:petRef/state", () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe("care mood on /state", () => {
+  it("decays on read, so a neglected pet shows sad", async () => {
+    const deps = testDeps();
+    const t0 = deps.now();
+    deps.db.prepare(
+      "INSERT INTO pet_profile (pet_ref, owner_account, care_mood, care_mood_at, created_at) VALUES (?, ?, 50, ?, ?)",
+    ).run("pets-v8.nearling.testnet:1", "alice.testnet", t0 - 10 * 3_600_000, t0);
+    const s = (await (await createApp(deps).request("/pets/pets-v8.nearling.testnet:1/state")).json()) as PetState;
+    expect(s.care.mood).toBe(30); // 50 - 10 h x 2
+    expect(s.display_state).toBe("sad");
+  });
+});

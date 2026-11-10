@@ -15,12 +15,15 @@ const Env = z.object({
   /** 32 bytes, base64. Required outside tests; generate with `openssl rand -base64 32`. */
   MEMORY_MASTER_KEY: z.string().optional(),
   WEB_ORIGIN: z.string().default("http://localhost:3000"),
+  PUBLIC_WEB_URL: z.string().default("http://localhost:3000"), // Hatch & Pair QR: `${PUBLIC_WEB_URL}/hatch?t=<token>`
+  SHIRTS_CONTRACT: z.string().default("shirts.nearling.testnet"),
   /** HS256 secret for owner sessions, base64. Required outside tests. */
   SESSION_JWT_SECRET: z.string().default("dev-only-insecure-session-secret-change-me"),
-
-  // Talk, NEAR AI, TTS, charging (AI-brain 03, 04 section 2)
+  /** NEAR AI Cloud, OpenAI-compatible (CLAUDE.md 8.1). Staging for the hackathon. */
   NEARAI_BASE_URL: z.string().default("https://cloud-stg-api.near.ai/v1"),
   NEARAI_API_KEY: z.string().optional(),
+
+  // Talk, NEAR AI, TTS, charging (AI-brain 03, 04 section 2)
   NEARAI_CHAT_MODEL: z.string().default("z-ai/glm-5.3-flash"),
   NEARAI_STT_MODEL: z.string().default("openai/whisper-large-v3"),
   TTS_PROVIDER: z.enum(["elevenlabs", "kokoro", "none"]).default("none"),
@@ -40,8 +43,6 @@ const Env = z.object({
     .string()
     .default("0")
     .transform((s) => s === "1" || s === "true"),
-  /** Web origin used in receipt and feed links (device QR codes). */
-  PUBLIC_WEB_URL: z.string().default("http://localhost:3000"),
 });
 
 export type Config = z.infer<typeof Env>;
