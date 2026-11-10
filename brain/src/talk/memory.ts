@@ -1,6 +1,8 @@
+import { createHash } from "node:crypto";
 import type { Emotion } from "@nearling/shared";
 import { costNano, type NearAi } from "../ai/nearai";
 import type { Db } from "../db/db";
+import type { FollowUp } from "../proactive/rules";
 import type { Deps } from "../deps";
 import { log } from "../log";
 import type { Fact, HistoryTurn } from "./prompt";
@@ -65,6 +67,19 @@ export function loadMemory(deps: Deps, petRef: string, owner: string): MemoryCon
     facts,
     history: recentTurns(deps, petRef, owner, HISTORY_TURNS),
   };
+}
+
+/**
+ * Facts whose `follow_up_on` is `day` (owner-local `YYYY-MM-DD`), for the proactive scheduler.
+ * The id is a hash, because the scheduler stores asked ids in plaintext; the text stays in memory.
+ */
+export function dueFollowUps(deps: Deps, petRef: string, owner: string, day: string): FollowUp[] {
+  return loadMemory(deps, petRef, owner)
+    .facts.filter((f) => f.follow_up_on === day)
+    .map((f) => ({
+      id: createHash("sha256").update(`${petRef}\n${f.follow_up_on}\n${f.fact}`).digest("hex").slice(0, 16),
+      fact: f.fact,
+    }));
 }
 
 /** Counts a completed turn. Call inside the turn's DB transaction. Returns turns since the last summary. */

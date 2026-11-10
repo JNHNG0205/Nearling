@@ -7,7 +7,7 @@ import type { TtsProvider } from "../ai/tts";
 import { issueSession } from "../auth/guard";
 import { TEST_PET, testDeps } from "../test/deps";
 import { pcmToWav } from "../ai/tts";
-import { maybeSummarise, loadMemory, SUMMARY_EVERY } from "./memory";
+import { dueFollowUps, maybeSummarise, loadMemory, SUMMARY_EVERY } from "./memory";
 import { buildMessages, parseEmotion, wrapSoul } from "./prompt";
 import { createTalk, LINES } from "./talk";
 
@@ -342,5 +342,67 @@ describe("GET /pets/:petRef/turns and memory", () => {
     const row = s.deps.db.prepare("SELECT turns_since_summary, summary_enc FROM memory").get() as { turns_since_summary: number; summary_enc: Buffer };
     expect(row.turns_since_summary).toBe(0);
     expect(Buffer.from(row.summary_enc).toString("utf8")).not.toContain("exam");
+  });
+});
+
+describe("proactive turns", () => {
+  it("generateProactive makes one billed proactive turn with one charge job and no TTS", async () => {
+    const synth = vi.fn();
+    const s = await setup({ reply: "[happy] Good morning, Sam!", tts: { name: "fake", synth } as unknown as TtsProvider });
+    const out = await s.talk.proactive(PET, "morning", { owner: "alice.testnet" });
+    expect(out).toEqual({ text: "Good morning, Sam!", turnId: expect.any(String) });
+    expect(s.count("turn")).toBe(1);
+    expect(s.count("charge_job")).toBe(1);
+    const row = s.deps.db.prepare("SELECT * FROM turn").get() as Record<string, unknown>;
+    expect(row).toMatchObject({ id: out!.turnId, channel: "proactive", status: "done", owner_account: "alice.testnet", user_text_enc: null });
+    const job = s.deps.db.prepare("SELECT * FROM charge_job").get() as Record<string, unknown>;
+    expect(job).toMatchObject({ turn_id: out!.turnId, cost_micro: 1000, status: "queued" });
+    expect(s.calls.last[0]!.content).toContain("good-morning greeting");
+    expect(synth).not.toHaveBeenCalled();
+    // not an owner turn: missed_you still sees the owner as away
+    const p = s.deps.db.prepare("SELECT last_owner_turn_at FROM pet_profile").get() as { last_owner_turn_at: number | null };
+    expect(p.last_owner_turn_at).toBeNull();
+  });
+
+  it("follow_up puts the remembered fact in the prompt", async () => {
+    const s = await setup();
+    await s.talk.proactive(PET, "follow_up", { owner: "alice.testnet", followUp: { id: "x", fact: "Exam on Friday" } });
+    expect(s.calls.last[0]!.content).toContain('"Exam on Friday"');
+    expect(s.calls.last[0]!.content).toContain("how it went");
+  });
+
+  it("returns null on Low Fuel, and null with a failed turn when the model fails", async () => {
+    const low = await setup({ budget: 500 });
+    expect(await low.talk.proactive(PET, "missed_you", { owner: "alice.testnet" })).toBeNull();
+    expect(low.calls.chat).toBe(0);
+    expect(low.count("turn")).toBe(0);
+    expect(low.count("charge_job")).toBe(0);
+
+    const bad = await setup({ fail: new NearAiError("upstream") });
+    expect(await bad.talk.proactive(PET, "missed_you", { owner: "alice.testnet" })).toBeNull();
+    expect(bad.count("charge_job")).toBe(0);
+    expect((bad.deps.db.prepare("SELECT status FROM turn").get() as { status: string }).status).toBe("failed");
+  });
+
+  it("returns null when NEAR AI is not configured", async () => {
+    const deps = testDeps({ now: () => t });
+    const talk = createTalk(deps, { tts: null }); // no AI override, no key, MOCK_AI off
+    expect(await talk.proactive(PET, "morning", { owner: "alice.testnet" })).toBeNull();
+  });
+
+  it("dueFollowUps returns only facts due on the given day, with hashed ids", async () => {
+    const s = await setup();
+    const facts = [
+      { fact: "Exam on Friday", follow_up_on: "2027-01-15" },
+      { fact: "Piano recital", follow_up_on: "2027-01-16" },
+      { fact: "Likes cats", follow_up_on: null },
+    ];
+    s.deps.db
+      .prepare("INSERT INTO memory (pet_ref, owner_account, facts_enc) VALUES (?, ?, ?)")
+      .run(PET, "alice.testnet", s.deps.sealer.seal(PET, JSON.stringify(facts)));
+    const due = dueFollowUps(s.deps, PET, "alice.testnet", "2027-01-15");
+    expect(due).toEqual([{ id: expect.stringMatching(/^[0-9a-f]{16}$/), fact: "Exam on Friday" }]);
+    expect(dueFollowUps(s.deps, PET, "alice.testnet", "2027-01-15")[0]!.id).toBe(due[0]!.id);
+    expect(dueFollowUps(s.deps, PET, "bob.testnet", "2027-01-15")).toEqual([]);
   });
 });
