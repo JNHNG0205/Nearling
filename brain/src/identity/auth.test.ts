@@ -1,0 +1,87 @@
+import { describe, expect, it } from "vitest";
+import { KeyPair, KeyPairSigner, type Provider } from "near-api-js";
+import { NEP413_MESSAGE, NEP413_RECIPIENT } from "@nearling/shared";
+import { createApp } from "../app";
+import { testDeps } from "../test/deps";
+import { authRoutes, nep413Verifier, type Nep413Verifier } from "./auth";
+
+const post = (body: unknown) => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+
+function setup(verifier: Nep413Verifier, start = 1_800_000_000_000) {
+  let t = start;
+  const deps = testDeps({ now: () => t });
+  const app = createApp(deps, [{ name: "auth", routes: (d) => authRoutes(d, verifier) }]);
+  return { app, advance: (ms: number) => (t += ms) };
+}
+
+const okVerifier: Nep413Verifier = async () => {};
+const body = (nonce: string) => ({ accountId: "alice.testnet", publicKey: "ed25519:abc", signature: "c2ln", nonce });
+
+describe("NEP-413 sign-in", () => {
+  it("issues a session for a verified signature", async () => {
+    const seen: Parameters<Nep413Verifier>[0][] = [];
+    const { app } = setup(async (a) => void seen.push(a));
+    const n = (await (await app.request("/auth/nonce")).json()) as { nonce: string; message: string; recipient: string };
+    expect(n.message).toBe(NEP413_MESSAGE);
+    expect(n.recipient).toBe(NEP413_RECIPIENT);
+    expect(Buffer.from(n.nonce, "base64")).toHaveLength(32);
+
+    const res = await app.request("/session", post(body(n.nonce)));
+    expect(res.status).toBe(200);
+    const s = (await res.json()) as { token: string; accountId: string; expires_at: number };
+    expect(s.accountId).toBe("alice.testnet");
+    expect(s.token.split(".")).toHaveLength(3);
+    expect(Buffer.from(seen[0]!.nonce).toString("base64")).toBe(n.nonce);
+  });
+
+  it("uses a nonce once", async () => {
+    const { app } = setup(okVerifier);
+    const { nonce } = (await (await app.request("/auth/nonce")).json()) as { nonce: string };
+    expect((await app.request("/session", post(body(nonce)))).status).toBe(200);
+    const again = await app.request("/session", post(body(nonce)));
+    expect(again.status).toBe(401);
+    expect(((await again.json()) as { error: { code: string } }).error.code).toBe("expired");
+  });
+
+  it("rejects an expired nonce", async () => {
+    const { app, advance } = setup(okVerifier);
+    const { nonce } = (await (await app.request("/auth/nonce")).json()) as { nonce: string };
+    advance(5 * 60_000);
+    expect((await app.request("/session", post(body(nonce)))).status).toBe(401);
+  });
+
+  it("rejects a bad signature and burns the nonce", async () => {
+    const { app } = setup(async () => {
+      throw new Error("Signature verification failed");
+    });
+    const { nonce } = (await (await app.request("/auth/nonce")).json()) as { nonce: string };
+    const res = await app.request("/session", post(body(nonce)));
+    expect(res.status).toBe(401);
+    expect(((await res.json()) as { error: { code: string } }).error.code).toBe("unauthorized");
+  });
+});
+
+describe("nep413Verifier", () => {
+  const key = KeyPair.fromRandom("ed25519");
+  const nonce = new Uint8Array(32).fill(9);
+  const provider = (permission: unknown) => ({ viewAccessKey: async () => ({ permission }) }) as unknown as Provider;
+
+  async function sign(message = NEP413_MESSAGE) {
+    return new KeyPairSigner(key).signNep413Message("alice.testnet", { message, recipient: NEP413_RECIPIENT, nonce });
+  }
+
+  it("accepts a real signature from a full access key", async () => {
+    const signed = await sign();
+    await expect(
+      nep413Verifier(provider("FullAccess"))({ accountId: "alice.testnet", publicKey: key.getPublicKey().toString(), signature: signed.signature, nonce }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("rejects another message and a function-call key", async () => {
+    const wrong = await sign("Send all my NEAR");
+    const args = { accountId: "alice.testnet", publicKey: key.getPublicKey().toString(), signature: wrong.signature, nonce };
+    await expect(nep413Verifier(provider("FullAccess"))(args)).rejects.toThrow();
+    const right = await sign();
+    await expect(nep413Verifier(provider({ FunctionCall: {} }))({ ...args, signature: right.signature })).rejects.toThrow();
+  });
+});

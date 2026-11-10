@@ -15,6 +15,8 @@ const Env = z.object({
   /** 32 bytes, base64. Required outside tests; generate with `openssl rand -base64 32`. */
   MEMORY_MASTER_KEY: z.string().optional(),
   WEB_ORIGIN: z.string().default("http://localhost:3000"),
+  PUBLIC_WEB_URL: z.string().default("http://localhost:3000"), // Hatch & Pair QR: `${PUBLIC_WEB_URL}/hatch?t=<token>`
+  SHIRTS_CONTRACT: z.string().default("shirts.nearling.testnet"),
   /** HS256 secret for owner sessions, base64. Required outside tests. */
   SESSION_JWT_SECRET: z.string().default("dev-only-insecure-session-secret-change-me"),
 });
