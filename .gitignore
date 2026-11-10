@@ -17,3 +17,4 @@ target/
 next-env.d.ts
 brain/data/
 .claude/
+.DS_Store
