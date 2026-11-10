@@ -182,7 +182,7 @@ export function createNearAi(
     async transcribe(audio, mime) {
       const form = new FormData();
       const ext = mime.includes("webm") ? "webm" : "wav";
-      form.append("file", new Blob([audio], { type: mime }), `audio.${ext}`);
+      form.append("file", new Blob([new Uint8Array(audio)], { type: mime }), `audio.${ext}`);
       form.append("model", cfg.NEARAI_STT_MODEL);
       form.append("language", "en");
       form.append("response_format", "json");

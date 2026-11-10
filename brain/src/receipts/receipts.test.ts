@@ -228,12 +228,15 @@ describe("receipt routes", () => {
   it("joins turn and charge_job when those tables exist", async () => {
     fakeNet({ signature: () => signed(modelKey, `${MODEL}:${REQ_H}:${RES_H}`, "provider_tee") });
     const deps = setup();
-    deps.db.exec(`CREATE TABLE turn (id TEXT PRIMARY KEY, pet_ref TEXT, soul_version INT, model TEXT,
-      provider_cost_nano INT, audio_key TEXT, created_at INT);
-      CREATE TABLE charge_job (turn_id TEXT PRIMARY KEY, pet_ref TEXT, cost_micro INT, status TEXT,
-      tx_hash TEXT, charged_micro INT, source TEXT);`);
-    deps.db.prepare("INSERT INTO turn VALUES ('t1', ?, 2, ?, 71000, 'k', 1762740000000)").run(PET, MODEL);
-    deps.db.prepare("INSERT INTO charge_job VALUES ('t1', ?, 1000, 'settled', '8Fh2', 1000, 'food')").run(PET);
+    // turn and charge_job come from the talk migrations (200, 202).
+    deps.db.prepare(
+      `INSERT INTO turn (id, pet_ref, owner_account, request_id, channel, status, soul_version, model, provider_cost_nano, audio_key, created_at)
+       VALUES ('t1', ?, 'alice.testnet', 'r1', 'web', 'done', 2, ?, 71000, 'k', 1762740000000)`,
+    ).run(PET, MODEL);
+    deps.db.prepare(
+      `INSERT INTO charge_job (turn_id, pet_ref, cost_micro, status, attempts, next_attempt_at, tx_hash, charged_micro, source, created_at, updated_at)
+       VALUES ('t1', ?, 1000, 'settled', 1, 0, '8Fh2', 1000, 'food', 0, 0)`,
+    ).run(PET);
     await verifyOnce(deps);
     const owner = await issueSession(deps, "alice.testnet");
     const res = await createApp(deps, [receiptsModule]).request("/receipts/t1", { headers: { Authorization: `Bearer ${owner.token}` } });

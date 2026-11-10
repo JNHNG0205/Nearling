@@ -5,6 +5,7 @@ import { z } from "zod";
 import { STAGES, displayState, fuelLeft, parsePetRef, type Emotion, type PetView, type TalkResponse } from "@nearling/shared";
 import { createMockNearAi, createNearAi, costNano, NearAiError, type NearAi } from "../ai/nearai";
 import { createTts, clipForVoice, type TtsProvider } from "../ai/tts";
+import { ensureAttestation } from "../ai/attestation";
 import { submitForVerification } from "../ai/verify";
 import { requirePetAccess, type AuthEnv, type Caller } from "../auth/guard";
 import type { PetsConfig } from "../chain/near";
@@ -319,6 +320,15 @@ export function createTalk(deps: Deps, overrides: TalkOverrides = {}) {
         userText,
       });
 
+      // Attest before the call (03 section 7). A failure never blocks the turn; the receipt is then unverified.
+      if (!cfg.MOCK_AI) {
+        try {
+          await ensureAttestation(deps, model);
+        } catch {
+          log.warn("attestation refresh failed", { model });
+        }
+      }
+
       const res = await ai.chat(messages, { model });
       const { emotion, text: reply } = parseEmotion(res.text);
       if (!reply) throw new NearAiError("upstream");
@@ -425,13 +435,10 @@ export function createTalk(deps: Deps, overrides: TalkOverrides = {}) {
     if (!ref) return c.json({ error: { code: "invalid", message: "Unknown pet reference" } }, 400);
     const petRef = `${ref.contract}:${ref.tokenId}`;
     const limit = Math.min(50, Math.max(1, Number(c.req.query("limit") ?? 20) || 20));
-    const hasVerification = !!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'verification'").get();
     const rows = db
       .prepare(
-        `SELECT t.*, j.status AS job_status, j.charged_micro, j.source, j.tx_hash
-           ${hasVerification ? ", v.status AS verify_status" : ", NULL AS verify_status"}
-         FROM turn t LEFT JOIN charge_job j ON j.turn_id = t.id
-           ${hasVerification ? "LEFT JOIN verification v ON v.turn_id = t.id" : ""}
+        `SELECT t.*, j.status AS job_status, j.charged_micro, j.source, j.tx_hash, v.status AS verify_status
+         FROM turn t LEFT JOIN charge_job j ON j.turn_id = t.id LEFT JOIN verification v ON v.turn_id = t.id
          WHERE t.pet_ref = ? AND t.owner_account = ? AND t.status IN ('done', 'canned')
          ORDER BY t.created_at DESC, t.rowid DESC LIMIT ?`,
       )
