@@ -109,7 +109,7 @@ importers:
         version: 7.4.0
       next:
         specifier: 16.4.6
-        version: 16.4.6(@types/node@22.19.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 16.4.6(@playwright/test@1.65.0)(@types/node@22.19.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       qrcode-generator:
         specifier: 2.0.4
         version: 2.0.4
@@ -120,6 +120,9 @@ importers:
         specifier: 19.3.1
         version: 19.3.1(react@19.3.1)
     devDependencies:
+      '@playwright/test':
+        specifier: 1.65.0
+        version: 1.65.0
       '@tailwindcss/postcss':
         specifier: 4.3.5
         version: 4.3.5
@@ -561,6 +564,11 @@ packages:
   '@noble/post-quantum@0.6.1':
     resolution: {integrity: sha512-+pormrDZwjRw05U8ADK4JpHejo87+gBd+muRBB/ozztH5yhDLMDF4jHQWN3NQQAsu1zBNPWTG0ZwVI0CR29H0A==}
     engines: {node: '>= 20.19.0'}
+
+  '@playwright/test@1.65.0':
+    resolution: {integrity: sha512-iGURLGuKDLakSEl7Pgfv8h7f+XLT+V861Wfhz0zlEl5nyFuKUopdkFBPKqTllTUp06aOwPuH8iuUEb3yp3MpbQ==}
+    engines: {node: '>=20'}
+    hasBin: true
 
   '@rollup/rollup-android-arm-eabi@4.68.2':
     resolution: {integrity: sha512-ItKrNMkEL3hy85kLBXwB0+M6CWWVI8vr7RV+Eb7oDlQIMXLaiEhGfdaj5jAUadYn2v3nwzAhIRl/nLyjAqV9vQ==}
@@ -1300,6 +1308,16 @@ packages:
     resolution: {integrity: sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==}
     engines: {node: '>=12'}
 
+  playwright-core@1.65.0:
+    resolution: {integrity: sha512-vNSKgH6YqtN7cdT/L334zo0a+YwkrpicyrHJlWWPIm/Q+Nn2SWInil01oT0mbu96U4GgoRtCYQD9CzJQgju+lA==}
+    engines: {node: '>=20'}
+    hasBin: true
+
+  playwright@1.65.0:
+    resolution: {integrity: sha512-F3AMWcR44qMBt4kq+6Kb6mX7bjGXshktKFOPULd7reED6ZJWevjbNRqysP7q+AATE9kdPEZBibex1BYsvpVoeA==}
+    engines: {node: '>=20'}
+    hasBin: true
+
   possible-typed-array-names@1.1.0:
     resolution: {integrity: sha512-/+5VFTchJDoVj3bhoqi6UeymcD00DAwb1nJwamzPvHEszJ4FpF6SNNbUbOS8yI56qHzdV8eK0qEfOSiodkTdxg==}
     engines: {node: '>= 0.4'}
@@ -1887,6 +1905,10 @@ snapshots:
       '@noble/ciphers': 2.2.0
       '@noble/curves': 2.2.0
       '@noble/hashes': 2.2.0
+
+  '@playwright/test@1.65.0':
+    dependencies:
+      playwright: 1.65.0
 
   '@rollup/rollup-android-arm-eabi@4.68.2':
     optional: true
@@ -2539,7 +2561,7 @@ snapshots:
       near-hd-key: 1.2.1
       tweetnacl: 1.0.3
 
-  next@16.4.6(@types/node@22.19.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
+  next@16.4.6(@playwright/test@1.65.0)(@types/node@22.19.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
     dependencies:
       '@next/env': 16.4.6
       '@swc/helpers': 0.5.23
@@ -2558,6 +2580,7 @@ snapshots:
       '@next/swc-linux-x64-musl': 16.4.6
       '@next/swc-win32-arm64-msvc': 16.4.6
       '@next/swc-win32-x64-msvc': 16.4.6
+      '@playwright/test': 1.65.0
       sharp: 0.35.5(@types/node@22.19.1)
     transitivePeerDependencies:
       - '@babel/core'
@@ -2588,6 +2611,12 @@ snapshots:
   picocolors@1.1.1: {}
 
   picomatch@4.0.7: {}
+
+  playwright-core@1.65.0: {}
+
+  playwright@1.65.0:
+    dependencies:
+      playwright-core: 1.65.0
 
   possible-typed-array-names@1.1.0: {}
 

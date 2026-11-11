@@ -67,14 +67,14 @@ export default async function Privacy() {
       <section aria-labelledby="yes" className="flex flex-col gap-3">
         <h2 id="yes" className="font-display text-2xl">What is checked</h2>
         <ul className="flex flex-col gap-2">
-          {VERIFIED.map((t) => <li key={t} className="flex gap-2"><span className="font-mono text-fuel" aria-label="checked">[ok]</span>{t}</li>)}
+          {VERIFIED.map((t) => <li key={t} className="flex gap-2"><span className="shrink-0 whitespace-nowrap font-mono text-fuel" aria-label="checked">[ok]</span>{t}</li>)}
         </ul>
       </section>
 
       <section aria-labelledby="no" className="flex flex-col gap-3">
         <h2 id="no" className="font-display text-2xl">What is not checked</h2>
         <ul className="flex flex-col gap-2">
-          {NOT_VERIFIED.map((t) => <li key={t} className="flex gap-2"><span className="font-mono text-muted" aria-label="not checked">[--]</span>{t}</li>)}
+          {NOT_VERIFIED.map((t) => <li key={t} className="flex gap-2"><span className="shrink-0 whitespace-nowrap font-mono text-muted" aria-label="not checked">[--]</span>{t}</li>)}
         </ul>
       </section>
 
