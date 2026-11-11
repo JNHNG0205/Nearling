@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { Hono } from "hono";
-import { JsonRpcProvider, type Provider } from "near-api-js";
+import { JsonRpcProvider, baseDecode, type Provider } from "near-api-js";
 import { verifyMessage } from "near-api-js/nep413";
 import { z } from "zod";
 import { NEP413_MESSAGE, NEP413_RECIPIENT } from "@nearling/shared";
@@ -33,9 +33,24 @@ export function nep413Verifier(provider: Provider): Nep413Verifier {
 const SessionBody = z.object({
   accountId: z.string().regex(/^[a-z0-9._-]{2,64}$/),
   publicKey: z.string().min(1).max(200),
-  signature: z.string().min(1).max(400), // base64, as NEAR Connect returns it
+  signature: z.string().min(1).max(400), // base64 (NEAR Connect), `ed25519:<base58>` or hex
   nonce: z.string().min(1).max(100),
 });
+
+/**
+ * Signature bytes from any format wallets return (D2): `ed25519:<base58>`, hex (128 chars for
+ * ed25519), else base64. Null if it does not decode.
+ */
+export function decodeSignature(s: string): Uint8Array | null {
+  try {
+    if (s.startsWith("ed25519:")) return baseDecode(s.slice("ed25519:".length));
+    if (/^(0x)?[0-9a-fA-F]{128}$/.test(s)) return Buffer.from(s.replace(/^0x/, ""), "hex");
+    if (!/^[A-Za-z0-9+/_-]+={0,2}$/.test(s)) return null;
+    return Buffer.from(s, "base64");
+  } catch {
+    return null;
+  }
+}
 
 export function authRoutes(deps: Deps, verifier?: Nep413Verifier) {
   const { db, now } = deps;
@@ -60,8 +75,10 @@ export function authRoutes(deps: Deps, verifier?: Nep413Verifier) {
 
     const nonceBytes = Buffer.from(nonce, "base64");
     if (nonceBytes.length !== 32) return fail(c, 400, "invalid", "Bad nonce");
+    const sigBytes = decodeSignature(signature);
+    if (!sigBytes || sigBytes.length === 0) return fail(c, 400, "invalid", "Bad signature encoding");
     try {
-      await verify({ accountId, publicKey, signature: Buffer.from(signature, "base64"), nonce: nonceBytes });
+      await verify({ accountId, publicKey, signature: sigBytes, nonce: nonceBytes });
     } catch (err) {
       log.warn("session_verify_failed", { account: accountId, error: err instanceof Error ? err.name : "unknown" });
       return fail(c, 401, "unauthorized", "Signature check failed");
