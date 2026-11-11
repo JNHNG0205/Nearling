@@ -1,12 +1,11 @@
 // Nearling Bluetooth pairing (Web Bluetooth, one GATT read).
-// The two UUID constants must equal the ones exported by `packages/device/src/ble.ts`
-// (the device engineer's file, not on this branch yet). The lead reconciles them at merge:
-// if the names or values differ, import them from the device package and delete these two.
+// The UUIDs come from `packages/device/src/ble.ts`, the single source shared with the firmware.
+import { BLE_PAIRING_URL_UUID, BLE_SERVICE_UUID } from "@nearling/device";
 
 /** GATT primary service the Nearling advertises while it shows its pairing QR. */
-export const NEARLING_BLE_SERVICE_UUID = "6e6c0001-8a3c-4b5e-9f2a-6e6561726c67";
+export const NEARLING_BLE_SERVICE_UUID = BLE_SERVICE_UUID;
 /** Read-only characteristic `pairing_url`: UTF-8 text, the same `/hatch?t=<token>` URL the QR encodes. */
-export const NEARLING_BLE_PAIRING_URL_UUID = "6e6c0002-8a3c-4b5e-9f2a-6e6561726c67";
+export const NEARLING_BLE_PAIRING_URL_UUID = BLE_PAIRING_URL_UUID;
 
 // Minimal Web Bluetooth types (not in TypeScript's DOM lib).
 interface GattCharacteristic {
