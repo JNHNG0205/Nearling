@@ -13,6 +13,7 @@ export interface PetProfile {
   care_mood_at: number | null;
   sleeping_until: number | null;
   equipped_shirt: string | null;
+  hatched_at: number | null;
   last_owner_turn_at: number | null;
   created_at: number;
 }

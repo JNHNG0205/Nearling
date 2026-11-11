@@ -369,3 +369,8 @@ export function errorCopy(code: string, name: string): string {
     default: return `${name}'s brain got tangled. Try again?`;
   }
 }
+
+/** Build Spec 1: hatch the egg (owner session or the paired device). Idempotent. */
+export async function postHatch(petRef: string, headers: Record<string, string>): Promise<{ hatched_now: boolean; state: PetState }> {
+  return json(await fetch(`${pet(petRef)}/hatch`, { method: "POST", headers }));
+}

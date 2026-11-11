@@ -10,7 +10,7 @@ import { ChatLog, type ChatEntry } from "@/components/talk/ChatLog";
 import { TalkBar } from "@/components/talk/TalkBar";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
 import {
-  ackInbox, errorCopy, getInbox, getPetState, getTurns, normalizeInbox, normalizeTurn, postCare,
+  ackInbox, errorCopy, getInbox, getPetState, getTurns, normalizeInbox, normalizeTurn, postCare, postHatch,
   type InboxItem, type Turn,
 } from "@/lib/brain";
 import { authHeaders, useSession } from "@/lib/session";
@@ -33,6 +33,7 @@ export function PetHome({ initial }: { initial: PetState }) {
   const [event, setEvent] = useState<{ anim: AnyAnim; key: number } | null>(null);
   const [bubble, setBubble] = useState<string | null>(null);
   const [careError, setCareError] = useState<string | null>(null);
+  const [hatching, setHatching] = useState(false);
   const petRef = pet.pet_ref;
 
   const refresh = useCallback(async () => {
@@ -198,6 +199,31 @@ export function PetHome({ initial }: { initial: PetState }) {
         onCare={onCare}
       />
       {careError && <p className="text-sm text-warn" role="status">{careError}</p>}
+      {isOwner && !pet.hatched && (
+        // Build Spec 1: an egg the owner has not hatched yet (adopted before hatching existed,
+        // or the adopt page could not reach the brain). One press, once.
+        <button
+          type="button"
+          className="pixel-btn self-center"
+          disabled={hatching}
+          onClick={async () => {
+            setHatching(true);
+            setCareError(null);
+            play("egg_hatch");
+            try {
+              // let the 8-frame hatch play on the egg before the baby appears
+              const [r] = await Promise.all([postHatch(petRef, authHeaders()), new Promise((ok) => setTimeout(ok, 1_400))]);
+              setPet(r.state);
+            } catch {
+              setCareError(`${pet.name} could not hatch right now. Try again in a moment.`);
+            } finally {
+              setHatching(false);
+            }
+          }}
+        >
+          Hatch {pet.name}
+        </button>
+      )}
 
       <div className="flex flex-col gap-2">
         <FuelMeter fuel={pet.fuel} name={pet.name} />

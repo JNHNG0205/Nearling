@@ -36,13 +36,18 @@ export function createChain(rpcUrls: string[]): Chain {
   const souls = new Map<string, { at: number; value: SoulView }>();
 
   async function view<T>(contractId: string, method: string, args: Record<string, unknown>): Promise<T> {
+    // Two rounds over all providers: public testnet RPCs drop requests now and then
+    // ("TypeError: fetch failed", HTTP 429), and both failing at once was seen in the logs.
     let last: unknown;
-    for (const p of providers) {
-      try {
-        return (await p.callFunction({ contractId, method, args })) as T;
-      } catch (err) {
-        if (isContractPanic(err)) throw err;
-        last = err;
+    for (let round = 0; round < 2; round++) {
+      if (round > 0) await new Promise((ok) => setTimeout(ok, 400));
+      for (const p of providers) {
+        try {
+          return (await p.callFunction({ contractId, method, args })) as T;
+        } catch (err) {
+          if (isContractPanic(err)) throw err;
+          last = err;
+        }
       }
     }
     throw last;

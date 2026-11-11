@@ -1,3 +1,4 @@
+import { markHatched } from "./hatch";
 import { randomBytes, randomUUID } from "node:crypto";
 import { Hono, type Context } from "hono";
 import { z } from "zod";
@@ -173,6 +174,7 @@ export function deviceRoutes(deps: Deps) {
     })();
     if (!bound) return fail(c, 409, "conflict", "Pairing already used");
     publish(p.pet_ref, "paired", { device_id: d.id });
+    markHatched(deps, p.pet_ref!, p.owner_account!); // Build Spec 1: "Pair Mochi?" press hatches the egg
     log.info("device_paired", { device: d.id, pet_ref: p.pet_ref });
     return c.json({ device_token: deviceToken, pet_ref: p.pet_ref });
   });

@@ -6,7 +6,9 @@ import { ConnectButton } from "@/components/wallet/ConnectButton";
 import { HatchAnimation } from "@/components/wallet/HatchAnimation";
 import { MintForm } from "@/components/wallet/MintForm";
 import { AppFrame, DemoSpeedPill, Panel } from "@/components/wallet/ui";
+import { postHatch } from "@/lib/brain";
 import { DEMO_PETS_CONTRACT, PETS_CONTRACT, petPath } from "@/lib/chain";
+import { authHeaders } from "@/lib/session";
 
 // /adopt (03 section 2): mint without a device, then go to the browser Nearling.
 export default function AdoptPage() {
@@ -17,7 +19,16 @@ export default function AdoptPage() {
   if (minted) {
     return (
       <AppFrame title="Hatching" demo={contract === DEMO_PETS_CONTRACT}>
-        <HatchAnimation contract={contract} tokenId={minted} onDone={() => router.push(petPath(contract, minted))} />
+        <HatchAnimation
+          contract={contract}
+          tokenId={minted}
+          onDone={async () => {
+            // Build Spec 1: the hatch the owner just watched is real; the pet shows as a baby from now on.
+            // Signed out or brain down: the pet page offers "Hatch" again, so nothing is lost.
+            await postHatch(`${contract}:${minted}`, authHeaders()).catch(() => undefined);
+            router.push(petPath(contract, minted));
+          }}
+        />
       </AppFrame>
     );
   }

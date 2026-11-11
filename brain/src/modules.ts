@@ -3,6 +3,7 @@ import { authModule } from "./identity/auth";
 import { careModule } from "./identity/care";
 import { closetModule } from "./identity/closet";
 import { devicesModule } from "./identity/devices";
+import { hatchModule } from "./identity/hatch";
 import { receiptsModule } from "./receipts/receipts";
 import { inboxModule } from "./proactive/inbox";
 import { createProactiveModule } from "./proactive/scheduler";
@@ -24,6 +25,7 @@ export const MODULES: Module[] = [
   petsModule,
   authModule,
   devicesModule,
+  hatchModule,
   careModule,
   closetModule,
   receiptsModule,

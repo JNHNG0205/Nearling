@@ -99,8 +99,15 @@ export interface PetState {
   name: string;
   owner: string;
   stage: Stage;
-  /** contract stage index 0..3 and the five traits; the sprite look derives from these */
+  /**
+   * Shown stage index 0..3 (what sprites draw): the contract stage, except a hatched egg shows
+   * as a baby (Build Spec 1). The sprite look also derives from the five traits.
+   */
   stage_index: number;
+  /** the contract's own stage (0 egg until 10 xp from on-chain chats and check-ins) */
+  chain_stage_index: number;
+  /** true once hatched off chain (adopt, pairing, hatch button) or grown on chain */
+  hatched: boolean;
   traits: number[];
   form: "base" | "winged";
   display_state: DisplayState;

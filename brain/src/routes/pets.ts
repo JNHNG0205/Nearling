@@ -29,6 +29,8 @@ export async function buildPetState({ chain, db, now }: Deps, contract: string, 
   // decay on read so a neglected pet does not look happy until its next care sync
   const careMood = p.care_mood_at === null ? p.care_mood : decay(p.care_mood, p.care_mood_at, now())[0];
   const left = fuelLeft(pet.budget_micro, config.fuel_price_micro);
+  // Build Spec 1: a hatched egg shows as at least a baby; teen and adult still come from chain xp.
+  const stageIndex = pet.stage === 0 && p.hatched_at !== null ? 1 : pet.stage;
   return {
     pet_ref: petRef,
     contract,
@@ -36,8 +38,10 @@ export async function buildPetState({ chain, db, now }: Deps, contract: string, 
     demo_speed: config.demo_speed,
     name: pet.name,
     owner: pet.owner,
-    stage: STAGES[pet.stage] ?? "adult",
-    stage_index: pet.stage,
+    stage: STAGES[stageIndex] ?? "adult",
+    stage_index: stageIndex,
+    chain_stage_index: pet.stage,
+    hatched: p.hatched_at !== null || pet.stage > 0,
     traits: pet.traits,
     form: p.form,
     display_state: displayState(pet.life_state, careMood, sleeping),
