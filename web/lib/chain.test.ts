@@ -4,6 +4,7 @@ import {
   eventData,
   formatNear,
   GAS,
+  nearToThoughts,
   outcomeFailure,
   parseEvents,
   parseNear,
@@ -61,6 +62,31 @@ describe("tx builders", () => {
     expect(tx.mintPet(PETS_CONTRACT, "Mochi", null, 2n).actions[0]!.params).toMatchObject({ args: { name: "Mochi" }, deposit: "2" });
     expect(tx.unstake(PETS_CONTRACT, "1", 5n).actions[0]!.params).toMatchObject({ args: { pet_id: "1", amount: "5" }, deposit: "0" });
     expect(tx.nftTransfer(PETS_CONTRACT, "bob.testnet", "1").actions[0]!.params).toMatchObject({ deposit: "1" });
+  });
+});
+
+describe("pets-v9 builders", () => {
+  it("builds pantry calls at 30 Tgas", () => {
+    expect(tx.stockPantry(PETS_CONTRACT, "1", 5n).actions[0]!.params).toEqual({
+      methodName: "stock_pantry", args: { pet_id: "1" }, gas: (30n * 10n ** 12n).toString(), deposit: "5",
+    });
+    expect(tx.feedFromPantry(PETS_CONTRACT, "1", 7n).actions[0]!.params).toEqual({
+      methodName: "feed_from_pantry", args: { pet_id: "1", amount: "7" }, gas: GAS.pantry.toString(), deposit: "0",
+    });
+    expect(tx.emptyPantry(PETS_CONTRACT, "1", 9n).actions[0]!.params).toMatchObject({
+      methodName: "empty_pantry", args: { pet_id: "1", amount: "9" }, deposit: "0",
+    });
+  });
+  it("attaches the pool unstake deposit when given", () => {
+    expect(tx.unstake(PETS_CONTRACT, "1", 5n, 7_720n).actions[0]!.params).toMatchObject({
+      args: { pet_id: "1", amount: "5" }, gas: GAS.garden.toString(), deposit: "7720",
+    });
+  });
+  it("estimates thoughts from NEAR", () => {
+    // 0.5 NEAR at $0.20 = $0.10 = 100 thoughts at $0.001
+    expect(nearToThoughts(5n * 10n ** 23n, 200_000, 1_000)).toBe(100);
+    expect(nearToThoughts("0", 200_000, 1_000)).toBe(0);
+    expect(nearToThoughts(10n ** 24n, 200_000, 0)).toBe(0);
   });
 });
 
