@@ -71,3 +71,6 @@ body { font-family: var(--font-text); font-size: 16px; line-height: 24px; }
 @media (prefers-reduced-motion: reduce) {
   .pixel-btn, .pixel-btn:hover, .pixel-btn:active { transition: none; transform: none; }
 }
+
+/* keyboard focus ring (taste-skill focus-visible: header links and buttons had no visible focus) */
+:focus-visible { outline: 2px solid var(--p-accent); outline-offset: 2px; }
