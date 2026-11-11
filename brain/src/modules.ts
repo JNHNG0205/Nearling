@@ -14,6 +14,7 @@ import { gardenModule } from "./fuel/garden";
 import { ordersModule } from "./fuel/orders";
 import { walletModule } from "./wallet/wallet";
 import { chargeModule } from "./fuel/charge";
+import { opsModule } from "./ops/ops";
 import { dueFollowUps } from "./talk/memory";
 import { generateProactive, talkModule } from "./talk/talk";
 import { voiceModule } from "./talk/voice-route";
@@ -37,4 +38,5 @@ export const MODULES: Module[] = [
   talkModule,
   voiceModule,
   chargeModule,
+  opsModule(),
 ];

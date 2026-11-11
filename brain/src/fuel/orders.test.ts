@@ -275,7 +275,127 @@ describe("simulated orders and the feeder", () => {
     alert.mockRestore();
   });
 
-  it("a failed feeder call fails the order and is not retried", async () => {
+  describe("F3 retries", () => {
+    const H1 = "6z9Lq8rB7nVtJbT3oLz2YkWm5sXqFv1hCdEaPgR6uNi";
+    /** Fails the first `failures` calls; each failure carries `hash(i)` if given. */
+    function flakyFeeder(failures: number, hash?: (i: number) => string | null) {
+      const calls: number[] = [];
+      const signer: TxSigner = {
+        accountId: "feeder.nearling.testnet",
+        async call() {
+          calls.push(calls.length);
+          if (calls.length <= failures) {
+            const h = hash?.(calls.length) ?? null;
+            throw Object.assign(new Error("RPC timeout"), h ? { txHash: h } : {});
+          }
+          return { txHash: `feed-tx-${calls.length}`, events: [], logs: [] };
+        },
+      };
+      return { signer, calls };
+    }
+    async function settledOrder(t: ReturnType<typeof setup>) {
+      const o = await t.create("simulated");
+      t.deps.db.prepare("UPDATE feed_order SET status = 'settled', settle_ref = ? WHERE id = ?").run(`sim:${o.id}`, o.id);
+      return o;
+    }
+
+    it("retries a failed tx (re-checked on chain) after 2 s and 10 s, then feeds once", async () => {
+      let now = 1_800_000_000_000;
+      const { signer, calls } = flakyFeeder(2, (i) => (i === 1 ? H1 : HASH2));
+      const rpc = fakeRpc({ [H1]: feedTx({ hash: H1, success: false, fed: false }), [HASH2]: feedTx({ hash: HASH2, success: false, fed: false }) });
+      const t = setup({ mode: "simulated", io: { feeder: signer, rpc } });
+      t.deps.now = () => now;
+      const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+      const o = await settledOrder(t);
+      await runFeeder(t.deps, t.io);
+      expect(t.row(o.id)).toMatchObject({ status: "settled", feed_attempts: 1, feed_try_tx: H1, feed_retry_at: now + 2_000 });
+      await runFeeder(t.deps, t.io); // too early
+      expect(calls).toHaveLength(1);
+      now += 2_000;
+      await runFeeder(t.deps, t.io);
+      expect(rpc.lookups).toContain(`${H1}@feeder.nearling.testnet`);
+      expect(t.row(o.id)).toMatchObject({ status: "settled", feed_attempts: 2, feed_retry_at: now + 10_000 });
+      now += 10_000;
+      await runFeeder(t.deps, t.io);
+      expect(calls).toHaveLength(3);
+      expect(t.row(o.id)).toMatchObject({ status: "fed", feed_tx: "feed-tx-3", feed_attempts: 3 });
+      expect(t.fuelAdded()).toHaveLength(1);
+      warn.mockRestore();
+    });
+
+    it("never feeds twice: an earlier try that did feed marks the order fed without a new call", async () => {
+      let now = 1_800_000_000_000;
+      const { signer, calls } = flakyFeeder(1, () => H1);
+      const rpc = fakeRpc({ [H1]: feedTx({ hash: H1, success: true, fed: true }) });
+      const t = setup({ mode: "simulated", io: { feeder: signer, rpc } });
+      t.deps.now = () => now;
+      vi.spyOn(log, "warn").mockImplementation(() => undefined);
+      const o = await settledOrder(t);
+      await runFeeder(t.deps, t.io);
+      now += 2_000;
+      await runFeeder(t.deps, t.io);
+      expect(calls).toHaveLength(1);
+      expect(t.row(o.id)).toMatchObject({ status: "fed", feed_tx: H1 });
+      expect(t.fuelAdded()).toHaveLength(1);
+      vi.restoreAllMocks();
+    });
+
+    it("no tx hash: retries only while the feeder nonce is unchanged", async () => {
+      let now = 1_800_000_000_000;
+      let nonce = 7n;
+      const a = flakyFeeder(1);
+      const t = setup({ mode: "simulated", io: { feeder: a.signer, feederNonce: async () => nonce } });
+      t.deps.now = () => now;
+      vi.spyOn(log, "warn").mockImplementation(() => undefined);
+      const alert = vi.spyOn(log, "alert").mockImplementation(() => undefined);
+      const o = await settledOrder(t);
+      await runFeeder(t.deps, t.io);
+      expect(t.row(o.id)).toMatchObject({ status: "settled", feed_nonce: "7" });
+      now += 2_000;
+      await runFeeder(t.deps, t.io);
+      expect(t.row(o.id).status).toBe("fed");
+
+      // a second order whose try may have landed (nonce moved): fails, never retried
+      const b = flakyFeeder(1);
+      t.io.feeder = b.signer;
+      const o2 = await settledOrder(t);
+      await runFeeder(t.deps, t.io);
+      nonce = 8n;
+      now += 2_000;
+      await runFeeder(t.deps, t.io);
+      expect(b.calls).toHaveLength(1);
+      expect(t.row(o2.id).status).toBe("failed");
+      expect(alert).toHaveBeenCalledWith(expect.stringContaining("outcome unknown"), { order_id: o2.id });
+      vi.restoreAllMocks();
+    });
+
+    it("fails with an alert after 5 tries", async () => {
+      let now = 1_800_000_000_000;
+      const { signer, calls } = flakyFeeder(99, (i) => `${i}z9Lq8rB7nVtJbT3oLz2YkWm5sXqFv1hCdEaPgR6uNi`);
+      const txs = Object.fromEntries([1, 2, 3, 4, 5].map((i) => {
+        const h = `${i}z9Lq8rB7nVtJbT3oLz2YkWm5sXqFv1hCdEaPgR6uNi`;
+        return [h, feedTx({ hash: h, success: false, fed: false })];
+      }));
+      const t = setup({ mode: "simulated", io: { feeder: signer, rpc: fakeRpc(txs) } });
+      t.deps.now = () => now;
+      vi.spyOn(log, "warn").mockImplementation(() => undefined);
+      const alert = vi.spyOn(log, "alert").mockImplementation(() => undefined);
+      const o = await settledOrder(t);
+      for (let i = 0; i < 8; i++) {
+        await runFeeder(t.deps, t.io);
+        now += 60_000;
+      }
+      expect(calls).toHaveLength(5);
+      expect(t.row(o.id)).toMatchObject({ status: "failed", feed_attempts: 5 });
+      expect(alert).toHaveBeenCalledWith("feeder feed failed", expect.objectContaining({ order_id: o.id, attempts: 5 }));
+      // the daily cap counted the order once, not once per try
+      const used = t.deps.db.prepare("SELECT count(*) n FROM feed_order WHERE feeding_day IS NOT NULL").get() as { n: number };
+      expect(used.n).toBe(1);
+      vi.restoreAllMocks();
+    });
+  });
+
+  it("a failed feeder call with no tx hash and no nonce reader fails the order and is not retried", async () => {
     const feeder = fakeFeeder(true);
     const t = setup({ mode: "simulated", io: { feeder } });
     const alert = vi.spyOn(log, "alert").mockImplementation(() => undefined);

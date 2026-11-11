@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { type NearRpc, type TxStatus, createRpc, isAccountId } from "../wallet/rpc";
 import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { parsePetRef } from "@nearling/shared";
@@ -7,7 +8,7 @@ import type { Config } from "../config";
 import type { Deps, Module } from "../deps";
 import { publish } from "../events";
 import { log } from "../log";
-import { createRpc, isAccountId, type NearRpc, type TxStatus } from "../wallet/rpc";
+import { createFeederNonce, errorTxHash, FEED_RETRY_DELAYS_MS, MAX_FEED_TRIES } from "../ops/feedRetry";
 import { NEAR_ASSET, createOneClick, type OneClick } from "./intents";
 
 /**
@@ -53,6 +54,8 @@ export interface OrdersIo {
   rpc: NearRpc;
   feeder: TxSigner | null;
   oneclick: OneClick;
+  /** F3: feeder access key nonce sum (ops/feedRetry.ts); without it a failure with no tx hash is not retried. */
+  feederNonce?: () => Promise<bigint | null>;
 }
 
 /** direct always; live needs INTENTS_MODE=live and a settlement account; simulated with live or simulated. */
@@ -103,6 +106,8 @@ function ioFor(deps: Deps, over: Partial<OrdersIo>): OrdersIo {
       oneclick:
         over.oneclick ??
         createOneClick({ baseUrl: cfg.ONECLICK_BASE_URL, jwt: cfg.ONECLICK_JWT, liveConfirmed: cfg.INTENTS_LIVE_CONFIRMED === "1" }),
+      feederNonce:
+        over.feederNonce ?? (cfg.FEEDER_ACCOUNT_ID ? createFeederNonce(cfg.NEAR_RPC_URLS, cfg.FEEDER_ACCOUNT_ID) : undefined),
     };
     ios.set(deps, io);
   }
@@ -183,6 +188,14 @@ function throttled(deps: Deps, key: string, everyMs: number, fn: () => void) {
 
 const feederRuns = new WeakMap<Deps, Promise<void>>();
 
+/** Retry columns from migration 600_ops.sql (F3). */
+interface FeedRetryCols {
+  feed_attempts: number;
+  feed_retry_at: number | null;
+  feed_try_tx: string | null;
+  feed_nonce: string | null;
+}
+
 /** Feeds settled live / simulated orders. Single flight: a concurrent call joins the running one. */
 export function runFeeder(deps: Deps, io: OrdersIo): Promise<void> {
   const running = feederRuns.get(deps);
@@ -195,8 +208,11 @@ export function runFeeder(deps: Deps, io: OrdersIo): Promise<void> {
 async function feedOnce(deps: Deps, io: OrdersIo): Promise<void> {
   const { db } = deps;
   const rows = db
-    .prepare("SELECT * FROM feed_order WHERE status = 'settled' AND mode IN ('live', 'simulated') ORDER BY created_at LIMIT 20")
-    .all() as OrderRow[];
+    .prepare(
+      `SELECT * FROM feed_order WHERE status = 'settled' AND mode IN ('live', 'simulated')
+         AND (feed_retry_at IS NULL OR feed_retry_at <= ?) ORDER BY created_at LIMIT 20`,
+    )
+    .all(deps.now()) as (OrderRow & FeedRetryCols)[];
   if (rows.length === 0) return;
   const feeder = io.feeder;
   if (!feeder) return; // warned once at start; orders wait in settled
@@ -220,9 +236,54 @@ async function feedOnce(deps: Deps, io: OrdersIo): Promise<void> {
     );
   }
 
+  const failOrder = (o: OrderRow, reason: string, from: "settled" | "feeding") =>
+    db.prepare("UPDATE feed_order SET status = 'failed', last_error = ?, feed_retry_at = NULL, updated_at = ? WHERE id = ? AND status = ?")
+      .run(reason.slice(0, 200), deps.now(), o.id, from);
+  const markFed = (o: OrderRow, txHash: string, from: "settled" | "feeding", attempts: number) => {
+    const r = db.prepare("UPDATE feed_order SET status = 'fed', feed_tx = ?, feed_retry_at = NULL, updated_at = ? WHERE id = ? AND status = ?")
+      .run(txHash, deps.now(), o.id, from);
+    if (r.changes !== 1) return;
+    log.info("order fed", { order_id: o.id, mode: o.mode, tx_hash: txHash, attempts });
+    announceFed(o, txHash);
+  };
+  const readNonce = async () => (io.feederNonce ? await io.feederNonce().catch(() => null) : null);
+
   for (const o of rows) {
     const amount = BigInt(o.feed_yocto);
-    if (used + amount > cap) {
+    const ref = parsePetRef(o.pet_ref);
+    if (!ref) continue;
+
+    // F3: before a retry, prove the earlier try did not feed (ops/feedRetry.ts). Never feed twice.
+    if (o.feed_attempts > 0) {
+      if (o.feed_try_tx) {
+        let tx: TxStatus | null;
+        try {
+          tx = await io.rpc.txStatus(o.feed_try_tx, feeder.accountId);
+        } catch {
+          continue; // RPC down: check again next tick
+        }
+        if (!tx) continue; // not final yet
+        if (verifyFeedTx(tx, ref.contract, ref.tokenId, amount).ok) {
+          markFed(o, o.feed_try_tx, "settled", o.feed_attempts);
+          continue;
+        }
+        if (tx.success) {
+          failOrder(o, "earlier feed try succeeded without a fed event", "settled");
+          log.alert("feeder feed outcome unclear; order failed", { order_id: o.id, tx_hash: o.feed_try_tx });
+          continue;
+        }
+      } else {
+        const nonce = await readNonce();
+        if (nonce === null || o.feed_nonce === null || nonce !== BigInt(o.feed_nonce)) {
+          failOrder(o, "earlier feed try outcome unknown", "settled");
+          log.alert("feeder feed outcome unknown; order failed, check feeder txs", { order_id: o.id });
+          continue;
+        }
+      }
+    }
+
+    const extra = o.feeding_day === day ? 0n : amount; // a retry was already counted today
+    if (used + extra > cap) {
       throttled(deps, `cap-${day}`, DAY_MS, () =>
         log.alert("feeder daily cap reached; orders wait in settled", { cap_near: deps.cfg.FEEDER_DAILY_CAP_NEAR }),
       );
@@ -234,25 +295,35 @@ async function feedOnce(deps: Deps, io: OrdersIo): Promise<void> {
       );
       return;
     }
-    const ref = parsePetRef(o.pet_ref);
-    if (!ref) continue;
+    const nonceBefore = await readNonce();
     const claimed = db
-      .prepare("UPDATE feed_order SET status = 'feeding', feeding_day = ?, updated_at = ? WHERE id = ? AND status = 'settled'")
-      .run(day, deps.now(), o.id);
+      .prepare(
+        `UPDATE feed_order SET status = 'feeding', feeding_day = ?, feed_attempts = feed_attempts + 1, feed_nonce = ?,
+           feed_try_tx = NULL, feed_retry_at = NULL, updated_at = ? WHERE id = ? AND status = 'settled'`,
+      )
+      .run(day, nonceBefore === null ? null : nonceBefore.toString(), deps.now(), o.id);
     if (claimed.changes !== 1) continue; // someone else took it
-    used += amount;
+    used += extra;
     balance -= amount;
+    const attempt = o.feed_attempts + 1;
     try {
       const res = await feeder.call(ref.contract, "feed", { pet_id: ref.tokenId }, { gasTgas: 30, depositYocto: amount });
-      db.prepare("UPDATE feed_order SET status = 'fed', feed_tx = ?, updated_at = ? WHERE id = ? AND status = 'feeding'")
-        .run(res.txHash, deps.now(), o.id);
-      log.info("order fed", { order_id: o.id, mode: o.mode, tx_hash: res.txHash });
-      announceFed(o, res.txHash);
+      markFed(o, res.txHash, "feeding", attempt);
     } catch (e) {
       const name = (e as Error).name || "Error";
-      db.prepare("UPDATE feed_order SET status = 'failed', last_error = ?, updated_at = ? WHERE id = ? AND status = 'feeding'")
-        .run(String((e as Error).message ?? name).slice(0, 200), deps.now(), o.id);
-      log.alert("feeder feed failed", { order_id: o.id, error: name });
+      const message = String((e as Error).message ?? name).slice(0, 200);
+      const hash = errorTxHash(e);
+      if (attempt >= MAX_FEED_TRIES || (!hash && nonceBefore === null)) {
+        failOrder(o, message, "feeding");
+        log.alert("feeder feed failed", { order_id: o.id, error: name, attempts: attempt });
+        continue;
+      }
+      const delay = FEED_RETRY_DELAYS_MS[attempt - 1] ?? FEED_RETRY_DELAYS_MS[FEED_RETRY_DELAYS_MS.length - 1]!;
+      db.prepare(
+        `UPDATE feed_order SET status = 'settled', last_error = ?, feed_try_tx = ?, feed_retry_at = ?, updated_at = ?
+         WHERE id = ? AND status = 'feeding'`,
+      ).run(message, hash, deps.now() + delay, deps.now(), o.id);
+      log.warn("feeder feed failed; will retry", { order_id: o.id, error: name, attempts: attempt, retry_in_ms: delay, tx_hash: hash });
     }
   }
 }
