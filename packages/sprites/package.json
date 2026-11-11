@@ -8,7 +8,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "sheet": "tsx scripts/sheet.ts",
-    "export": "tsx scripts/export.ts"
+    "export": "tsx scripts/export.ts",
+    "check-header": "tsx scripts/check-header.ts"
   },
   "devDependencies": { "@types/node": "22.19.1", "tsx": "4.23.15", "typescript": "5.9.3", "vitest": "3.2.4" }
 }

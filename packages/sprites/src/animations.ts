@@ -1,5 +1,6 @@
 // Every Nearling animation as a list of poses. Frame data is generated from these
 // (drawPet / drawEgg), so changing a pose here changes web and firmware together.
+import type { Personality } from "./personality";
 import { BASE_POSE, type EggPose, type Fx, type Pose } from "./pet";
 
 export type PetAnim =
@@ -131,6 +132,60 @@ export const PET_ANIMS: Record<PetAnim, AnimDef<Pose>> = {
         cheeks: i >= 6, wingSize: i < 4 ? 0 : i < 7 ? 1 : 2, wingUp: i % 2 === 0,
         fx: [fx("sparkle", -12 + ((i * 5) % 24), -10 + ((i * 7) % 6)), fx("sparkle", 12 - ((i * 5) % 24), -4 - ((i * 3) % 6))] }),
     ),
+  },
+};
+
+/**
+ * Personality variants (07 section 2b): a few clips swapped for a pet whose dominant trait is
+ * at least 50. Same frame count, fps and loop as the default clip, so timing never changes.
+ */
+export const PERSONALITY_ANIMS: Record<Personality, Partial<Record<PetAnim, AnimDef<Pose>>>> = {
+  // playful: a little hop in idle
+  playful: {
+    idle: {
+      ...PET_ANIMS.idle,
+      poses: [
+        p({}), p({ squash: 1 }), p({ dy: -2, wingUp: true }), p({ dy: -3, eyes: "happy", wingUp: true }),
+        p({ dy: -1 }), p({ squash: 1 }), p({ eyes: "blink" }), p({ wingUp: true }),
+      ],
+    },
+  },
+  // curious: looks left and right in idle
+  curious: {
+    idle: {
+      ...PET_ANIMS.idle,
+      poses: [
+        p({}), p({ eyes: "left" }), p({ eyes: "left", squash: 1, wingUp: true }), p({ squash: 1, wingUp: true }),
+        p({ eyes: "right" }), p({ eyes: "right" }), p({ eyes: "blink" }), p({ wingUp: true }),
+      ],
+    },
+  },
+  // calm: a slow blink (half, closed, half) instead of a quick one
+  calm: {
+    idle: {
+      ...PET_ANIMS.idle,
+      poses: [
+        p({}), p({}), p({ squash: 1, wingUp: true }), p({ squash: 1, wingUp: true }),
+        p({ eyes: "half" }), p({ eyes: "blink" }), p({ eyes: "half" }), p({ wingUp: true }),
+      ],
+    },
+  },
+  // sassy: smirks and narrows its eyes while talking
+  sassy: {
+    talk: {
+      ...PET_ANIMS.talk,
+      poses: [p({ mouth: "open" }), p({ mouth: "smirk", dy: -1 }), p({ mouth: "o" }), p({ mouth: "smirk", eyes: "half" })],
+    },
+  },
+  // kind: more hearts when patted
+  kind: {
+    pat: {
+      ...PET_ANIMS.pat,
+      poses: PET_ANIMS.pat.poses.map((pose, i) => ({
+        ...pose,
+        fx: [...pose.fx, ...(i >= 1 ? [fx("heart", -6, -11 - Math.floor(i / 2))] : []), ...(i >= 5 ? [fx("heart", -1, -17)] : [])],
+      })),
+    },
   },
 };
 

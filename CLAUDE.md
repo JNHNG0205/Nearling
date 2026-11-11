@@ -463,6 +463,8 @@ Stretch: NEP-366 sponsored transactions via a relayer so new players pay no gas.
 
 Pixel art, 64×64 base sprite, 4 stages × about 12 states. One palette that reads on the device screen. Sprite-sheet JSON (frame name → rect) shared by web and firmware.
 
+**Decision 2026-11-11:** procedural 32×32 sprites from `packages/sprites` (no art owner; ×6 on the 240 px screen, quarter of the flash), shared by web and firmware via `art/nearling_sprites.h`; spec in `web-app architectual/07-pet-animation.md`.
+
 ---
 
 ## 12. Scope

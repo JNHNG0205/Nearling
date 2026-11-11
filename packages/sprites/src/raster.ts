@@ -23,6 +23,9 @@ export const C = {
   spot: 15, // mapped per pet: shade (spots pattern) or body (plain)
 } as const;
 
+/** Shirt overlay layer indices (its own 4-entry palette, `PetPalette.shirt`). Drawn over the frame where non-zero. */
+export const SHIRT = { clear: 0, cloth: 1, shade: 2, trim: 3 } as const;
+
 export function blank(): Bitmap {
   return new Uint8Array(SIZE * SIZE);
 }

@@ -25,6 +25,8 @@ export function PetScreen(props: {
   traits: number[];
   stageIndex: number;
   winged: boolean;
+  /** Equipped Closet shirt token id, or null. */
+  shirt?: string | null;
   state: DisplayState;
   name: string;
   talk?: AnyAnim | null;
@@ -69,6 +71,7 @@ export function PetScreen(props: {
           traits={props.traits}
           stageIndex={props.stageIndex}
           winged={props.winged}
+          shirt={props.shirt ?? null}
           state={props.state}
           play={play}
           playKey={key}

@@ -56,7 +56,7 @@ export default async function PublicPet({ params }: { params: Promise<{ petRef: 
         <div className="flex justify-center">
           <NearlingFrame label={`${pet.name}'s screen`}>
             <PetSprite traits={pet.traits} stageIndex={pet.stage_index} winged={pet.form === "winged"}
-              state={pet.display_state} scale={6} label={pet.name} />
+              shirt={pet.equipped_shirt} state={pet.display_state} scale={6} label={pet.name} />
           </NearlingFrame>
         </div>
         <div className="flex flex-col gap-4">
