@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { displayState, formatPetRef, fuelLeft, parsePetRef } from "./index";
+import { actionSummary, displayState, formatPetRef, fuelLeft, parsePetRef, yoctoToNearText } from "./index";
+
+describe("actionSummary", () => {
+  it("writes one short line per pending action", () => {
+    expect(yoctoToNearText("1500000000000000000000000")).toBe("1.5");
+    expect(yoctoToNearText("2000000000000000000000000")).toBe("2");
+    expect(actionSummary({ Stake: { amount: "1000000000000000000000000" } })).toBe("Stake 1 NEAR");
+    expect(actionSummary({ Unstake: { amount: "500000000000000000000000" } })).toBe("Unstake 0.5 NEAR");
+    expect(actionSummary("Withdraw")).toBe("Collect unstaked NEAR");
+    expect(actionSummary({ SetApprovalMode: { on: false } })).toBe("Turn approvals off");
+    expect(actionSummary({ Transfer: { receiver_id: "bob.testnet" } }, "Mochi")).toBe("Give Mochi to bob.testnet");
+  });
+});
 
 describe("petRef", () => {
   it("round-trips", () => {

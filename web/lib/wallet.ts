@@ -26,6 +26,8 @@ export interface WalletApi {
   disconnect(): Promise<void>;
   signMessage(input: SignMessageInput): Promise<SignedMessage>;
   signAndSendTransaction(req: TxRequest): Promise<Outcome>;
+  /** Several transactions in one wallet prompt (e.g. AddKey on the owner account + register_device). */
+  signAndSendTransactions(reqs: TxRequest[]): Promise<Outcome[]>;
 }
 
 const notReady = async (): Promise<never> => {
@@ -40,6 +42,7 @@ export const WalletContext = createContext<WalletApi>({
   disconnect: notReady,
   signMessage: notReady,
   signAndSendTransaction: notReady,
+  signAndSendTransactions: notReady,
 });
 
 export function useWallet(): WalletApi {

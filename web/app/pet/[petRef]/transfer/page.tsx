@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { PetApproval, propose, type Proposal } from "@/components/device/ApprovalBanner";
 import { OwnerGate } from "@/components/wallet/OwnerGate";
 import { PetHeader } from "@/components/wallet/PetHeader";
 import { PetPage } from "@/components/wallet/PetPage";
@@ -38,6 +39,7 @@ function Transfer({ pet }: { pet: PetData }) {
   const [checking, setChecking] = useState(false);
   const [inputError, setInputError] = useState<string | null>(null);
   const [doneTo, setDoneTo] = useState<string | null>(null);
+  const [proposal, setProposal] = useState<Proposal | null>(null);
   const { send, state, busy } = useTx(name);
   const devicePaired = pet.brain?.device.paired ?? false;
   const to = recipient.trim().toLowerCase();
@@ -83,6 +85,8 @@ function Transfer({ pet }: { pet: PetData }) {
     setChecking(false);
     setInputError(problem);
     if (problem) return;
+    // approval mode (CLAUDE.md 7.3): propose Transfer; the device approves and the contract moves the pet
+    if (c.approval_mode) return setProposal(await propose(send, pet, { Transfer: { receiver_id: to } }));
     const r = await send(tx.nftTransfer(pet.contract, to, pet.tokenId));
     if (r) {
       setDoneTo(to);
@@ -114,17 +118,14 @@ function Transfer({ pet }: { pet: PetData }) {
           />
         </label>
         <ErrorText>{inputError}</ErrorText>
-        {c.approval_mode ? (
-          <p className="text-sm text-muted">{chainErrorCopy("E_APPROVAL_MODE", name)}</p>
-        ) : (
-          <button className={`pixel-btn ${devicePaired ? "pixel-btn--secondary" : ""}`} disabled={!to || busy || checking}
-            onClick={() => void transferNow()}>
-            {busy ? "Check your wallet..." : checking ? "Checking the account..." : `Give ${name} away`}
-          </button>
-        )}
-        <TxStatus state={state} doneText="Transferred" />
+        <button className={`pixel-btn ${devicePaired && !c.approval_mode ? "pixel-btn--secondary" : ""}`} disabled={!to || busy || checking}
+          onClick={() => void transferNow()}>
+          {busy ? "Check your wallet..." : checking ? "Checking the account..." : c.approval_mode ? `Ask your Nearling to give ${name} away` : `Give ${name} away`}
+        </button>
+        <TxStatus state={state} doneText={c.approval_mode ? "Request sent" : "Transferred"} />
+        <PetApproval pet={pet} proposal={proposal} />
       </Panel>
-      {devicePaired && <DevicePath pet={pet} to={to} check={check} onError={setInputError} />}
+      {devicePaired && !c.approval_mode && <DevicePath pet={pet} to={to} check={check} onError={setInputError} />}
     </>
   );
 }

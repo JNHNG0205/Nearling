@@ -6,7 +6,7 @@ import { streamUrl } from "./brain";
 /** Live events from `GET /pets/:petRef/stream` (08-api-reference). */
 export const STREAM_EVENTS = [
   "state", "fuel_charged", "fuel_added", "inbox", "evolved", "receipt_ready",
-  "paired", "approval_ready", "approval_status",
+  "paired", "approval_ready", "approval_status", "action_pending",
 ] as const;
 export type StreamEvent = (typeof STREAM_EVENTS)[number];
 export type StreamHandlers = Partial<Record<StreamEvent, (data: Record<string, unknown>) => void>>;

@@ -155,3 +155,44 @@ describe("approval tx", () => {
     expect(buildApprovalTx({ ...base, kind: "transfer_pet", pet_ref: "evil.testnet:1" })).toBeNull();
   });
 });
+
+describe("device key and approval tx builders", () => {
+  const PK = "ed25519:BXWkER31HSLP1kSVvMduQHsJxyAopCrTkUfWbuLJ7AvH";
+  it("adds a limited key on the owner's own account", () => {
+    expect(tx.addDeviceKey("alice.testnet", PETS_CONTRACT, PK, false)).toEqual({
+      receiverId: "alice.testnet",
+      actions: [
+        {
+          type: "AddKey",
+          params: {
+            publicKey: PK,
+            accessKey: {
+              permission: {
+                receiverId: PETS_CONTRACT,
+                allowance: "1000000000000000000000000",
+                methodNames: ["play", "stake_from_food", "approve_action"],
+              },
+            },
+          },
+        },
+      ],
+    });
+    const v9 = tx.addDeviceKey("alice.testnet", PETS_CONTRACT, PK, true).actions[0];
+    expect(v9?.type === "AddKey" ? v9.params.accessKey.permission.methodNames : []).toContain("feed_from_pantry");
+    expect(tx.deleteKey("alice.testnet", PK)).toEqual({ receiverId: "alice.testnet", actions: [{ type: "DeleteKey", params: { publicKey: PK } }] });
+  });
+
+  it("registers the device and proposes actions with the right gas and deposit", () => {
+    const fc = (r: { actions: { type: string; params: unknown }[] }) => (r.actions[0]?.type === "FunctionCall" ? r.actions[0].params : null);
+    expect(fc(tx.registerDevice(PETS_CONTRACT, "3", PK))).toEqual({
+      methodName: "register_device", args: { pet_id: "3", public_key: PK }, gas: GAS.device.toString(), deposit: "0",
+    });
+    expect(fc(tx.setApprovalMode(PETS_CONTRACT, "3", true))).toMatchObject({ args: { pet_id: "3", on: true } });
+    expect(fc(tx.proposeAction(PETS_CONTRACT, "3", { Stake: { amount: "1000" } }, 1000n))).toEqual({
+      methodName: "propose_action", args: { pet_id: "3", action: { Stake: { amount: "1000" } } }, gas: "30000000000000", deposit: "1000",
+    });
+    expect(fc(tx.proposeAction(PETS_CONTRACT, "3", "Withdraw"))).toMatchObject({ args: { pet_id: "3", action: "Withdraw" } });
+    expect(fc(tx.cancelAction(PETS_CONTRACT, "9"))).toMatchObject({ methodName: "cancel_action", args: { action_id: "9" }, deposit: "0" });
+    expect(GAS.approve).toBe(450n * 1_000_000_000_000n);
+  });
+});

@@ -12,7 +12,7 @@ Base: `https://<brain-host>`. JSON unless noted. Big numbers (yocto) are strings
 
 | Stage | How the device authenticates |
 |---|---|
-| First boot / every boot | `POST /devices/hello` with JSON `{ hw_id, device_secret (16 to 128 chars), fw_version? }`. The first call registers the device and stores only `sha256(device_secret)`; later calls with a different secret for the same `hw_id` get 401 `unauthorized` |
+| First boot / every boot | `POST /devices/hello` with JSON `{ hw_id, device_secret (16 to 128 chars), fw_version?, device_pk? }`. `device_pk` is the device's ed25519 public key (`ed25519:<base58 of 32 bytes>`, 400 `invalid` otherwise); the brain stores it so the web can add it as a limited access key and `register_device` it. The first call registers the device and stores only `sha256(device_secret)`; later calls with a different secret for the same `hw_id` get 401 `unauthorized` |
 | While pairing | `GET /devices/pairing` and `POST /devices/pairing/confirm` with headers `X-Device-Id` and `X-Device-Secret`. Missing or wrong headers: 401 `unauthorized` |
 | After pairing | Every other device call sends `Authorization: Device <device_token>` (returned once by `/devices/pairing/confirm`; the brain stores only its hash, so a lost token means unpair and pair again). The race WebSocket uses the same header |
 | Owner changed | On every `/pets/:petRef/*` call the brain re-checks `get_pet.owner`; if the pet moved, the device is revoked (403 `not_owner`) and must pair again. `/devices/hello` also revokes and returns a fresh pairing |
@@ -36,7 +36,7 @@ All device traffic is HTTPS (and `wss://` for the race) to the hosted brain; see
 | `GET /pets/:petRef/state` | P | `PetState` (below) |
 | `GET /me/pets` | S | `{ pets: PetState[] }`: pets the session account owns on `PETS_CONTRACT` and `DEMO_PETS_CONTRACT` (`nft_tokens_for_owner`, up to 50 each) |
 | `PUT /pets/:petRef/profile` | S (owner) | Body `{ nickname?, owner_tz? }`, at least one. `nickname`: up to 24 letters, digits, spaces or `.'_-`, stored encrypted, used in the talk prompt for this owner only. `owner_tz`: IANA zone (e.g. `Asia/Kuala_Lumpur`), used for greetings and quiet hours. `null` or `""` clears. Returns `{ pet_ref, nickname, owner_tz }` |
-| `GET /pets/:petRef/stream` | S | SSE: `state`, `fuel_charged`, `fuel_added`, `inbox`, `paired`, `approval_ready`, `approval_status`, `evolved`. Ownership is re-checked every 60 s; after a transfer the stream sends `event: closed` (`{ reason: "not_owner" }`) and ends |
+| `GET /pets/:petRef/stream` | S | SSE: `state`, `fuel_charged`, `fuel_added`, `inbox`, `paired`, `approval_ready`, `approval_status`, `action_pending`, `evolved`. `action_pending` (`{ actions, approval_mode }`, same items as `GET /devices/actions`) is sent when the pet's on-chain pending action ids change; the brain polls `get_pending_actions` every 10 s for every pet with a bound device. Ownership is re-checked every 60 s; after a transfer the stream sends `event: closed` (`{ reason: "not_owner" }`) and ends |
 | `GET /pets/:petRef/timeline?limit=50` | P | `TimelineItem[]`, newest first (below), max 100 |
 | `GET /pets/:petRef/metadata` | P | Latest public metadata pinned to IPFS (docs/IPFS.md): `{ version, json_cid, png_cid, gateway_url, image_url, pinned_at, on_chain }`. `gateway_url` / `image_url` are HTTPS gateway links for the JSON and PNG; `on_chain` is true when the NFT's NEP-177 `metadata.reference` is `ipfs://<json_cid>` (pets-v9 `set_metadata`). 404 `not_found` until the first pin (or always, while `PINATA_JWT` is unset) |
 
@@ -122,12 +122,14 @@ charge. `played`, `device_*`, `action_*` and `item_bought` are left out.
 
 | Method, path | Auth | Body | Returns |
 |---|---|---|---|
-| `POST /devices/hello` | device secret | `{ hw_id, device_secret, fw_version }` | `{ bound: false, pairing: { token, qr_url, expires_at } }` or `{ bound: true, pet_ref, token? }` |
+| `POST /devices/hello` | device secret | `{ hw_id, device_secret, fw_version?, device_pk? }` | `{ bound: false, pairing: { token, qr_url, expires_at } }` or `{ bound: true, pet_ref, token? }` |
 | `GET /devices/pairing` | device secret | | `{ status, pet_name? }` |
 | `POST /devices/pairing/confirm` | device secret | | `{ device_token, pet_ref }` |
 | `GET /pairings/:token` | P | | `{ status, expires_at }` |
 | `POST /pairings/:token/claim` | S | `{ pet_ref }` | `{ status: "awaiting_confirm" }` |
 | `POST /pets/:petRef/unpair` | S | | `{ ok }` |
+| `GET /pets/:petRef/device` | S (owner) | | `{ paired, device_pk, last_seen_at, chain_device_pk, key_added, approval_mode, pantry_supported }`. `chain_device_pk` = `get_pet.device_pk`. `key_added` = the owner's `view_access_key_list` has a function-call key with `device_pk` and receiver = this pet's contract (`null` if the RPC failed). `pantry_supported` = `get_pet` has `pantry_yocto` (pets-v9, add `feed_from_pantry` to the key) |
+| `GET /devices/actions` | D | | `{ pet_ref, contract, pet_id, approval_mode, key_registered, actions: [{ id, pet_id, action, deposit, proposer_pk, expires_at_ns, expires_at, summary }] }`. The pet's on-chain `get_pending_actions(pet_id)` without expired ones; `summary` is one line for the 240x240 screen (`Stake 1 NEAR`, `Unstake 0.5 NEAR`, `Collect unstaked NEAR`, `Turn approvals off`, `Give Mochi to bob.testnet`). `key_registered` = the device's `device_pk` equals `get_pet.device_pk`. The device approves by signing `approve_action(action_id)` with its limited key (450 Tgas for Stake / Unstake / Withdraw / StakeFromFood, `CLAUDE.md` 7.3) |
 | `POST /pets/:petRef/care` | D or S | `{ events: [{ id, kind, at }] }` | `{ mood, milestones, form, evolved_now }` |
 | `GET /pets/:petRef/closet` | D or S | | `{ shirts: [{ token_id, title }], equipped }` |
 | `POST /pets/:petRef/closet/equip` | D or S | `{ token_id \| null }` | `{ equipped }` |

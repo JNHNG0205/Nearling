@@ -1,7 +1,9 @@
 import { markHatched } from "./hatch";
 import { randomBytes, randomUUID } from "node:crypto";
 import { Hono, type Context } from "hono";
+import { baseDecode } from "near-api-js";
 import { z } from "zod";
+import { actionSummary, type PendingAction } from "@nearling/shared";
 import { requireCaller, requirePetAccess, sha256, type AuthEnv } from "../auth/guard";
 import type { Db } from "../db/db";
 import type { Deps, Module } from "../deps";
@@ -60,7 +62,62 @@ const Hello = z.object({
   hw_id: z.string().min(1).max(64),
   device_secret: z.string().min(16).max(128),
   fw_version: z.string().max(32).optional(),
+  device_pk: z.string().max(60).refine(isEd25519Pk).optional(),
 });
+
+/** `ed25519:<base58>` of a 32-byte public key (the device's limited access key, CLAUDE.md 7.2). */
+export function isEd25519Pk(s: string): boolean {
+  if (!/^ed25519:[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s)) return false;
+  try {
+    return baseDecode(s.slice("ed25519:".length)).length === 32;
+  } catch {
+    return false;
+  }
+}
+
+/** A pending on-chain action as the device shows it (GET /devices/actions, `action_pending` event). */
+export interface DeviceAction extends PendingAction {
+  /** ms */
+  expires_at: number;
+  /** One line for the 240x240 screen, e.g. "Stake 1 NEAR". */
+  summary: string;
+}
+
+/** `get_pending_actions(pet_id)` without expired entries (the contract rejects approving those). */
+export async function pendingActions(deps: Deps, contract: string, tokenId: string, petName?: string): Promise<DeviceAction[]> {
+  const list = await deps.chain.view<PendingAction[]>(contract, "get_pending_actions", { pet_id: tokenId });
+  return list
+    .map((a) => ({ ...a, expires_at: Number(BigInt(a.expires_at_ns) / 1_000_000n), summary: actionSummary(a.action, petName) }))
+    .filter((a) => a.expires_at > deps.now());
+}
+
+/**
+ * One poll round: for every pet with a bound device, publishes `action_pending` when its list of
+ * pending action ids changed since the last round. `last` holds the previous ids per pet.
+ */
+export async function pollPendingActions(deps: Deps, last: Map<string, string>): Promise<void> {
+  const refs = (
+    deps.db.prepare("SELECT DISTINCT pet_ref FROM device WHERE revoked_at IS NULL AND pet_ref IS NOT NULL").all() as { pet_ref: string }[]
+  ).map((r) => r.pet_ref);
+  for (const key of [...last.keys()]) if (!refs.includes(key)) last.delete(key);
+  for (const petRef of refs) {
+    const ref = servedPetRef(deps, petRef);
+    if (!ref) continue;
+    try {
+      const pet = await deps.chain.getPet(ref.contract, ref.tokenId);
+      if (!pet) continue;
+      const actions = await pendingActions(deps, ref.contract, ref.tokenId, pet.name);
+      const ids = actions.map((a) => a.id).join(",");
+      if (ids === (last.get(petRef) ?? "")) continue;
+      last.set(petRef, ids);
+      publish(petRef, "action_pending", { actions, approval_mode: pet.approval_mode });
+    } catch (err) {
+      log.warn("action_poll_failed", { pet_ref: petRef, err: String(err).slice(0, 200) });
+    }
+  }
+}
+
+const ACTION_POLL_MS = 10_000;
 
 export function deviceRoutes(deps: Deps) {
   const { db, now, chain, cfg } = deps;
@@ -89,21 +146,23 @@ export function deviceRoutes(deps: Deps) {
 
   app.post("/devices/hello", async (c) => {
     const body = Hello.safeParse(await jsonBody(c));
-    if (!body.success) return fail(c, 400, "invalid", "Expected hw_id, device_secret");
-    const { hw_id, device_secret, fw_version } = body.data;
+    if (!body.success) return fail(c, 400, "invalid", "Expected hw_id, device_secret and an optional ed25519 device_pk");
+    const { hw_id, device_secret, fw_version, device_pk } = body.data;
 
     let d = db.prepare("SELECT * FROM device WHERE hw_id = ?").get(hw_id) as DeviceRow | undefined;
     if (!d) {
       const id = randomUUID();
-      db.prepare("INSERT INTO device (id, hw_id, secret_hash, fw_version, last_seen_at, created_at) VALUES (?, ?, ?, ?, ?, ?)").run(
-        id, hw_id, sha256(device_secret), fw_version ?? null, now(), now(),
-      );
+      db.prepare(
+        "INSERT INTO device (id, hw_id, secret_hash, fw_version, device_pk, last_seen_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      ).run(id, hw_id, sha256(device_secret), fw_version ?? null, device_pk ?? null, now(), now());
       d = db.prepare("SELECT * FROM device WHERE id = ?").get(id) as DeviceRow;
       log.info("device_registered", { device: id });
     } else if (d.secret_hash !== sha256(device_secret)) {
       return fail(c, 401, "unauthorized", "Wrong device secret");
     } else {
-      db.prepare("UPDATE device SET fw_version = COALESCE(?, fw_version), last_seen_at = ? WHERE id = ?").run(fw_version ?? null, now(), d.id);
+      db.prepare(
+        "UPDATE device SET fw_version = COALESCE(?, fw_version), device_pk = COALESCE(?, device_pk), last_seen_at = ? WHERE id = ?",
+      ).run(fw_version ?? null, device_pk ?? null, now(), d.id);
     }
 
     // A bound device whose pet changed hands is revoked here too (same rule as the guard).
@@ -213,7 +272,80 @@ export function deviceRoutes(deps: Deps) {
     return c.json({ ok: true });
   });
 
+  // Device page status (owner): brain pairing, the device's key, the key on chain and on the owner's account.
+  app.get("/pets/:petRef/device", servedPet(deps), requirePetAccess(deps, ["owner"]), async (c) => {
+    const ref = servedPetRef(deps, c.req.param("petRef"))!;
+    const pet = (await chain.getPet(ref.contract, ref.tokenId))!;
+    const row = db
+      .prepare("SELECT device_pk, last_seen_at FROM device WHERE pet_ref = ? AND revoked_at IS NULL ORDER BY bound_at DESC LIMIT 1")
+      .get(ref.petRef) as { device_pk: string | null; last_seen_at: number | null } | undefined;
+    const devicePk = row?.device_pk ?? null;
+    let keyAdded: boolean | null = false;
+    if (devicePk) {
+      try {
+        const keys = await chain.accessKeys(pet.owner);
+        keyAdded = keys.some((k) => {
+          const perm = k.access_key.permission;
+          return (
+            k.public_key === devicePk &&
+            typeof perm === "object" &&
+            "FunctionCall" in perm &&
+            (perm.FunctionCall as { receiver_id: string }).receiver_id === ref.contract
+          );
+        });
+      } catch {
+        keyAdded = null; // RPC outage: unknown
+      }
+    }
+    return c.json({
+      paired: !!row,
+      device_pk: devicePk,
+      last_seen_at: row?.last_seen_at ?? null,
+      chain_device_pk: pet.device_pk,
+      key_added: keyAdded,
+      approval_mode: pet.approval_mode,
+      pantry_supported: pet.pantry_yocto !== undefined,
+    });
+  });
+
+  // On-chain pending actions for the device's approve screen (CLAUDE.md 7.3 step 2).
+  app.get("/devices/actions", requireCaller(deps, ["device"]), async (c) => {
+    const caller = c.get("caller");
+    if (caller.kind !== "device") return fail(c, 401, "unauthorized", "Device token required");
+    const ref = servedPetRef(deps, caller.petRef);
+    if (!ref) return fail(c, 400, "invalid", "Unknown pet reference");
+    const pet = await chain.getPet(ref.contract, ref.tokenId);
+    if (!pet) return fail(c, 404, "not_found", "No such pet");
+    if (pet.owner !== caller.account) {
+      revoke("id = ?", caller.deviceId);
+      return fail(c, 403, "not_owner", "The pet has a new owner");
+    }
+    const row = db.prepare("SELECT device_pk FROM device WHERE id = ?").get(caller.deviceId) as { device_pk: string | null } | undefined;
+    const actions = await pendingActions(deps, ref.contract, ref.tokenId, pet.name);
+    return c.json({
+      pet_ref: ref.petRef,
+      contract: ref.contract,
+      pet_id: ref.tokenId,
+      approval_mode: pet.approval_mode,
+      key_registered: !!row?.device_pk && row.device_pk === pet.device_pk,
+      actions,
+    });
+  });
+
   return app;
 }
 
-export const devicesModule: Module = { name: "devices", routes: (deps) => new Hono().route("/", deviceRoutes(deps)) };
+export const devicesModule: Module = {
+  name: "devices",
+  routes: (deps) => new Hono().route("/", deviceRoutes(deps)),
+  start: (deps) => {
+    const last = new Map<string, string>();
+    let running = false;
+    const id = setInterval(() => {
+      if (running) return;
+      running = true;
+      void pollPendingActions(deps, last).finally(() => (running = false));
+    }, ACTION_POLL_MS);
+    return () => clearInterval(id);
+  },
+};
