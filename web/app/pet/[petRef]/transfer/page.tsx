@@ -173,7 +173,7 @@ function DevicePath({
       return;
     }
     try {
-      await createApproval({ kind: "transfer_pet", receiver_id: to, token_id: pet.tokenId });
+      await createApproval({ kind: "transfer_pet", receiver_id: to, token_id: pet.tokenId, pet_ref: pet.ref });
       setS({ step: "waiting", startedOnPhone: true });
     } catch (err) {
       // The brain lets only the device start an approval today: the owner starts it there.

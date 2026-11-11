@@ -81,6 +81,31 @@ describe("wallet balances and recipients", () => {
   });
 });
 
+describe("owner-started pet transfer (Build Spec 8)", () => {
+  it("the phone starts it, a bound device must approve, send/stake stay device-only", async () => {
+    const t = await setup();
+    const body = { kind: "transfer_pet", receiver_id: "carol.testnet", pet_ref: REF };
+    const res = await t.req("POST", "/approvals", t.alice, body);
+    expect(res.status).toBe(201);
+    const a = (await res.json()) as ApprovalRow;
+    expect(a).toMatchObject({ kind: "transfer_pet", account_id: "alice.testnet", pet_ref: REF, status: "requested" });
+    expect(["dev1", "dev2"]).toContain(a.device_id);
+    // the phone itself cannot approve; the bound device can
+    expect((await t.req("POST", `/approvals/${a.id}/approve`, t.alice)).status).toBe(401);
+    const dev = a.device_id === "dev1" ? t.dev1 : t.dev2;
+    expect(((await (await t.req("POST", `/approvals/${a.id}/approve`, dev)).json()) as ApprovalRow).status).toBe("approved");
+    // send and stake cannot start on the phone; strangers cannot start anything
+    expect((await t.req("POST", "/approvals", t.alice, { kind: "send", receiver_id: "carol.testnet", amount_yocto: NEAR.toString(), pet_ref: REF })).status).toBe(403);
+    expect((await t.req("POST", "/approvals", t.mallory, body)).status).toBe(409);
+  });
+
+  it("needs a paired device", async () => {
+    const t = await setup();
+    t.deps.db.prepare("UPDATE device SET revoked_at = 1").run();
+    expect((await t.req("POST", "/approvals", t.alice, { kind: "transfer_pet", receiver_id: "carol.testnet", pet_ref: REF })).status).toBe(409);
+  });
+});
+
 describe("wallet approvals", () => {
   it("send: request, approve, phone submits the matching tx, final", async () => {
     const t = await setup();
@@ -115,7 +140,7 @@ describe("wallet approvals", () => {
     const pet = await t.request({ kind: "transfer_pet", receiver_id: "carol.testnet" });
     expect(pet.a).toMatchObject({ token_id: "1", tx: { receiverId: C } });
     // the owner session cannot create approvals
-    expect((await t.req("POST", "/approvals", t.alice, { kind: "send", receiver_id: "carol.testnet", amount_yocto: "1" })).status).toBe(401);
+    expect((await t.req("POST", "/approvals", t.alice, { kind: "send", receiver_id: "carol.testnet", amount_yocto: "1" })).status).toBe(403); // owners may only start transfer_pet from the phone
   });
 
   it("only the bound device approves or rejects", async () => {

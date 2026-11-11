@@ -125,7 +125,7 @@ export interface Approval {
   expires_at: number | string;
 }
 /** Starts an approval from the phone. Today the brain only lets the device start one (08 "Wallet"). */
-export const createApproval = (body: { kind: ApprovalKind; receiver_id: string; token_id?: string }) =>
+export const createApproval = (body: { kind: ApprovalKind; receiver_id: string; token_id?: string; pet_ref?: string }) =>
   req<Approval>("/approvals", { ...post(body), auth: true });
 export const getApproval = (id: string) => req<Approval>(`/approvals/${enc(id)}`, { auth: true });
 export const reportApprovalTx = (id: string, txHash: string) =>
