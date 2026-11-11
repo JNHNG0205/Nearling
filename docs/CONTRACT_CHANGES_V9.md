@@ -268,11 +268,10 @@ cd contract
 cargo fmt && cargo clippy --target wasm32-unknown-unknown -- -D warnings
 cargo test
 cargo near build non-reproducible-wasm
-cd .. && CONTRACT=pets-v9 ./scripts/deploy-testnet.sh            # registers the NEARON pool with the house deposit
-DEMO_SPEED=1 CONTRACT=pets-demo-v9 ./scripts/deploy-testnet.sh   # optional, if demo also moves
+cd .. && PETS_VERSION=9 ./scripts/deploy-testnet.sh                  # pets-v9.$NEAR_PARENT_ACCOUNT, registers the NEARON pool
+DEMO_SPEED=1 ./scripts/deploy-testnet.sh                          # pets-demo.$NEAR_PARENT_ACCOUNT (existing account: redeploy needs a fresh name, edit the script)
 ./scripts/seed-demo.sh
 ```
-(Adjust variable names to what `deploy-testnet.sh` actually takes.)
 
 ### 6.2 Set the pool deposit from the live pool
 ```bash
