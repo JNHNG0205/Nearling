@@ -4,7 +4,10 @@ import { type AttestationRow, ATTESTATION_TTL_MS, knownModels, refreshAttestatio
 import { type AuthEnv, requireCaller } from "../auth/guard";
 import type { Db } from "../db/db";
 import type { Deps, Module } from "../deps";
+import { servedPetRef } from "../identity/common";
 import { log } from "../log";
+
+const LIST_LIMIT = 20;
 
 /** Receipts and attestation summary (AI-brain 03 section 7, 08 "Talk and receipts"). */
 
@@ -121,6 +124,31 @@ export function receiptRoutes(deps: Deps) {
       if (denied) return denied;
     }
     return c.json(r.body);
+  });
+
+  /**
+   * D6: receipts of one pet, newest first, at most 20. `?public=1` lists only published ones and
+   * needs no sign-in (for `/p/[petRef]`); without it the owner sees all of them.
+   */
+  app.get("/pets/:petRef/receipts", async (c) => {
+    const ref = servedPetRef(deps, c.req.param("petRef"));
+    if (!ref) return c.json({ error: { code: "invalid", message: "Unknown pet reference" } }, 400);
+    const onlyPublic = c.req.query("public") === "1";
+    if (!onlyPublic) {
+      const denied = await checkOwner(c, ref.petRef);
+      if (denied) return denied;
+    }
+    const rows = deps.db
+      .prepare(
+        `SELECT turn_id FROM verification WHERE pet_ref = ? ${onlyPublic ? "AND public = 1" : ""}
+         ORDER BY created_at DESC, rowid DESC LIMIT ?`,
+      )
+      .all(ref.petRef, LIST_LIMIT) as { turn_id: string }[];
+    const receipts = rows.flatMap((r) => {
+      const b = buildReceipt(deps.db, r.turn_id);
+      return b ? [b.body] : [];
+    });
+    return c.json({ receipts });
   });
 
   app.post("/receipts/:turnId/publish", async (c) => {
