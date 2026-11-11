@@ -12,7 +12,7 @@ const NEAR = 10n ** 24n;
 const H1 = "4z9Lq8rB7nVtJbT3oLz2YkWm5sXqFv1hCdEaPgR6uNi";
 const H2 = "5z9Lq8rB7nVtJbT3oLz2YkWm5sXqFv1hCdEaPgR6uNi";
 const H3 = "6z9Lq8rB7nVtJbT3oLz2YkWm5sXqFv1hCdEaPgR6uNi";
-const VALIDATOR = "legends.pool.f863973.m0";
+const VALIDATOR = "stakely_v2.pool.f863973.m0";
 
 const sendTx = (hash: string, o: Partial<{ signer: string; receiver: string; deposit: bigint; success: boolean }> = {}): TxStatus => ({
   hash,

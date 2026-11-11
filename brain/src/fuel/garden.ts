@@ -13,9 +13,23 @@ import { recordOrgBalance } from "../ops/orgBalance";
 export const SWEEP_MIN_CLAIMABLE = 10n ** 22n;
 const HOUR_MS = 3_600_000;
 
-/** [VERIFY] field names of the pool's `get_account` view beyond `claimable`. */
+/**
+ * The pool's `get_account` view, as read on testnet 2026-11-11 (all yocto / CREDIT-yocto strings).
+ * `unstake_deposit` is what the pool now wants attached to `unstake` (0.00772 NEAR), refunded on withdraw.
+ */
 interface PoolAccount {
+  balance?: string;
   claimable?: string;
+  claimed?: string;
+  acc_checkpoint?: string;
+  unstake_requested?: string;
+  matured_withdrawals?: string;
+  withdrawable?: string;
+  withdrawals?: unknown[];
+  owed_mint?: string;
+  claim_deposit?: string;
+  unstake_deposit?: string;
+  unstake_storage_paid?: string;
 }
 
 export type SweepResult = "swept" | "below_threshold" | "nothing_to_claim" | "no_signer" | "error";
