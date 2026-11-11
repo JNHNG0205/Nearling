@@ -1,5 +1,7 @@
 # Nearling: conceptual design for web app + AI brain
 
+> **Superseded (2026-11-11).** This folder is the pre-build, pre-hybrid draft, kept for history. The brain and web as built are described in [`AI-brain architectual/`](../AI-brain%20architectual/README.md) (routes: [`08-api-reference.md`](../AI-brain%20architectual/08-api-reference.md)) and [`web-app architectual/`](../web-app%20architectual/README.md); the spec is [`CLAUDE.md`](../CLAUDE.md). Notable differences: no structured JSON tail (replies carry an emotion tag only), no browser `play` key, pairing by device QR instead of a code, care is off chain, `drizzle-orm` was not used (raw SQL migrations).
+
 Owner: Role 2 (web + brain). Status: **draft for team review**, no code yet. Written 2026-11-08 against `CLAUDE.md` and `PLAN.md`. Where this folder disagrees with `CLAUDE.md`, `CLAUDE.md` wins until the team agrees and the change is recorded there.
 
 ## Files

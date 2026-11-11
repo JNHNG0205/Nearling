@@ -2,6 +2,18 @@
 
 An AI pet that lives on NEAR and pays for its own brain. One pet, two bodies (web app and ESP32 device), one brain service, one on-chain state.
 
+> **Superseded for the device, brain and web (2026-11-11).** This document was written before the hybrid scope and before the brain and web were built. It still describes a touch-screen device that signs its own transactions and on-chain approvals as the demo path; that is no longer true. Read these instead:
+>
+> | Part | Current source |
+> |---|---|
+> | Contract (fuel, NEARON, Soul, events, caps) | `CLAUDE.md` 6 and 7, [`docs/CONTRACT_INTERFACE.md`](docs/CONTRACT_INTERFACE.md); sections 4.1, 4.2, 5.1, 5.2, 5.5 and 6.1 below are still accurate |
+> | Brain as built | [`AI-brain architectual/`](AI-brain%20architectual/README.md), routes in [`08-api-reference.md`](AI-brain%20architectual/08-api-reference.md) |
+> | Web as built | [`web-app architectual/`](web-app%20architectual/README.md), route list in `CLAUDE.md` 9 |
+> | Device and product | [`docs/Nearling-Hackathon-Build-Spec.md`](docs/Nearling-Hackathon-Build-Spec.md) |
+> | Deployment | [`docs/DEPLOY.md`](docs/DEPLOY.md) (brain on Fly.io with a SQLite volume, web on Vercel) |
+>
+> As built, in short: the **device** is an ESP32-S3 with a 240x240 screen, three buttons, a touch pad, motion and light sensors and a speaker; it holds no chain key in the demo path. It pairs by QR (`/hatch`), talks through the brain, keeps care offline, races over a WebSocket, and approves wallet actions with a physical hold, after which the owner signs in **Meteor** on the phone. The **brain** (Node 22, Hono, SQLite, one machine) owns talk with verified receipts, the charge queue (one fuel per reply), Feed the Brain orders, the Garden sweep, pairing, care, Closet, approvals, race rooms and the proactive inbox. The **web** (Next.js 16, NEAR Connect) covers adopt, pet home with a browser Nearling, receipts, feed, Closet, Soul, Garden, race and the public page.
+
 **Scope update 2026-11-09:** the team adopted the hybrid scope in `CLAUDE.md` 1.1: product features and hardware from `docs/Nearling-Hackathon-Build-Spec.md`, fuel kept on chain. Where this document describes on-chain care stats, on-device signing or the on-chain approval flow as the demo path, those are now kept in code but not demoed; fuel, NEARON, the pet NFT and the transfer rules below still hold.
 
 Status: **draft for team review** (2026-11-08). Contract parts updated 2026-11-09 by Role 1 to match the contract as built (milestones M1 to M4, deployed at `pets-v5.nearling.testnet`) and the S5 / S6 spike results in `CLAUDE.md` 14. `CLAUDE.md` is the spec and wins on any conflict. Items marked [VERIFY] depend on spikes S1 to S7; items marked [PROPOSAL] need agreement from the owning role. Deep dives for web and brain are in [conceptual/](conceptual/README.md).

@@ -142,7 +142,7 @@ Goal: the contract pieces the hybrid scope (`CLAUDE.md` 1.1) adds from the Build
 - [x] Soul: owner-only `set_soul` (1 KB) / `get_soul`, optional soul at mint, version per change, `soul_updated` events
 - [x] `config.fuel_price_micro` = $0.001; brain charges it per chat
 - [x] Shirt NFT for the Closet: separate `shirts/` contract, one free claim per account
-- [ ] Brain-side `feed(pet)` after a NEAR Intents order settles (Role 2; contract side is the existing `feed`)
+- [x] Brain-side `feed(pet)` after a NEAR Intents order settles (Role 2; contract side is the existing `feed`). Done in code (`brain/src/fuel/orders.ts`: the feeder account calls `feed` once per settled order, unit-tested); first testnet run is `docs/LIMITATIONS.md` B2
 - [x] Fix found on testnet: `register_pool` house deposit replaces the hardcoded first-deposit fee (the pool upgrade changed it)
 - [x] Deploy `pets-v8` (+ `register_pool`) and `shirts.nearling.testnet`; verified on testnet (see `CLAUDE.md` 14)
 - [x] Redeploy `pets-demo` with the M5b code, pool registered, demo speed on
@@ -158,10 +158,10 @@ Goal: the contract pieces the hybrid scope (`CLAUDE.md` 1.1) adds from the Build
 Goal: other roles build on a stable deployment; demo pets are ready.
 
 - [x] Interface frozen: `docs/CONTRACT_INTERFACE.md` (who calls what, deposit, gas, events, error codes) + ABIs in `docs/abi/`
-- [ ] `packages/shared` types match `get_pet` (Role 2, from the ABI)
+- [x] `packages/shared` types match `get_pet` (Role 2, from the ABI): `PetView` in `packages/shared/src/index.ts`, used by brain and web
 - [x] `scripts/seed-demo.sh`: pets that are Happy, Hungry, Starving and Self-sustaining on `pets-v8` (#1 to #4, owner `nearling-seed.testnet`), plus one on `pets-demo` that goes Dormant within an hour
 - [x] Deployment for integration: `pets-v8` already runs the frozen code (no new deploy needed); ids in `.env` and `docs/CONTRACT_INTERFACE.md`
-- [ ] Brain, web and firmware point at `pets-v8` / `shirts` (Roles 2 to 4)
+- [x] Brain, web and firmware point at `pets-v8` / `shirts` (Roles 2 to 4): brain and web defaults and `.env.example` use `pets-v8`, `pets-demo` and `shirts.nearling.testnet`. The firmware talks only to the brain, so it needs no contract id
 
 **Pass:**
 - `cargo test` (unit + integration) green, `clippy -D warnings` clean
