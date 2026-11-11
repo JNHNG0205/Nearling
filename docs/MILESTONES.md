@@ -171,9 +171,19 @@ Goal: other roles build on a stable deployment; demo pets are ready.
 
 ---
 
+## M8: pets-v9 (Nov 11, `docs/CONTRACT_CHANGES_V9.md`)
+
+- [x] Unstake deposit (NEARON C6): `unstake` payable, `pending_unstake.deposit`, withdraw pays amount + deposit, `Unstake` proposals hold it
+- [x] `set_metadata` (brain only, `ipfs://` + sha256, 60 s cooldown), description from the Soul
+- [x] Pantry: `stock_pantry`, `feed_from_pantry` (device capped 1 NEAR/day), `empty_pantry`; refunded to the old owner on transfer
+- [x] Tests (pets 181), fmt, clippy; ABI regenerated; interface doc, `CLAUDE.md`, README updated
+- [x] Deployed `pets-v9` and `pets-demo-v9` (`register_pool`, live `pool_unstake_deposit`), seeded; smoke test on testnet (`CLAUDE.md` 14)
+- [ ] Withdraw after unlock epoch 5438 (smoke pet #0): does the pool return the unstake deposit?
+- [ ] Brain function-call keys for both contracts (`scripts/add-brain-keys.sh`, public keys from Role 2)
+
 ## M7: Final deploy and README (Nov 14)
 
-- [ ] Final testnet deploy and re-seed (after Roles 2 to 4 integrate against `pets-v8`, so their changes land in one deploy)
+- [x] Final testnet deploy and re-seed: `pets-v9` (M8) is the final deploy unless the clients need another change
 - [x] README contract sections: NEAR standards used, NEARON flow, security model, limitations; "do X, see Y" steps 1 to 7 with CLI commands against the live seeded pets (steps 1, 2, 5 re-run on testnet 2026-11-09). Other roles' sections are placeholders
 - [x] Wasm size: profile variants tried (`strip`, `opt-level = "s"`) did not shrink it; kept at about 378 KB
 
