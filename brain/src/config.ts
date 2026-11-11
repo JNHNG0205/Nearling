@@ -41,8 +41,11 @@ const Env = z.object({
   FEEDER_KEY: z.string().default(""),
   FEEDER_DAILY_CAP_NEAR: z.coerce.number().positive().default(10),
   NEARON_POOL: z.string().default("mw-pool-1024.testnet"),
-  /** Testnet validator pool for Wallet staking (`get_account_staked_balance`). [VERIFY] the pool is live. */
-  WALLET_VALIDATOR_POOL: z.string().default("legends.pool.f863973.m0"),
+  /**
+   * Testnet validator pool for Wallet staking (`get_account_staked_balance`). Checked 2026-11-11:
+   * active in `validators`, producing all expected blocks, 3% reward fee (legends takes 100%).
+   */
+  WALLET_VALIDATOR_POOL: z.string().default("stakely_v2.pool.f863973.m0"),
 
   // Talk, NEAR AI, TTS, charging (AI-brain 03, 04 section 2)
   NEARAI_CHAT_MODEL: z.string().default("z-ai/glm-5.3-flash"),
