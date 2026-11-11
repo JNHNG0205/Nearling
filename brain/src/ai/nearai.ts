@@ -1,5 +1,6 @@
 import type { Config } from "../config";
 import { log } from "../log";
+import { reportSttSpend, sttSpendTracked } from "../talk/spend";
 
 /**
  * NEAR AI Cloud client (AI-brain 03 section 5). Raw fetch, not the OpenAI SDK: verification needs
@@ -62,6 +63,26 @@ const STT_TIMEOUT_MS = 15_000;
 export function costNano(usage: ChatResult["usage"], price: ModelPrice | null): number | null {
   if (!price) return null;
   return Math.round(usage.prompt_tokens * price.inputNano + usage.completion_tokens * price.outputNano);
+}
+
+/**
+ * Audio length from size when the response has no `duration`: 16 kHz mono 16-bit WAV is 32,000
+ * bytes per second; compressed (WEBM / Opus) is taken as 32 kbit/s (4,000 bytes per second).
+ */
+export function estimateAudioSeconds(bytes: number, mime: string): number {
+  return mime.includes("wav") ? Math.max(0, bytes - 44) / 32_000 : bytes / 4_000;
+}
+
+/**
+ * Whisper cost (A6). `/model/list` prices `openai/whisper-large-v3` per token (10 nano-USD in and
+ * out on 2026-11-11). [VERIFY] how NEAR AI counts audio tokens: taken here as Whisper's encoder
+ * frames (1,500 per started 30 s window) in, and about 4 characters per token out.
+ */
+export function sttCostNano(price: ModelPrice | null, seconds: number, textChars: number): number | null {
+  if (!price) return null;
+  const inTokens = Math.max(1, Math.ceil(seconds / 30)) * 1500;
+  const outTokens = Math.ceil(textChars / 4);
+  return Math.round(inTokens * price.inputNano + outTokens * price.outputNano);
 }
 
 /** `{ amount, scale }` means amount / 10^scale USD per token; returns nano-USD per token. */
@@ -196,12 +217,28 @@ export function createNearAi(
         }),
       );
       const raw = await res.text();
+      let out: { text: string; ms: number };
+      let duration: unknown;
       try {
-        const json = JSON.parse(raw) as { text?: unknown };
-        return { text: typeof json.text === "string" ? json.text.trim() : "", ms: now() - t0 };
+        const json = JSON.parse(raw) as { text?: unknown; duration?: unknown };
+        out = { text: typeof json.text === "string" ? json.text.trim() : "", ms: now() - t0 };
+        duration = json.duration;
       } catch {
         throw new NearAiError("upstream", res.status);
       }
+      // A6: count STT toward the global spend cap. Never fails the transcription.
+      if (sttSpendTracked()) {
+        try {
+          const price = (await client.modelPrices()).get(cfg.NEARAI_STT_MODEL) ?? null;
+          const seconds = typeof duration === "number" && duration > 0 ? duration : estimateAudioSeconds(audio.length, mime);
+          const nano = sttCostNano(price, seconds, out.text.length);
+          if (nano !== null) reportSttSpend(nano);
+          else log.warn("stt cost unknown", { model: cfg.NEARAI_STT_MODEL });
+        } catch {
+          log.warn("stt cost unknown", { model: cfg.NEARAI_STT_MODEL });
+        }
+      }
+      return out;
     },
 
     async modelPrices() {

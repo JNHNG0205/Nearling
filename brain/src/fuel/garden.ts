@@ -1,6 +1,7 @@
 import { createSigner, type TxSigner } from "../chain/signer";
 import type { Deps, Module } from "../deps";
 import { log } from "../log";
+import { recordOrgBalance } from "../ops/orgBalance";
 import { splitKeys } from "../wallet/rpc";
 
 /**
@@ -38,6 +39,7 @@ export async function sweepOnce(deps: Deps, brain: TxSigner | null): Promise<Rec
       const res = await brain.call(contract, "sweep_credit", {}, { gasTgas: 600 });
       log.info("credit swept", { contract, claimable: claimable.toString(), tx_hash: res.txHash });
       out[contract] = "swept";
+      await recordOrgBalance(deps, contract).catch(() => null); // F6: store the org balance, log the delta
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes("Nothing to claim")) {

@@ -13,10 +13,25 @@ export function clean(fields: Fields): Fields {
   return out;
 }
 
+let alertSink: ((msg: string, fields: Fields) => void) | null = null;
+
+/** O4: where `log.alert` lines also go (ops/alerts.ts webhook). Receives cleaned fields only. */
+export function setAlertSink(sink: ((msg: string, fields: Fields) => void) | null): void {
+  alertSink = sink;
+}
+
 function emit(level: string, msg: string, fields: Fields = {}) {
-  const line = JSON.stringify({ level, msg, at: new Date().toISOString(), ...clean(fields) });
+  const safe = clean(fields);
+  const line = JSON.stringify({ level, msg, at: new Date().toISOString(), ...safe });
   if (level === "error" || level === "alert") console.error(line);
   else console.log(line);
+  if (level === "alert" && alertSink) {
+    try {
+      alertSink(msg, safe);
+    } catch {
+      // an alert sink must never break the caller
+    }
+  }
 }
 
 export const log = {

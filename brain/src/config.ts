@@ -59,6 +59,17 @@ const Env = z.object({
     .default("")
     .transform((s) => s.split(",").map((k) => k.trim()).filter(Boolean)),
   GLOBAL_DAILY_SPEND_CAP_USD: z.coerce.number().nonnegative().default(5),
+  // ---- ops (AI-brain 09 section 3): /ops, alerts, backups, billing, org balance ----
+  /** ElevenLabs Flash v2.5 USD per 1,000 characters, for the spend cap. [VERIFY] our plan's price. */
+  TTS_USD_PER_1K_CHARS: z.coerce.number().nonnegative().default(0.05),
+  /** NEAR AI org whose balance is read after sweeps; falls back to the pets contract `config().org_id`. */
+  NEARAI_ORG_ID: z.string().optional(),
+  /** `GET /ops` basic auth. The route is 404 unless both are set. */
+  OPS_USER: z.string().optional(),
+  OPS_PASSWORD: z.string().optional(),
+  /** Discord or Slack style webhook that receives `log.alert` lines (ids only), rate limited. */
+  ALERT_WEBHOOK_URL: z.string().optional(),
+  BACKUP_DIR: z.string().default("./data/backups"),
   /** Tests only (CLAUDE.md rule 5): canned fake inference, never in the demo path. */
   MOCK_AI: z
     .string()
