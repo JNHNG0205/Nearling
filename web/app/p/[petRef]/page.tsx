@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import type { PetState } from "@nearling/shared";
 import { FuelMeter, thoughts } from "@/components/FuelMeter";
 import { PetSprite } from "@/components/PetSprite";
+import { IpfsLinks } from "@/components/nearling/IpfsLinks";
 import { NearlingFrame } from "@/components/nearling/NearlingFrame";
 import { DemoSpeedPill, StatePill } from "@/components/nearling/Pills";
 import { VerifyChip } from "@/components/talk/ReceiptCard";
@@ -77,6 +78,7 @@ export default async function PublicPet({ params }: { params: Promise<{ petRef: 
             <Link href="/adopt" className="pixel-btn pixel-btn--secondary">Hatch a pet</Link>
           </div>
           <p className="text-sm text-muted">Owner <span className="font-mono">{pet.owner}</span></p>
+          <IpfsLinks petRef={ref} />
         </div>
       </section>
 
