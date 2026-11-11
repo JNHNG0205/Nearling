@@ -82,6 +82,10 @@ const Env = z.object({
   /** Discord or Slack style webhook that receives `log.alert` lines (ids only), rate limited. */
   ALERT_WEBHOOK_URL: z.string().optional(),
   BACKUP_DIR: z.string().default("./data/backups"),
+  // ---- public pet metadata on IPFS (docs/IPFS.md). Unset JWT = module is a no-op. ----
+  PINATA_JWT: z.string().optional(),
+  /** Dedicated gateway host, e.g. "example.mypinata.cloud". Unset = https://ipfs.io. */
+  PINATA_GATEWAY: z.string().optional(),
   /** Tests only (CLAUDE.md rule 5): canned fake inference, never in the demo path. */
   MOCK_AI: z
     .string()

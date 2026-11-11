@@ -1,4 +1,4 @@
-// Minimal PNG encoder (RGBA, no dependencies) for the review sheet and art exports.
+// Minimal PNG encoder (RGBA, no dependencies, Node only) for the review sheet, art exports and pet metadata images.
 import { deflateSync } from "node:zlib";
 
 const CRC_TABLE = (() => {
