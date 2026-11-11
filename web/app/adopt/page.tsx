@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
+import { FaucetPanel } from "@/components/wallet/FaucetPanel";
 import { HatchAnimation } from "@/components/wallet/HatchAnimation";
 import { MintForm } from "@/components/wallet/MintForm";
 import { AppFrame, DemoSpeedPill, Panel } from "@/components/wallet/ui";
@@ -38,6 +39,7 @@ export default function AdoptPage() {
       <Panel>
         <ConnectButton />
       </Panel>
+      <FaucetPanel />
       <Panel>
         <fieldset className="flex flex-col gap-3">
           <legend className="mb-2 font-display text-sm">Speed</legend>

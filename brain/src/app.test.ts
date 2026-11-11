@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PetState } from "@nearling/shared";
 import { createApp } from "./app";
-import { testDeps } from "./test/deps";
+import { TEST_CONFIG, TEST_PET, testDeps } from "./test/deps";
 
 describe("GET /pets/:petRef/state", () => {
   it("maps the chain pet and its profile to PetState", async () => {
@@ -25,6 +25,22 @@ describe("GET /pets/:petRef/state", () => {
   it("404s a missing pet", async () => {
     const res = await createApp(testDeps()).request("/pets/pets-v8.nearling.testnet:999/state");
     expect(res.status).toBe(404);
+  });
+});
+
+describe("pets-v9 garden fields on /state", () => {
+  it("falls back on a contract without pantry or unstake deposit (pets-v8)", async () => {
+    const s = (await (await createApp(testDeps()).request("/pets/pets-v8.nearling.testnet:1/state")).json()) as PetState;
+    expect(s.garden.pantry_yocto).toBe("0");
+    expect(s.garden.pool_unstake_deposit).toBeNull();
+  });
+
+  it("passes through pantry_yocto and config.pool_unstake_deposit when present", async () => {
+    const deps = testDeps({ pets: { "1": { ...TEST_PET, pantry_yocto: "500000000000000000000000" } } });
+    deps.chain.getConfig = async () => ({ ...TEST_CONFIG, pool_unstake_deposit: "7720000000000000000000" });
+    const s = (await (await createApp(deps).request("/pets/pets-v8.nearling.testnet:1/state")).json()) as PetState;
+    expect(s.garden.pantry_yocto).toBe("500000000000000000000000");
+    expect(s.garden.pool_unstake_deposit).toBe("7720000000000000000000");
   });
 });
 

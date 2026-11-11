@@ -50,6 +50,7 @@ export const GAS = {
   claimShirt: 30n * TGAS,
   nftTransfer: 30n * TGAS,
   validatorStake: 100n * TGAS,
+  pantry: 30n * TGAS, // stock_pantry, feed_from_pantry, empty_pantry (pets-v9)
 } as const;
 
 export const ONE_YOCTO = 1n;
@@ -65,6 +66,12 @@ export function soulBytes(text: string): number {
 export function formatNear(yocto: string | bigint, decimals = 4): string {
   const s = yoctoToNear(BigInt(yocto), decimals);
   return s.includes(".") ? s.replace(/\.?0+$/, "") : s;
+}
+
+/** Whole thoughts an amount of NEAR buys: yocto x near_usd_rate / fuel_price (pantry estimate). */
+export function nearToThoughts(yocto: string | bigint, nearUsdRateMicro: number, fuelPriceMicro: number): number {
+  if (fuelPriceMicro <= 0 || nearUsdRateMicro <= 0) return 0;
+  return Number((BigInt(yocto) * BigInt(nearUsdRateMicro)) / (10n ** 24n * BigInt(fuelPriceMicro)));
 }
 
 /** Parses a user-typed NEAR amount ("1", "0.5"). Null when invalid or not positive. */
@@ -100,6 +107,10 @@ export interface PetsConfig {
   near_usd_rate_micro: number;
   farm_rate_micro_per_near_day: number;
   demo_speed: boolean;
+  /** pets-v9: NEARON's unstake deposit, attached to `unstake` and returned with the withdrawal. Absent on pets-v8. */
+  pool_unstake_deposit?: string;
+  /** pets-v9: most pantry NEAR the device key may move into food per UTC day. Absent on pets-v8. */
+  device_feed_max_per_day?: string;
 }
 
 const configCache = new Map<string, Promise<PetsConfig>>();
@@ -153,6 +164,16 @@ export async function accountExists(accountId: string): Promise<boolean> {
   }
 }
 
+/** Account balance in yocto (`view_account` amount); 0 for an account that does not exist yet. */
+export async function accountBalance(accountId: string): Promise<bigint> {
+  try {
+    return BigInt((await rpc().viewAccount({ accountId })).amount);
+  } catch (err) {
+    if (/does not exist|UNKNOWN_ACCOUNT/i.test(String(err))) return 0n;
+    throw err;
+  }
+}
+
 /** Current epoch height (garden unlock check). */
 export async function currentEpoch(): Promise<bigint> {
   const v = await rpc().viewValidators();
@@ -186,9 +207,17 @@ export const tx = {
   feed: (contract: string, petId: string, amount: bigint) => call(contract, "feed", { pet_id: petId }, GAS.feed, amount),
   stake: (contract: string, petId: string, amount: bigint) =>
     call(contract, "stake", { pet_id: petId }, GAS.garden, amount),
-  unstake: (contract: string, petId: string, amount: bigint) =>
-    call(contract, "unstake", { pet_id: petId, amount: amount.toString() }, GAS.garden),
+  /** `deposit` = config.pool_unstake_deposit on pets-v9 (payable unstake); 0 on pets-v8. */
+  unstake: (contract: string, petId: string, amount: bigint, deposit: bigint = 0n) =>
+    call(contract, "unstake", { pet_id: petId, amount: amount.toString() }, GAS.garden, deposit),
   withdraw: (contract: string, petId: string) => call(contract, "withdraw", { pet_id: petId }, GAS.garden),
+  // pets-v9 pantry (docs/CONTRACT_CHANGES_V9.md section 3)
+  stockPantry: (contract: string, petId: string, amount: bigint) =>
+    call(contract, "stock_pantry", { pet_id: petId }, GAS.pantry, amount),
+  feedFromPantry: (contract: string, petId: string, amount: bigint) =>
+    call(contract, "feed_from_pantry", { pet_id: petId, amount: amount.toString() }, GAS.pantry),
+  emptyPantry: (contract: string, petId: string, amount: bigint) =>
+    call(contract, "empty_pantry", { pet_id: petId, amount: amount.toString() }, GAS.pantry),
   claimShirt: () => call(SHIRTS_CONTRACT, "claim", {}, GAS.claimShirt, SHIRT_DEPOSIT),
   nftTransfer: (contract: string, receiverId: string, tokenId: string) =>
     call(contract, "nft_transfer", { receiver_id: receiverId, token_id: tokenId }, GAS.nftTransfer, ONE_YOCTO),
