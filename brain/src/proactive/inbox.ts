@@ -1,21 +1,8 @@
 import { Hono } from "hono";
+import type { InboxItem } from "@nearling/shared";
 import { requirePetAccess, type AuthEnv } from "../auth/guard";
 import type { Deps, Module } from "../deps";
 import { publish } from "../events";
-
-/** `GET /pets/:petRef/inbox` item (AI-brain architectual/08). */
-export interface InboxItem {
-  id: number;
-  /** e.g. `fuel_low`, `morning`, `fed`; billed triggers that fell back to a canned line end in `:canned` in the DB, shown here without it */
-  trigger: string;
-  /** true when no inference produced the text (free) */
-  canned: boolean;
-  text: string;
-  turn_id: string | null;
-  created_at: number;
-  delivered_device_at: number | null;
-  read_at: number | null;
-}
 
 interface InboxRow {
   id: number;

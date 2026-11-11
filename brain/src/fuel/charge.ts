@@ -1,5 +1,5 @@
 import { parsePetRef } from "@nearling/shared";
-import { createSigner, type CallResult, type TxSigner } from "../chain/signer";
+import type { BrainSigners, CallResult } from "../chain/signer";
 import type { Deps, Module } from "../deps";
 import { publish } from "../events";
 import { log } from "../log";
@@ -42,7 +42,7 @@ export function findThought(res: CallResult, usageRef: string): { cost_micro: nu
   return null;
 }
 
-export function createChargeWorker(deps: Deps, signer: TxSigner) {
+export function createChargeWorker(deps: Deps, signers: BrainSigners) {
   const { db, now } = deps;
   let busy = false;
 
@@ -51,6 +51,15 @@ export function createChargeWorker(deps: Deps, signer: TxSigner) {
     if (!ref) {
       db.prepare("UPDATE charge_job SET status = 'failed', last_error = 'bad_pet_ref', updated_at = ? WHERE turn_id = ?").run(now(), job.turn_id);
       log.alert("charge job has a bad pet_ref", { turn_id: job.turn_id });
+      return;
+    }
+    const signer = signers.forContract(ref.contract);
+    if (!signer) {
+      // No keys for this contract yet: keep the job queued, check again later (not an attempt).
+      db.prepare("UPDATE charge_job SET next_attempt_at = ?, last_error = 'no_signer', updated_at = ? WHERE turn_id = ?").run(
+        now() + LATER_MS, now(), job.turn_id,
+      );
+      log.warn("no brain keys for contract; charge waits", { turn_id: job.turn_id, contract: ref.contract });
       return;
     }
     const attempts = job.attempts + 1;
@@ -126,13 +135,11 @@ export function createChargeWorker(deps: Deps, signer: TxSigner) {
 export const chargeModule: Module = {
   name: "charge",
   start(deps) {
-    const { cfg } = deps;
-    const signer = createSigner(cfg.BRAIN_ACCOUNT_ID, cfg.BRAIN_KEYS, cfg.NEAR_RPC_URLS[0] ?? "https://rpc.testnet.near.org");
-    if (!signer) {
-      log.warn("BRAIN_KEYS not set; charge jobs stay queued until keys are configured");
+    if (!deps.brain) {
+      log.warn("brain signers not configured; charge jobs stay queued");
       return () => undefined;
     }
-    const worker = createChargeWorker(deps, signer);
+    const worker = createChargeWorker(deps, deps.brain);
     // Crash recovery: a `sent` job may or may not have landed; usage_ref makes resending safe.
     deps.db.prepare("UPDATE charge_job SET status = 'queued' WHERE status = 'sent'").run();
     const timer = setInterval(() => {

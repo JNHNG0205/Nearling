@@ -24,8 +24,20 @@ Allowed fields: ids (`turn_id`, `pet_ref`, `device_id`, `order_id`, `inference_i
 
 ## 3. Operations
 
-- `/ops` page (basic auth) for the team: spend today, charge queue, order states, feeder balance, attestation, NEARON claimable, NEAR AI org balance.
-- Alerts are log lines with `level=alert` (Fly log tail during the demo): charge failed > 10 min, feeder < 2 NEAR, 402 from NEAR AI, attestation refresh failing.
+Code: `brain/src/ops/` (module `opsModule` in `modules.ts`), migration `600_ops.sql`.
+
+| Item | What runs | Config |
+|---|---|---|
+| `GET /ops` (D7) | JSON for the team, HTTP basic auth, **404 while either credential is unset**. Fields: `spend_today` (chat and summary USD, STT USD, TTS characters and USD, total vs cap, billed and unbilled turns), `charge_queue` (depth, retrying, failed, oldest pending age), `orders` (count by status, feeds waiting to retry), `feeder` (account, balance), `attestation` (latest per model), `nearon_claimable` (pool `get_account` for both pets contracts), `org_balance` (last reading), `elevenlabs_credits` (cached 1 h), `backups` | `OPS_USER`, `OPS_PASSWORD` |
+| Billing reconcile (A5) | Every 5 min: `POST {NEARAI_BASE_URL}/billing/costs` with `{ "requestIds": [...] }` (the `inference-id` UUIDs of `done` turns from the last 24 h, at least 1 min old). The billed nano-USD is stored in `turn.billed_cost_nano`, and that day's `spend_daily.provider_nano` moves by billed minus the token estimate, so the cap uses billed cost where known. Ids returned with `costNanoUsd: 0` (not visible yet) are asked again, up to 6 times | `NEARAI_API_KEY` (off with `MOCK_AI=1`) |
+| Spend cap (A6) | Cap total = chat and summaries + STT + TTS. STT: whisper's per-token price from `/v1/model/list` (10 nano-USD in and out on 2026-11-11) x an estimate of 1,500 input tokens per started 30 s of audio (response `duration`, else the file size) plus about 4 characters per output token [VERIFY how NEAR AI counts audio tokens; the reconcile job does not cover STT since transcriptions return no `inference-id`]. TTS: characters x `TTS_USD_PER_1K_CHARS` / 1,000 | `TTS_USD_PER_1K_CHARS` (default 0.05, ElevenLabs Flash API price [VERIFY our plan]) |
+| Org balance (F6) | After every successful `sweep_credit`: `GET {NEARAI_BASE_URL}/organizations/{org_id}/usage/balance`, stored in `org_balance`, change in `remaining` logged (`delta_nano`). [VERIFY] the docs list session-token auth for this route; with an API key it may return 401/403 (logged, `/ops` shows the last stored value) | `NEARAI_ORG_ID`, else the contract `config().org_id` |
+| Feeder retries (F3) | A failed `feed` waits 2 s, 10 s, 60 s, 60 s; after the 5th failed try the order is `failed` with an alert. Never feeds twice: a failed try with a tx hash is re-read on chain first (a `fed` event marks the order fed without a new call); a failure without a hash (timeout, network) is retried only if the feeder's access key nonces are unchanged since before the try, else the order fails with an alert to check by hand. The daily cap counts the order once | none |
+| SQLite backup (O2) | `db.backup()` once a day (checked hourly, first check 1 min after boot) to `nearling-<UTC time>.db`, newest 7 kept. Backups hold sealed memories: same care as the live DB, same `MEMORY_MASTER_KEY` needed | `BACKUP_DIR` (default `./data/backups`) |
+| Alerts (O4) | Every `log.alert` line is also POSTed as `{ "content": ..., "text": ... }` (Discord and Slack webhook shapes) with the already cleaned fields (ids, costs, statuses only). Same message at most once per 10 min, at most 20 posts per hour | `ALERT_WEBHOOK_URL` (optional) |
+
+- Alerts are log lines with `level=alert` (Fly log tail during the demo), also sent to the webhook when set: charge failed > 10 min, feeder < 2 NEAR, feeder feed failed after retries or with an unknown outcome, 402 from NEAR AI, attestation refresh failing, backup failed.
+- Known limit (F3): a tx that timed out but lands more than a few seconds later, after an unchanged-nonce retry was sent, could still feed twice. Rare on testnet; the alert and `/ops` make it visible.
 - Contract upgrade checklist: new `PETS_CONTRACT`, add brain FC keys for it, restart brain; `pet_ref` includes the contract so old rows stay valid.
 
 ## 4. Testing

@@ -68,7 +68,11 @@ export function createTts(
             signal: AbortSignal.timeout(10_000),
           },
         );
-        if (!res.ok) throw new Error(`tts_${res.status}`);
+        if (!res.ok) {
+          // e.g. 402 paid_plan_required: free plans cannot use library voices through the API.
+          const code = ((await res.json().catch(() => null)) as { detail?: { code?: unknown } } | null)?.detail?.code;
+          throw new Error(`tts_${res.status}${typeof code === "string" ? `_${code}` : ""}`);
+        }
         return { mime: "audio/wav", bytes: pcmToWav(new Uint8Array(await res.arrayBuffer()), 16_000) };
       },
       async credits() {

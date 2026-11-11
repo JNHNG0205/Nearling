@@ -6,829 +6,1343 @@
       "anim": "egg_idle",
       "stage": "egg",
       "winged": false,
+      "personality": null,
       "fps": 3,
       "loop": true,
       "grey": false,
-      "frames": 6
+      "frames": 6,
+      "shirt": false
     },
     {
       "anim": "egg_hatch",
       "stage": "egg",
       "winged": false,
+      "personality": null,
       "fps": 6,
       "loop": false,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": false
     },
     {
       "anim": "idle",
       "stage": "baby",
       "winged": false,
+      "personality": null,
       "fps": 4,
       "loop": true,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": true
+    },
+    {
+      "anim": "idle",
+      "stage": "baby",
+      "winged": false,
+      "personality": "playful",
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 8,
+      "shirt": true
+    },
+    {
+      "anim": "idle",
+      "stage": "baby",
+      "winged": false,
+      "personality": "curious",
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 8,
+      "shirt": true
+    },
+    {
+      "anim": "idle",
+      "stage": "baby",
+      "winged": false,
+      "personality": "calm",
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 8,
+      "shirt": true
     },
     {
       "anim": "sad",
       "stage": "baby",
       "winged": false,
+      "personality": null,
       "fps": 3,
       "loop": true,
       "grey": false,
-      "frames": 6
+      "frames": 6,
+      "shirt": true
     },
     {
       "anim": "hungry",
       "stage": "baby",
       "winged": false,
+      "personality": null,
       "fps": 4,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "sleep",
       "stage": "baby",
       "winged": false,
+      "personality": null,
       "fps": 2,
       "loop": true,
       "grey": false,
-      "frames": 6
+      "frames": 6,
+      "shirt": true
     },
     {
       "anim": "starving",
       "stage": "baby",
       "winged": false,
+      "personality": null,
       "fps": 2,
       "loop": true,
       "grey": true,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "dormant",
       "stage": "baby",
       "winged": false,
+      "personality": null,
       "fps": 1,
       "loop": true,
       "grey": true,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "listen",
       "stage": "baby",
       "winged": false,
+      "personality": null,
       "fps": 4,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "think",
       "stage": "baby",
       "winged": false,
+      "personality": null,
       "fps": 3,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "talk",
       "stage": "baby",
       "winged": false,
+      "personality": null,
       "fps": 8,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
+    },
+    {
+      "anim": "talk",
+      "stage": "baby",
+      "winged": false,
+      "personality": "sassy",
+      "fps": 8,
+      "loop": true,
+      "grey": false,
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "pat",
       "stage": "baby",
       "winged": false,
+      "personality": null,
       "fps": 8,
       "loop": false,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": true
+    },
+    {
+      "anim": "pat",
+      "stage": "baby",
+      "winged": false,
+      "personality": "kind",
+      "fps": 8,
+      "loop": false,
+      "grey": false,
+      "frames": 8,
+      "shirt": true
     },
     {
       "anim": "rock",
       "stage": "baby",
       "winged": false,
+      "personality": null,
       "fps": 4,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "dizzy",
       "stage": "baby",
       "winged": false,
+      "personality": null,
       "fps": 10,
       "loop": true,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": true
     },
     {
       "anim": "eat",
       "stage": "baby",
       "winged": false,
+      "personality": null,
       "fps": 8,
       "loop": false,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": true
     },
     {
       "anim": "celebrate",
       "stage": "baby",
       "winged": false,
+      "personality": null,
       "fps": 10,
       "loop": false,
       "grey": false,
-      "frames": 10
+      "frames": 10,
+      "shirt": true
     },
     {
       "anim": "evolve",
       "stage": "baby",
       "winged": false,
+      "personality": null,
       "fps": 8,
       "loop": false,
       "grey": false,
-      "frames": 12
+      "frames": 12,
+      "shirt": true
     },
     {
       "anim": "idle",
       "stage": "baby",
       "winged": true,
+      "personality": null,
       "fps": 4,
       "loop": true,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": true
+    },
+    {
+      "anim": "idle",
+      "stage": "baby",
+      "winged": true,
+      "personality": "playful",
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 8,
+      "shirt": true
+    },
+    {
+      "anim": "idle",
+      "stage": "baby",
+      "winged": true,
+      "personality": "curious",
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 8,
+      "shirt": true
+    },
+    {
+      "anim": "idle",
+      "stage": "baby",
+      "winged": true,
+      "personality": "calm",
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 8,
+      "shirt": true
     },
     {
       "anim": "sad",
       "stage": "baby",
       "winged": true,
+      "personality": null,
       "fps": 3,
       "loop": true,
       "grey": false,
-      "frames": 6
+      "frames": 6,
+      "shirt": true
     },
     {
       "anim": "hungry",
       "stage": "baby",
       "winged": true,
+      "personality": null,
       "fps": 4,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "sleep",
       "stage": "baby",
       "winged": true,
+      "personality": null,
       "fps": 2,
       "loop": true,
       "grey": false,
-      "frames": 6
+      "frames": 6,
+      "shirt": true
     },
     {
       "anim": "starving",
       "stage": "baby",
       "winged": true,
+      "personality": null,
       "fps": 2,
       "loop": true,
       "grey": true,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "dormant",
       "stage": "baby",
       "winged": true,
+      "personality": null,
       "fps": 1,
       "loop": true,
       "grey": true,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "listen",
       "stage": "baby",
       "winged": true,
+      "personality": null,
       "fps": 4,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "think",
       "stage": "baby",
       "winged": true,
+      "personality": null,
       "fps": 3,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "talk",
       "stage": "baby",
       "winged": true,
+      "personality": null,
       "fps": 8,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
+    },
+    {
+      "anim": "talk",
+      "stage": "baby",
+      "winged": true,
+      "personality": "sassy",
+      "fps": 8,
+      "loop": true,
+      "grey": false,
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "pat",
       "stage": "baby",
       "winged": true,
+      "personality": null,
       "fps": 8,
       "loop": false,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": true
+    },
+    {
+      "anim": "pat",
+      "stage": "baby",
+      "winged": true,
+      "personality": "kind",
+      "fps": 8,
+      "loop": false,
+      "grey": false,
+      "frames": 8,
+      "shirt": true
     },
     {
       "anim": "rock",
       "stage": "baby",
       "winged": true,
+      "personality": null,
       "fps": 4,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "dizzy",
       "stage": "baby",
       "winged": true,
+      "personality": null,
       "fps": 10,
       "loop": true,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": true
     },
     {
       "anim": "eat",
       "stage": "baby",
       "winged": true,
+      "personality": null,
       "fps": 8,
       "loop": false,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": true
     },
     {
       "anim": "celebrate",
       "stage": "baby",
       "winged": true,
+      "personality": null,
       "fps": 10,
       "loop": false,
       "grey": false,
-      "frames": 10
+      "frames": 10,
+      "shirt": true
     },
     {
       "anim": "evolve",
       "stage": "baby",
       "winged": true,
+      "personality": null,
       "fps": 8,
       "loop": false,
       "grey": false,
-      "frames": 12
+      "frames": 12,
+      "shirt": true
     },
     {
       "anim": "idle",
       "stage": "teen",
       "winged": false,
+      "personality": null,
       "fps": 4,
       "loop": true,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": true
+    },
+    {
+      "anim": "idle",
+      "stage": "teen",
+      "winged": false,
+      "personality": "playful",
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 8,
+      "shirt": true
+    },
+    {
+      "anim": "idle",
+      "stage": "teen",
+      "winged": false,
+      "personality": "curious",
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 8,
+      "shirt": true
+    },
+    {
+      "anim": "idle",
+      "stage": "teen",
+      "winged": false,
+      "personality": "calm",
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 8,
+      "shirt": true
     },
     {
       "anim": "sad",
       "stage": "teen",
       "winged": false,
+      "personality": null,
       "fps": 3,
       "loop": true,
       "grey": false,
-      "frames": 6
+      "frames": 6,
+      "shirt": true
     },
     {
       "anim": "hungry",
       "stage": "teen",
       "winged": false,
+      "personality": null,
       "fps": 4,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "sleep",
       "stage": "teen",
       "winged": false,
+      "personality": null,
       "fps": 2,
       "loop": true,
       "grey": false,
-      "frames": 6
+      "frames": 6,
+      "shirt": true
     },
     {
       "anim": "starving",
       "stage": "teen",
       "winged": false,
+      "personality": null,
       "fps": 2,
       "loop": true,
       "grey": true,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "dormant",
       "stage": "teen",
       "winged": false,
+      "personality": null,
       "fps": 1,
       "loop": true,
       "grey": true,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "listen",
       "stage": "teen",
       "winged": false,
+      "personality": null,
       "fps": 4,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "think",
       "stage": "teen",
       "winged": false,
+      "personality": null,
       "fps": 3,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "talk",
       "stage": "teen",
       "winged": false,
+      "personality": null,
       "fps": 8,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
+    },
+    {
+      "anim": "talk",
+      "stage": "teen",
+      "winged": false,
+      "personality": "sassy",
+      "fps": 8,
+      "loop": true,
+      "grey": false,
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "pat",
       "stage": "teen",
       "winged": false,
+      "personality": null,
       "fps": 8,
       "loop": false,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": true
+    },
+    {
+      "anim": "pat",
+      "stage": "teen",
+      "winged": false,
+      "personality": "kind",
+      "fps": 8,
+      "loop": false,
+      "grey": false,
+      "frames": 8,
+      "shirt": true
     },
     {
       "anim": "rock",
       "stage": "teen",
       "winged": false,
+      "personality": null,
       "fps": 4,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "dizzy",
       "stage": "teen",
       "winged": false,
+      "personality": null,
       "fps": 10,
       "loop": true,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": true
     },
     {
       "anim": "eat",
       "stage": "teen",
       "winged": false,
+      "personality": null,
       "fps": 8,
       "loop": false,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": true
     },
     {
       "anim": "celebrate",
       "stage": "teen",
       "winged": false,
+      "personality": null,
       "fps": 10,
       "loop": false,
       "grey": false,
-      "frames": 10
+      "frames": 10,
+      "shirt": true
     },
     {
       "anim": "evolve",
       "stage": "teen",
       "winged": false,
+      "personality": null,
       "fps": 8,
       "loop": false,
       "grey": false,
-      "frames": 12
+      "frames": 12,
+      "shirt": true
     },
     {
       "anim": "idle",
       "stage": "teen",
       "winged": true,
+      "personality": null,
       "fps": 4,
       "loop": true,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": true
+    },
+    {
+      "anim": "idle",
+      "stage": "teen",
+      "winged": true,
+      "personality": "playful",
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 8,
+      "shirt": true
+    },
+    {
+      "anim": "idle",
+      "stage": "teen",
+      "winged": true,
+      "personality": "curious",
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 8,
+      "shirt": true
+    },
+    {
+      "anim": "idle",
+      "stage": "teen",
+      "winged": true,
+      "personality": "calm",
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 8,
+      "shirt": true
     },
     {
       "anim": "sad",
       "stage": "teen",
       "winged": true,
+      "personality": null,
       "fps": 3,
       "loop": true,
       "grey": false,
-      "frames": 6
+      "frames": 6,
+      "shirt": true
     },
     {
       "anim": "hungry",
       "stage": "teen",
       "winged": true,
+      "personality": null,
       "fps": 4,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "sleep",
       "stage": "teen",
       "winged": true,
+      "personality": null,
       "fps": 2,
       "loop": true,
       "grey": false,
-      "frames": 6
+      "frames": 6,
+      "shirt": true
     },
     {
       "anim": "starving",
       "stage": "teen",
       "winged": true,
+      "personality": null,
       "fps": 2,
       "loop": true,
       "grey": true,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "dormant",
       "stage": "teen",
       "winged": true,
+      "personality": null,
       "fps": 1,
       "loop": true,
       "grey": true,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "listen",
       "stage": "teen",
       "winged": true,
+      "personality": null,
       "fps": 4,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "think",
       "stage": "teen",
       "winged": true,
+      "personality": null,
       "fps": 3,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "talk",
       "stage": "teen",
       "winged": true,
+      "personality": null,
       "fps": 8,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
+    },
+    {
+      "anim": "talk",
+      "stage": "teen",
+      "winged": true,
+      "personality": "sassy",
+      "fps": 8,
+      "loop": true,
+      "grey": false,
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "pat",
       "stage": "teen",
       "winged": true,
+      "personality": null,
       "fps": 8,
       "loop": false,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": true
+    },
+    {
+      "anim": "pat",
+      "stage": "teen",
+      "winged": true,
+      "personality": "kind",
+      "fps": 8,
+      "loop": false,
+      "grey": false,
+      "frames": 8,
+      "shirt": true
     },
     {
       "anim": "rock",
       "stage": "teen",
       "winged": true,
+      "personality": null,
       "fps": 4,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "dizzy",
       "stage": "teen",
       "winged": true,
+      "personality": null,
       "fps": 10,
       "loop": true,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": true
     },
     {
       "anim": "eat",
       "stage": "teen",
       "winged": true,
+      "personality": null,
       "fps": 8,
       "loop": false,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": true
     },
     {
       "anim": "celebrate",
       "stage": "teen",
       "winged": true,
+      "personality": null,
       "fps": 10,
       "loop": false,
       "grey": false,
-      "frames": 10
+      "frames": 10,
+      "shirt": true
     },
     {
       "anim": "evolve",
       "stage": "teen",
       "winged": true,
+      "personality": null,
       "fps": 8,
       "loop": false,
       "grey": false,
-      "frames": 12
+      "frames": 12,
+      "shirt": true
     },
     {
       "anim": "idle",
       "stage": "adult",
       "winged": false,
+      "personality": null,
       "fps": 4,
       "loop": true,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": true
+    },
+    {
+      "anim": "idle",
+      "stage": "adult",
+      "winged": false,
+      "personality": "playful",
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 8,
+      "shirt": true
+    },
+    {
+      "anim": "idle",
+      "stage": "adult",
+      "winged": false,
+      "personality": "curious",
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 8,
+      "shirt": true
+    },
+    {
+      "anim": "idle",
+      "stage": "adult",
+      "winged": false,
+      "personality": "calm",
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 8,
+      "shirt": true
     },
     {
       "anim": "sad",
       "stage": "adult",
       "winged": false,
+      "personality": null,
       "fps": 3,
       "loop": true,
       "grey": false,
-      "frames": 6
+      "frames": 6,
+      "shirt": true
     },
     {
       "anim": "hungry",
       "stage": "adult",
       "winged": false,
+      "personality": null,
       "fps": 4,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "sleep",
       "stage": "adult",
       "winged": false,
+      "personality": null,
       "fps": 2,
       "loop": true,
       "grey": false,
-      "frames": 6
+      "frames": 6,
+      "shirt": true
     },
     {
       "anim": "starving",
       "stage": "adult",
       "winged": false,
+      "personality": null,
       "fps": 2,
       "loop": true,
       "grey": true,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "dormant",
       "stage": "adult",
       "winged": false,
+      "personality": null,
       "fps": 1,
       "loop": true,
       "grey": true,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "listen",
       "stage": "adult",
       "winged": false,
+      "personality": null,
       "fps": 4,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "think",
       "stage": "adult",
       "winged": false,
+      "personality": null,
       "fps": 3,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "talk",
       "stage": "adult",
       "winged": false,
+      "personality": null,
       "fps": 8,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
+    },
+    {
+      "anim": "talk",
+      "stage": "adult",
+      "winged": false,
+      "personality": "sassy",
+      "fps": 8,
+      "loop": true,
+      "grey": false,
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "pat",
       "stage": "adult",
       "winged": false,
+      "personality": null,
       "fps": 8,
       "loop": false,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": true
+    },
+    {
+      "anim": "pat",
+      "stage": "adult",
+      "winged": false,
+      "personality": "kind",
+      "fps": 8,
+      "loop": false,
+      "grey": false,
+      "frames": 8,
+      "shirt": true
     },
     {
       "anim": "rock",
       "stage": "adult",
       "winged": false,
+      "personality": null,
       "fps": 4,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "dizzy",
       "stage": "adult",
       "winged": false,
+      "personality": null,
       "fps": 10,
       "loop": true,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": true
     },
     {
       "anim": "eat",
       "stage": "adult",
       "winged": false,
+      "personality": null,
       "fps": 8,
       "loop": false,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": true
     },
     {
       "anim": "celebrate",
       "stage": "adult",
       "winged": false,
+      "personality": null,
       "fps": 10,
       "loop": false,
       "grey": false,
-      "frames": 10
+      "frames": 10,
+      "shirt": true
     },
     {
       "anim": "evolve",
       "stage": "adult",
       "winged": false,
+      "personality": null,
       "fps": 8,
       "loop": false,
       "grey": false,
-      "frames": 12
+      "frames": 12,
+      "shirt": true
     },
     {
       "anim": "idle",
       "stage": "adult",
       "winged": true,
+      "personality": null,
       "fps": 4,
       "loop": true,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": true
+    },
+    {
+      "anim": "idle",
+      "stage": "adult",
+      "winged": true,
+      "personality": "playful",
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 8,
+      "shirt": true
+    },
+    {
+      "anim": "idle",
+      "stage": "adult",
+      "winged": true,
+      "personality": "curious",
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 8,
+      "shirt": true
+    },
+    {
+      "anim": "idle",
+      "stage": "adult",
+      "winged": true,
+      "personality": "calm",
+      "fps": 4,
+      "loop": true,
+      "grey": false,
+      "frames": 8,
+      "shirt": true
     },
     {
       "anim": "sad",
       "stage": "adult",
       "winged": true,
+      "personality": null,
       "fps": 3,
       "loop": true,
       "grey": false,
-      "frames": 6
+      "frames": 6,
+      "shirt": true
     },
     {
       "anim": "hungry",
       "stage": "adult",
       "winged": true,
+      "personality": null,
       "fps": 4,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "sleep",
       "stage": "adult",
       "winged": true,
+      "personality": null,
       "fps": 2,
       "loop": true,
       "grey": false,
-      "frames": 6
+      "frames": 6,
+      "shirt": true
     },
     {
       "anim": "starving",
       "stage": "adult",
       "winged": true,
+      "personality": null,
       "fps": 2,
       "loop": true,
       "grey": true,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "dormant",
       "stage": "adult",
       "winged": true,
+      "personality": null,
       "fps": 1,
       "loop": true,
       "grey": true,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "listen",
       "stage": "adult",
       "winged": true,
+      "personality": null,
       "fps": 4,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "think",
       "stage": "adult",
       "winged": true,
+      "personality": null,
       "fps": 3,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "talk",
       "stage": "adult",
       "winged": true,
+      "personality": null,
       "fps": 8,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
+    },
+    {
+      "anim": "talk",
+      "stage": "adult",
+      "winged": true,
+      "personality": "sassy",
+      "fps": 8,
+      "loop": true,
+      "grey": false,
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "pat",
       "stage": "adult",
       "winged": true,
+      "personality": null,
       "fps": 8,
       "loop": false,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": true
+    },
+    {
+      "anim": "pat",
+      "stage": "adult",
+      "winged": true,
+      "personality": "kind",
+      "fps": 8,
+      "loop": false,
+      "grey": false,
+      "frames": 8,
+      "shirt": true
     },
     {
       "anim": "rock",
       "stage": "adult",
       "winged": true,
+      "personality": null,
       "fps": 4,
       "loop": true,
       "grey": false,
-      "frames": 4
+      "frames": 4,
+      "shirt": true
     },
     {
       "anim": "dizzy",
       "stage": "adult",
       "winged": true,
+      "personality": null,
       "fps": 10,
       "loop": true,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": true
     },
     {
       "anim": "eat",
       "stage": "adult",
       "winged": true,
+      "personality": null,
       "fps": 8,
       "loop": false,
       "grey": false,
-      "frames": 8
+      "frames": 8,
+      "shirt": true
     },
     {
       "anim": "celebrate",
       "stage": "adult",
       "winged": true,
+      "personality": null,
       "fps": 10,
       "loop": false,
       "grey": false,
-      "frames": 10
+      "frames": 10,
+      "shirt": true
     },
     {
       "anim": "evolve",
       "stage": "adult",
       "winged": true,
+      "personality": null,
       "fps": 8,
       "loop": false,
       "grey": false,
-      "frames": 12
+      "frames": 12,
+      "shirt": true
     }
   ]
 }

@@ -6,13 +6,15 @@ import type { Deps, Module } from "../deps";
 import { subscribe } from "../events";
 
 const HEARTBEAT_MS = 20_000;
+const OWNER_CHECK_MS = 60_000;
 
 /**
  * `GET /pets/:petRef/stream`: SSE of every bus event for the pet, owner only.
  * EventSource cannot set headers, so the session JWT may also come as `?t=<jwt>`.
  * Clients poll `/state`; this stream only carries pushes (inbox, fuel_charged, ...).
+ * Ownership is re-checked every 60 s; on a transfer it sends `event: closed` and ends.
  */
-export function streamRoutes(deps: Deps, heartbeatMs = HEARTBEAT_MS) {
+export function streamRoutes(deps: Deps, heartbeatMs = HEARTBEAT_MS, ownerCheckMs = OWNER_CHECK_MS) {
   const app = new Hono();
 
   app.get("/pets/:petRef/stream", async (c) => {
@@ -30,15 +32,32 @@ export function streamRoutes(deps: Deps, heartbeatMs = HEARTBEAT_MS) {
     }
     const petRef = `${ref.contract}:${ref.tokenId}`;
 
+    const account = caller.account;
     return streamSSE(c, async (stream) => {
-      const closed = new Promise<void>((resolve) => stream.onAbort(resolve));
+      let finish = () => {};
+      const closed = new Promise<void>((resolve) => {
+        finish = resolve;
+        stream.onAbort(resolve);
+      });
       const unsubscribe = subscribe(petRef, (e) => {
         void stream.writeSSE({ event: e.type, data: JSON.stringify(e.data) });
       });
       const beat = setInterval(() => void stream.write(": hb\n\n"), heartbeatMs);
+      // D3: a transferred pet stops streaming to its old owner. RPC errors keep the stream open.
+      const recheck = setInterval(() => {
+        void deps.chain
+          .getPet(ref.contract, ref.tokenId)
+          .then(async (p) => {
+            if (p && p.owner === account) return;
+            await stream.writeSSE({ event: "closed", data: JSON.stringify({ reason: "not_owner" }) });
+            finish();
+          })
+          .catch(() => undefined);
+      }, ownerCheckMs);
       await stream.write(": connected\n\n");
       await closed;
       clearInterval(beat);
+      clearInterval(recheck);
       unsubscribe();
     });
   });

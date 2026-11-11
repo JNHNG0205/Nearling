@@ -14,8 +14,10 @@ import { gardenModule } from "./fuel/garden";
 import { ordersModule } from "./fuel/orders";
 import { walletModule } from "./wallet/wallet";
 import { chargeModule } from "./fuel/charge";
+import { opsModule } from "./ops/ops";
 import { dueFollowUps } from "./talk/memory";
 import { generateProactive, talkModule } from "./talk/talk";
+import { voiceModule } from "./talk/voice-route";
 
 // Each feature area registers here (one line each). Keep alphabetical-ish to ease merges.
 export const MODULES: Module[] = [
@@ -34,5 +36,7 @@ export const MODULES: Module[] = [
   walletModule(),
   raceModule,
   talkModule,
+  voiceModule,
   chargeModule,
+  opsModule(),
 ];

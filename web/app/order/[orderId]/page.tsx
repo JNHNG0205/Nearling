@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { RoomQr } from "@/components/race/RoomQr";
 import { getOrder, toMs, type Order, type OrderStatus } from "@/components/wallet/brainApi";
 import { AppFrame, ErrorText, Panel, SimulatedPill, Spinner, TxLink } from "@/components/wallet/ui";
 import { BrainRequestError } from "@/lib/brain";
@@ -124,6 +125,11 @@ function LiveDeposit({ order }: { order: Order }) {
         {order.quote?.amount_in_formatted ?? order.quote?.amount_in} {order.quote?.origin_asset}
       </p>
       <p className="text-sm text-muted">to this deposit address</p>
+      {order.deposit_address && (
+        <div className="self-center">
+          <RoomQr url={order.deposit_address} size={200} />
+        </div>
+      )}
       <p className="break-all font-mono text-sm">{order.deposit_address}</p>
       <button
         className="pixel-btn pixel-btn--secondary"

@@ -159,6 +159,51 @@ export async function publishReceipt(turnId: string, headers: Record<string, str
   return json(await fetch(`${BRAIN_URL}/receipts/${encodeURIComponent(turnId)}/publish`, { method: "POST", headers }));
 }
 
+/** Receipts the owner published (public, D6). The brain answers 404 before the route exists: no receipts then. */
+export async function getPublicReceipts(petRef: string, init?: RequestInit): Promise<Receipt[]> {
+  const res = await fetch(`${pet(petRef)}/receipts?public=1`, init);
+  if (res.status === 404) return [];
+  const body = await json<unknown>(res);
+  const list = Array.isArray(body) ? body : (obj(body).receipts as unknown[] | undefined) ?? [];
+  return (list as Receipt[]).filter((r) => typeof r?.turn_id === "string" && r.verification?.public !== false);
+}
+
+/** Voice for one saved reply, synthesised once on demand ("Hear it", A4). */
+export async function requestVoice(petRef: string, turnId: string, headers: Record<string, string>): Promise<string> {
+  const r = await json<{ audio_url: string }>(
+    await fetch(`${pet(petRef)}/turns/${encodeURIComponent(turnId)}/voice`, { method: "POST", headers }),
+  );
+  return r.audio_url;
+}
+
+// ---------- owner: my pets, profile ----------
+
+/** Pets the signed-in owner holds on both contracts (`GET /me/pets`). */
+export async function getMyPets(headers: Record<string, string>): Promise<PetState[]> {
+  const body = await json<unknown>(await fetch(`${BRAIN_URL}/me/pets`, { headers, cache: "no-store" }));
+  return (Array.isArray(body) ? body : ((obj(body).pets as unknown[] | undefined) ?? [])) as PetState[];
+}
+
+export interface Profile {
+  nickname?: string | null;
+  owner_tz?: string | null;
+}
+
+/** Current profile, or null when the brain has no GET route for it. */
+export async function getProfile(petRef: string, headers: Record<string, string>): Promise<Profile | null> {
+  const res = await fetch(`${pet(petRef)}/profile`, { headers, cache: "no-store" });
+  if (res.status === 404 || res.status === 405) return null;
+  return json<Profile>(res);
+}
+
+export async function putProfile(petRef: string, headers: Record<string, string>, body: Profile): Promise<Profile> {
+  return json<Profile>(await fetch(`${pet(petRef)}/profile`, {
+    method: "PUT",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }));
+}
+
 // ---------- inbox, care, stream ----------
 
 export interface InboxItem {
@@ -166,6 +211,8 @@ export interface InboxItem {
   text: string;
   trigger: string | null;
   created_at: number;
+  /** When the owner read it (acked); null = unread. */
+  read_at: number | null;
 }
 
 export function normalizeInbox(raw: unknown): InboxItem | null {
@@ -173,7 +220,13 @@ export function normalizeInbox(raw: unknown): InboxItem | null {
   const id = typeof r.id === "number" ? r.id : Number(r.id);
   const text = str(r.text);
   if (!Number.isFinite(id) || !text) return null;
-  return { id, text, trigger: str(r.trigger), created_at: typeof r.created_at === "number" ? r.created_at : Date.now() };
+  return {
+    id,
+    text,
+    trigger: str(r.trigger),
+    created_at: typeof r.created_at === "number" ? r.created_at : Date.now(),
+    read_at: typeof r.read_at === "number" ? r.read_at : null,
+  };
 }
 
 export async function getInbox(petRef: string, headers: Record<string, string>, after?: number): Promise<InboxItem[]> {

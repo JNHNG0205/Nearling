@@ -3,7 +3,8 @@ import { createApp } from "../app";
 import { issueSession, sha256 } from "../auth/guard";
 import { subscribe } from "../events";
 import { testDeps } from "../test/deps";
-import { pushInbox, type InboxItem } from "./inbox";
+import type { InboxItem } from "@nearling/shared";
+import { pushInbox } from "./inbox";
 
 const REF = "pets-v8.nearling.testnet:1";
 const BASE = `/pets/${REF}/inbox`;

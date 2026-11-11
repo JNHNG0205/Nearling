@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { KeyPair, KeyPairSigner, type Provider } from "near-api-js";
+import { KeyPair, KeyPairSigner, baseEncode, type Provider } from "near-api-js";
 import { NEP413_MESSAGE, NEP413_RECIPIENT } from "@nearling/shared";
 import { createApp } from "../app";
 import { testDeps } from "../test/deps";
-import { authRoutes, nep413Verifier, type Nep413Verifier } from "./auth";
+import { authRoutes, decodeSignature, nep413Verifier, type Nep413Verifier } from "./auth";
 
 const post = (body: unknown) => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
@@ -75,6 +75,32 @@ describe("nep413Verifier", () => {
     await expect(
       nep413Verifier(provider("FullAccess"))({ accountId: "alice.testnet", publicKey: key.getPublicKey().toString(), signature: signed.signature, nonce }),
     ).resolves.toBeUndefined();
+  });
+
+  it("POST /session accepts base64, ed25519:<base58> and hex signatures (D2)", async () => {
+    const verifier = nep413Verifier(provider("FullAccess"));
+    for (const encode of [
+      (b: Uint8Array) => Buffer.from(b).toString("base64"),
+      (b: Uint8Array) => `ed25519:${baseEncode(b)}`,
+      (b: Uint8Array) => Buffer.from(b).toString("hex"),
+    ]) {
+      const { app } = setup(verifier);
+      const n = (await (await app.request("/auth/nonce")).json()) as { nonce: string };
+      const signed = await new KeyPairSigner(key).signNep413Message("alice.testnet", {
+        message: NEP413_MESSAGE, recipient: NEP413_RECIPIENT, nonce: Buffer.from(n.nonce, "base64"),
+      });
+      const res = await app.request(
+        "/session",
+        post({ accountId: "alice.testnet", publicKey: key.getPublicKey().toString(), signature: encode(signed.signature), nonce: n.nonce }),
+      );
+      expect(res.status).toBe(200);
+    }
+  });
+
+  it("decodeSignature rejects junk", () => {
+    expect(decodeSignature("not base64!")).toBeNull();
+    expect(decodeSignature("ed25519:0OIl")).toBeNull(); // not base58
+    expect(decodeSignature("ab".repeat(64))).toHaveLength(64);
   });
 
   it("rejects another message and a function-call key", async () => {

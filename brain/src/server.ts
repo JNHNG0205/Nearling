@@ -2,6 +2,7 @@ import { serve } from "@hono/node-server";
 import { randomBytes } from "node:crypto";
 import { createApp } from "./app";
 import { createChain } from "./chain/near";
+import { createBrainSigners, createSigner } from "./chain/signer";
 import { loadConfig } from "./config";
 import { createSealer } from "./crypto";
 import { openDb } from "./db/db";
@@ -9,6 +10,7 @@ import type { Deps } from "./deps";
 import { log } from "./log";
 import { MODULES } from "./modules";
 import { attachWebSockets } from "./race/ws";
+import { splitKeys } from "./wallet/rpc";
 
 const cfg = loadConfig();
 let master = cfg.MEMORY_MASTER_KEY ? Buffer.from(cfg.MEMORY_MASTER_KEY, "base64") : null;
@@ -24,6 +26,9 @@ const deps: Deps = {
   db: openDb(cfg.DB_PATH),
   sealer: createSealer(master),
   now: () => Date.now(),
+  // One signer per key set, so every caller shares the per-key nonce lanes (B4).
+  brain: createBrainSigners(cfg),
+  feeder: createSigner(cfg.FEEDER_ACCOUNT_ID, splitKeys(cfg.FEEDER_KEY), cfg.NEAR_RPC_URLS[0] ?? ""),
 };
 
 const stops = MODULES.flatMap((m) => (m.start ? [m.start(deps)] : []));

@@ -32,6 +32,15 @@ export function timelineLine(t: TimelineItem): string {
     case "owner_changed": return `New owner${t.actor ? ` ${t.actor}` : ""}`;
     case "staked": return `${near ?? "NEAR"} planted in the Brain Garden`;
     case "unstaked": return `${near ?? "NEAR"} unplanted from the Brain Garden`;
+    case "unstake_withdrawn": return `${near ?? "NEAR"} collected from the Brain Garden`;
+    case "staked_from_food": return `${near ?? "NEAR"} of food planted in the Brain Garden`;
+    case "credit_swept": return "Garden credit sent to the AI brain";
+    case "thoughts_day": {
+      // one row per UTC day: `count` thoughts, `amount` total micro-USD paid on chain
+      const n = (t as { count?: number }).count ?? null;
+      const usd = t.amount && /^\d+$/.test(t.amount) ? (Number(t.amount) / 1_000_000).toFixed(3) : null;
+      return `${n ?? "Some"} thought${n === 1 ? "" : "s"} paid from its own budget${usd ? ` ($${usd})` : ""}`;
+    }
     case "evolved": return "Grew wings";
     case "dormant": return "Fell into a deep sleep";
     case "revived": return "Woke up";

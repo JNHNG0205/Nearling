@@ -137,6 +137,22 @@ export function nftTokensForOwner(contract: string, accountId: string): Promise<
   return view<NftToken[]>(contract, "nft_tokens_for_owner", { account_id: accountId, from_index: "0", limit: 50 });
 }
 
+/** NEAR account id rules (2 to 64 chars, lowercase parts joined by `.`, `-` or `_`). */
+export function isAccountId(id: string): boolean {
+  return id.length >= 2 && id.length <= 64 && /^(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$/.test(id);
+}
+
+/** True when the account exists on testnet (an NFT sent to a missing account is lost). */
+export async function accountExists(accountId: string): Promise<boolean> {
+  try {
+    await rpc().viewAccount({ accountId });
+    return true;
+  } catch (err) {
+    if (/does not exist|UNKNOWN_ACCOUNT/i.test(String(err))) return false;
+    throw err;
+  }
+}
+
 /** Current epoch height (garden unlock check). */
 export async function currentEpoch(): Promise<bigint> {
   const v = await rpc().viewValidators();
