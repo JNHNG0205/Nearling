@@ -381,7 +381,7 @@ Key point: wallet and device keys both belong to the owner's account, so `predec
 Node 22 + Hono, TypeScript. Holds the `brain` NEAR account key and the NEAR AI staging API key.
 
 ### 8.1 NEAR AI
-- **Base URL:** `https://cloud-stg-api.near.ai/v1` (staging, OpenAI-compatible, Bearer key) [FIXED for hackathon].
+- **Base URL:** `https://cloud-api.near.ai/v1` (production, OpenAI-compatible, Bearer key) [FIXED 2026-11-11 by the team: the team key is a production key, staging rejects it (401). Verified: real reply + `model_verified` receipt (provider_tee). Consequence: NEARON CREDIT top-ups target the staging org, so Brain Garden credit does not reach this production org; the on-chain fuel accounting is unchanged]. Staging (`https://cloud-stg-api.near.ai/v1`) still works by setting `NEARAI_BASE_URL`.
 - **Default model:** `z-ai/glm-5.3-flash` (private, `verifiable: true`, $0.075 in / $0.25 out per 1M tokens) [FIXED 2026-11-11 from S1, see section 14]. `openai/gpt-oss-120b` is listed as private but staging has **no attestation provider** for it (`/attestation/report` HTTP 503), so its receipts could never be verified. Alternative with attestation: `Qwen/Qwen3.6-35B-A3B-FP8`. Do **not** use non-private models for chat. [VERIFY S1 latency: blocked, the staging key in `.env` is rejected]
 - **Speech-to-text:** `POST /v1/audio/transcriptions`, multipart, `model=openai/whisper-large-v3`, ≤ 25 MB, WAV/MP3/WEBM/FLAC/OGG/M4A (production docs) [VERIFY on staging].
 - **Cost per reply:** compute from returned token usage × model price, or the billing "costs by request IDs" endpoint (nano-USD per `inference-id`) [VERIFY S2].
