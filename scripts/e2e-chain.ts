@@ -126,7 +126,12 @@ async function demo(player: TxSigner, feeder: TxSigner) {
   console.log(`tx    ${DEMO} feed (feeder)  ${fr.txHash}`);
   const ff = fr.events.find((e) => e.standard === "nearling" && e.event === "fed");
   check("feeder signer sees the fed event (brain parseOutcome)", !!ff, JSON.stringify(ff?.data));
-  const after = BigInt((await view<Pet>(DEMO, "get_pet", { pet_id: tokenId })).food_yocto as string);
+  // `final` views can lag the signer's result by a block or two: poll briefly.
+  let after = before;
+  for (let i = 0; i < 10 && after <= before; i++) {
+    await new Promise((r) => setTimeout(r, 1500));
+    after = BigInt((await view<Pet>(DEMO, "get_pet", { pet_id: tokenId })).food_yocto as string);
+  }
   check("feeder feed raised food_yocto (minus metabolism)", after > before, `${before} -> ${after}`);
   const fst = await nearRpc.txStatus(fr.txHash, feeder.accountId);
   check("brain verifyFeedTx accepts the feeder tx too", !!fst && verifyFeedTx(fst, DEMO, tokenId, FEED).ok);

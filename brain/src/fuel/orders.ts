@@ -22,6 +22,13 @@ import { NEAR_ASSET, createOneClick, type OneClick } from "./intents";
 
 const NEAR = 10n ** 24n;
 
+/**
+ * Live price = the same NEAR on mainnet as the testnet pack (EXACT_OUTPUT of `feed_yocto` wNEAR).
+ * Real dry quotes, Solana USDC -> nep141:wrap.near, 2026-11-11 (NEAR $3.66, 1% slippage, no JWT):
+ * Snack 0.1 NEAR = 0.371 USDC, Meal 0.5 = 1.855 USDC, Feast 1 = 3.710 USDC. Route minimum is about
+ * 0.0604 NEAR out (0.2215 USDC in, set by the 0.22 USDC refund fee), so every pack clears it; a
+ * smaller pack would be mostly bridge fee. The quote's amountIn is what the payer sees.
+ */
 export const PACKS = [
   { id: "snack", name: "Snack", feed_yocto: NEAR / 10n, fuel: 20 },
   { id: "meal", name: "Meal", feed_yocto: NEAR / 2n, fuel: 100 },
@@ -427,7 +434,7 @@ export function orderRoutes(deps: Deps, over: Partial<OrdersIo> = {}) {
       if (!origin_asset || !refund_to) return err(c, 400, "invalid", "origin_asset and refund_to are needed");
       const dry = cfg.INTENTS_LIVE_CONFIRMED !== "1";
       try {
-        // [TBD] live price: the testnet pack amount, delivered as NEAR on mainnet. Check route minimum.
+        // Live price: the testnet pack amount, delivered as NEAR on mainnet (see PACKS).
         const q = await ioFor(deps, over).oneclick.quote({
           dry, swapType: "EXACT_OUTPUT", slippageTolerance: 100, originAsset: origin_asset, depositType: "ORIGIN_CHAIN",
           destinationAsset: NEAR_ASSET, amount: pack.feed_yocto.toString(), refundTo: refund_to, refundType: "ORIGIN_CHAIN",

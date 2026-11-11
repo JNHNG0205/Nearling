@@ -412,7 +412,15 @@ describe("simulated orders and the feeder", () => {
 
 describe("live orders", () => {
   it("only asks 1Click for dry quotes without human confirmation", async () => {
-    const quote = vi.fn(async () => ({ quote: { amountIn: "123", amountOut: SNACK.toString(), deadline: "2027-01-01T00:00:00Z" }, signature: "sig" }));
+    // Shape of a real dry quote (Solana USDC -> wNEAR, 2026-11-11).
+    const quote = vi.fn(async () => ({
+      quote: {
+        amountIn: "371035", amountInFormatted: "0.371035", amountInUsd: "0.370860984585", minAmountIn: "367324",
+        amountOut: SNACK.toString(), amountOutFormatted: "0.1", amountOutUsd: "0.365000000000", minAmountOut: SNACK.toString(),
+        timeEstimate: 22, refundFee: "220907", withdrawFee: "0", deadline: "2027-01-01T00:00:00Z",
+      },
+      quoteRequest: {}, signature: "sig", timestamp: "2026-11-11T05:54:48.000Z", correlationId: "c",
+    }));
     const t = setup({ mode: "live", io: { oneclick: { ...noOneClick, quote } } });
     const res = await t.post("/orders", { pet_ref: REF, pack_id: "snack", mode: "live", origin_asset: "nep141:sol.omft.near", refund_to: "SoLAddr" });
     expect(res.status).toBe(201);
