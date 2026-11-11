@@ -37,6 +37,22 @@ export const claimPairing = (token: string, petRef: string) =>
   req<{ status: PairingStatus }>(`/pairings/${enc(token)}/claim`, { ...post({ pet_ref: petRef }), auth: true });
 export const unpair = (petRef: string) => req<{ ok: boolean }>(`/pets/${enc(petRef)}/unpair`, { ...post({}), auth: true });
 
+/** GET /pets/:petRef/device (owner): pairing plus the device key in the brain, on chain and on the owner's account. */
+export interface DeviceStatus {
+  paired: boolean;
+  /** The device's own ed25519 key, sent in /devices/hello; null until its firmware sends one. */
+  device_pk: string | null;
+  last_seen_at: number | null;
+  /** `get_pet.device_pk` */
+  chain_device_pk: string | null;
+  /** A function-call key with device_pk and receiver = this pet's contract is on the owner's account; null = RPC unknown. */
+  key_added: boolean | null;
+  approval_mode: boolean;
+  /** pets-v9 contract (`feed_from_pantry` goes in the key's method list) */
+  pantry_supported: boolean;
+}
+export const getDeviceStatus = (petRef: string) => req<DeviceStatus>(`/pets/${enc(petRef)}/device`, { auth: true });
+
 // ---------- feed ----------
 
 export type PayMode = "direct" | "live" | "simulated";

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PetApproval, propose, type Proposal } from "@/components/device/ApprovalBanner";
 import { OwnerGate } from "@/components/wallet/OwnerGate";
 import { PetHeader } from "@/components/wallet/PetHeader";
 import { PetPage } from "@/components/wallet/PetPage";
@@ -115,6 +116,7 @@ function AmountInput({ value, onChange, label }: { value: string; onChange: (v: 
 function Plant({ pet, minStake }: { pet: PetData; minStake: bigint }) {
   const [amount, setAmount] = useState("1");
   const [note, setNote] = useState<string | null>(null);
+  const [proposal, setProposal] = useState<Proposal | null>(null);
   const { send, state, busy } = useTx(pet.chain!.name);
   const y = parseNear(amount);
   const ok = y !== null && y >= minStake;
@@ -122,6 +124,8 @@ function Plant({ pet, minStake }: { pet: PetData; minStake: bigint }) {
   async function plant() {
     if (!y) return;
     setNote(null);
+    // approval mode (CLAUDE.md 7.3): propose; the device approves and runs the stake with the held deposit
+    if (pet.chain!.approval_mode) return setProposal(await propose(send, pet, { Stake: { amount: y.toString() } }, y));
     const r = await send(tx.stake(pet.contract, pet.tokenId, y));
     if (!r) return;
     // `staked` is emitted in the callback; without it NEARON refused and the NEAR came back
@@ -139,18 +143,22 @@ function Plant({ pet, minStake }: { pet: PetData; minStake: bigint }) {
       </button>
       <TxStatus state={state} doneText="Transaction sent" />
       <ErrorText>{note}</ErrorText>
+      <PetApproval pet={pet} proposal={proposal} />
     </Panel>
   );
 }
 
 function Unplant({ pet, staked, deposit }: { pet: PetData; staked: bigint; deposit: bigint }) {
   const [amount, setAmount] = useState(formatNear(staked));
+  const [proposal, setProposal] = useState<Proposal | null>(null);
   const { send, state, busy } = useTx(pet.chain!.name);
   const y = parseNear(amount);
   const ok = y !== null && y <= staked;
 
   async function unplant() {
     if (!y) return;
+    // approval mode: the proposal holds the pool unstake deposit (pets-v9) until the device approves
+    if (pet.chain!.approval_mode) return setProposal(await propose(send, pet, { Unstake: { amount: y.toString() } }, deposit));
     const r = await send(tx.unstake(pet.contract, pet.tokenId, y, deposit));
     if (r) await pet.reload();
   }
@@ -167,6 +175,7 @@ function Unplant({ pet, staked, deposit }: { pet: PetData; staked: bigint; depos
         {busy ? "Check your wallet..." : `Unplant ${y ? formatNear(y) : ""} NEAR`}
       </button>
       <TxStatus state={state} doneText="Unplanted" />
+      <PetApproval pet={pet} proposal={proposal} />
     </Panel>
   );
 }
@@ -174,6 +183,7 @@ function Unplant({ pet, staked, deposit }: { pet: PetData; staked: bigint; depos
 function Collect({ pet, amount, unlockEpoch }: { pet: PetData; amount: string; unlockEpoch: string }) {
   const [epoch, setEpoch] = useState<bigint | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [proposal, setProposal] = useState<Proposal | null>(null);
   const { send, state, busy } = useTx(pet.chain!.name);
 
   useEffect(() => {
@@ -186,6 +196,7 @@ function Collect({ pet, amount, unlockEpoch }: { pet: PetData; amount: string; u
 
   async function collect() {
     setNote(null);
+    if (pet.chain!.approval_mode) return setProposal(await propose(send, pet, "Withdraw"));
     const r = await send(tx.withdraw(pet.contract, pet.tokenId));
     if (!r) return;
     // NEARON may not have collected the funds yet; the unstake then stays pending
@@ -206,6 +217,7 @@ function Collect({ pet, amount, unlockEpoch }: { pet: PetData; amount: string; u
       </button>
       <TxStatus state={state} doneText="Transaction sent" />
       <ErrorText>{note}</ErrorText>
+      <PetApproval pet={pet} proposal={proposal} />
     </Panel>
   );
 }

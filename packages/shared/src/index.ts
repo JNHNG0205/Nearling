@@ -38,6 +38,46 @@ export interface PetView {
   soul_version: number;
 }
 
+/** `Action` enum of `propose_action` (CLAUDE.md 7.3). Unit variants are bare strings in JSON. */
+export type ContractAction =
+  | "Withdraw"
+  | { Stake: { amount: string } }
+  | { Unstake: { amount: string } }
+  | { StakeFromFood: { amount: string } }
+  | { SetApprovalMode: { on: boolean } }
+  | { RegisterDevice: { public_key: string } }
+  | { Transfer: { receiver_id: string } };
+
+/** `get_pending_actions` entry. */
+export interface PendingAction {
+  id: string;
+  pet_id: string;
+  action: ContractAction;
+  deposit: string;
+  proposer_pk: string;
+  expires_at_ns: string;
+}
+
+/** "1.5" from yocto, up to 4 decimals, trailing zeros trimmed. */
+export function yoctoToNearText(yocto: string | bigint): string {
+  const y = BigInt(yocto);
+  const whole = y / 10n ** 24n;
+  const frac = ((y % 10n ** 24n) / 10n ** 20n).toString().padStart(4, "0").replace(/0+$/, "");
+  return frac ? `${whole}.${frac}` : whole.toString();
+}
+
+/** One short line for the device screen (240x240) and the web banner, e.g. "Stake 1 NEAR". */
+export function actionSummary(action: ContractAction, petName?: string): string {
+  if (action === "Withdraw") return "Collect unstaked NEAR";
+  if ("Stake" in action) return `Stake ${yoctoToNearText(action.Stake.amount)} NEAR`;
+  if ("Unstake" in action) return `Unstake ${yoctoToNearText(action.Unstake.amount)} NEAR`;
+  if ("StakeFromFood" in action) return `Plant ${yoctoToNearText(action.StakeFromFood.amount)} NEAR of food`;
+  if ("SetApprovalMode" in action) return action.SetApprovalMode.on ? "Turn approvals on" : "Turn approvals off";
+  if ("RegisterDevice" in action) return "Use a new device key";
+  if ("Transfer" in action) return `Give ${petName ?? "pet"} to ${action.Transfer.receiver_id}`;
+  return "Unknown action";
+}
+
 export interface SoulView {
   version: number;
   prompt: string;

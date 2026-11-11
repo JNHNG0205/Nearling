@@ -18,6 +18,16 @@ export interface Chain {
   getSoul(contract: string, tokenId: string): Promise<SoulView>;
   /** Any view call (shirts, NEARON pool, validator pools...). Throws on contract panics. */
   view<T>(contractId: string, method: string, args?: Record<string, unknown>): Promise<T>;
+  /** RPC `view_access_key_list` for an account (raw RPC shape). Uncached. */
+  accessKeys(accountId: string): Promise<AccessKeyInfo[]>;
+}
+
+/** One entry of `view_access_key_list`. */
+export interface AccessKeyInfo {
+  public_key: string;
+  access_key: {
+    permission: "FullAccess" | { FunctionCall: { receiver_id: string; method_names: string[]; allowance?: string | null } } | Record<string, unknown>;
+  };
 }
 
 const PET_TTL_MS = 5_000;
@@ -37,15 +47,14 @@ export function createChain(rpcUrls: string[]): Chain {
   const configs = new Map<string, { at: number; value: PetsConfig }>();
   const souls = new Map<string, { at: number; value: SoulView }>();
 
-  async function view<T>(contractId: string, method: string, args: Record<string, unknown>): Promise<T> {
-    // Two rounds over all providers: public testnet RPCs drop requests now and then
-    // ("TypeError: fetch failed", HTTP 429), and both failing at once was seen in the logs.
+  /** Tries every provider, two rounds; contract panics are answers and are not retried. */
+  async function rpc<T>(fn: (p: JsonRpcProvider) => Promise<T>): Promise<T> {
     let last: unknown;
     for (let round = 0; round < 2; round++) {
       if (round > 0) await new Promise((ok) => setTimeout(ok, 400));
       for (const p of providers) {
         try {
-          return (await p.callFunction({ contractId, method, args })) as T;
+          return await fn(p);
         } catch (err) {
           if (isContractPanic(err)) throw err;
           last = err;
@@ -53,6 +62,12 @@ export function createChain(rpcUrls: string[]): Chain {
       }
     }
     throw last;
+  }
+
+  async function view<T>(contractId: string, method: string, args: Record<string, unknown>): Promise<T> {
+    // Two rounds over all providers: public testnet RPCs drop requests now and then
+    // ("TypeError: fetch failed", HTTP 429), and both failing at once was seen in the logs.
+    return rpc(async (p) => (await p.callFunction({ contractId, method, args })) as T);
   }
 
   return {
@@ -82,6 +97,11 @@ export function createChain(rpcUrls: string[]): Chain {
     },
 
     view: (contractId, method, args = {}) => view(contractId, method, args),
+
+    async accessKeys(accountId) {
+      const r = await rpc((p) => p.viewAccessKeyList({ accountId }));
+      return r.keys as unknown as AccessKeyInfo[];
+    },
 
     async getConfig(contract) {
       const hit = configs.get(contract);

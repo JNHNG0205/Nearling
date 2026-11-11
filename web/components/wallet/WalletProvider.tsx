@@ -87,6 +87,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         const w = await need().wallet();
         return (await w.signAndSendTransaction({ network: NETWORK, ...req })) as Outcome;
       },
+      async signAndSendTransactions(reqs) {
+        const w = await need().wallet();
+        return (await w.signAndSendTransactions({ network: NETWORK, transactions: reqs })) as Outcome[];
+      },
     };
   }, [ready, accountId, connector]);
 

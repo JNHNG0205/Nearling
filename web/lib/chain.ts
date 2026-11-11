@@ -1,7 +1,7 @@
 // Chain access for the web: contract ids, view helpers, transaction builders and outcome parsing.
 // Deposits and gas follow docs/CONTRACT_INTERFACE.md. Pure module (no React), safe on the server.
 import { JsonRpcProvider, nearToYocto, yoctoToNear } from "near-api-js";
-import { formatPetRef, parsePetRef, type PetView, type SoulView } from "@nearling/shared";
+import { formatPetRef, parsePetRef, type ContractAction, type PendingAction, type PetView, type SoulView } from "@nearling/shared";
 
 // ---------- ids ----------
 
@@ -51,7 +51,13 @@ export const GAS = {
   nftTransfer: 30n * TGAS,
   validatorStake: 100n * TGAS,
   pantry: 30n * TGAS, // stock_pantry, feed_from_pantry, empty_pantry (pets-v9)
+  device: 30n * TGAS, // register_device, set_approval_mode, propose_action, cancel_action (CLAUDE.md 7.3)
+  approve: 450n * TGAS, // approve_action running a NEARON call + callback (device signs it, S6)
 } as const;
+
+/** Methods of the device's limited access key (CLAUDE.md 7.2); pets-v9 adds `feed_from_pantry`. */
+export const DEVICE_KEY_METHODS = ["play", "stake_from_food", "approve_action"] as const;
+export const DEVICE_KEY_ALLOWANCE = nearToYocto("1");
 
 export const ONE_YOCTO = 1n;
 export const SHIRT_DEPOSIT = nearToYocto("0.01");
@@ -134,6 +140,16 @@ export function getPet(contract: string, tokenId: string): Promise<PetView> {
   return view<PetView>(contract, "get_pet", { pet_id: tokenId });
 }
 
+/** pets-v9 has the device pantry (`feed_from_pantry`): its `get_pet` shows `pantry_yocto`. */
+export function hasPantry(pet: PetView): boolean {
+  return pet.pantry_yocto !== undefined;
+}
+
+/** On-chain actions waiting for the device's approval (CLAUDE.md 7.3). */
+export function getPendingActions(contract: string, tokenId: string): Promise<PendingAction[]> {
+  return view<PendingAction[]>(contract, "get_pending_actions", { pet_id: tokenId });
+}
+
 export function getSoul(contract: string, tokenId: string): Promise<SoulView> {
   return view<SoulView>(contract, "get_soul", { pet_id: tokenId });
 }
@@ -185,7 +201,15 @@ export async function currentEpoch(): Promise<bigint> {
 /** NEAR Connect action shape (accepted by every wallet in the manifest). */
 export type TxAction =
   | { type: "FunctionCall"; params: { methodName: string; args: object; gas: string; deposit: string } }
-  | { type: "Transfer"; params: { deposit: string } };
+  | { type: "Transfer"; params: { deposit: string } }
+  | {
+      type: "AddKey";
+      params: {
+        publicKey: string;
+        accessKey: { permission: { receiverId: string; allowance: string; methodNames: string[] } };
+      };
+    }
+  | { type: "DeleteKey"; params: { publicKey: string } };
 
 export interface TxRequest {
   receiverId: string;
@@ -226,6 +250,41 @@ export const tx = {
     actions: [{ type: "Transfer", params: { deposit: amount.toString() } }],
   }),
   validatorStake: (pool: string, amount: bigint) => call(pool, "deposit_and_stake", {}, GAS.validatorStake, amount),
+
+  // ---- device key and approvals (CLAUDE.md 7.2, 7.3) ----
+
+  /** On the owner's own account: a limited key the device signs with (receiver = pets contract, 1 NEAR gas allowance). */
+  addDeviceKey: (ownerId: string, contract: string, publicKey: string, pantry: boolean): TxRequest => ({
+    receiverId: ownerId,
+    actions: [
+      {
+        type: "AddKey",
+        params: {
+          publicKey,
+          accessKey: {
+            permission: {
+              receiverId: contract,
+              allowance: DEVICE_KEY_ALLOWANCE.toString(),
+              methodNames: pantry ? [...DEVICE_KEY_METHODS, "feed_from_pantry"] : [...DEVICE_KEY_METHODS],
+            },
+          },
+        },
+      },
+    ],
+  }),
+  deleteKey: (ownerId: string, publicKey: string): TxRequest => ({
+    receiverId: ownerId,
+    actions: [{ type: "DeleteKey", params: { publicKey } }],
+  }),
+  registerDevice: (contract: string, petId: string, publicKey: string) =>
+    call(contract, "register_device", { pet_id: petId, public_key: publicKey }, GAS.device),
+  /** Turning on runs directly; turning off is gated, so use `proposeAction(SetApprovalMode{on:false})`. */
+  setApprovalMode: (contract: string, petId: string, on: boolean) =>
+    call(contract, "set_approval_mode", { pet_id: petId, on }, GAS.device),
+  /** `deposit`: exactly the amount for Stake, the pool unstake deposit for Unstake on pets-v9, else 0. */
+  proposeAction: (contract: string, petId: string, action: ContractAction, deposit: bigint = 0n) =>
+    call(contract, "propose_action", { pet_id: petId, action }, GAS.device, deposit),
+  cancelAction: (contract: string, actionId: string) => call(contract, "cancel_action", { action_id: actionId }, GAS.device),
 };
 
 // ---------- outcome parsing ----------

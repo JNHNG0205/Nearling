@@ -99,6 +99,7 @@ Owner only unless published. `/pet/[petRef]/receipts` lists recent turns with st
 - Cards: Planted (staked NEAR), Credit growing (live ticker: `credit_micro + daily_credit_micro x elapsed`), Fuel ready (credit in thoughts), Self-sustaining badge.
 - Actions: Plant (stake ≥ 1 NEAR), Unplant (unstake amount; shows "returns in 12 to 24 h"), Collect (withdraw after `unlock_epoch`; on failure "processing, retry later").
 - Transfer warning: "While NEAR is planted, Mochi can't be given away."
+- Approval mode on (`get_pet.approval_mode`): Plant, Unplant and Collect send `propose_action` instead (`Stake` attaches exactly the amount; `Unstake` attaches `config.pool_unstake_deposit` on pets-v9, nothing before; `Withdraw` attaches nothing) and show the Approve banner (section 14).
 
 ## 9. `/approve/[approvalId]` Wallet actions (Build Spec 7, 8)
 
@@ -114,6 +115,8 @@ Owner only unless published. `/pet/[petRef]/receipts` lists recent turns with st
 
 Recipient field -> device approval (kind `transfer_pet`) -> `nft_transfer` signed in Meteor. Disabled with explanation when staked or unstaking (`E_STAKED`). After transfer: "Mochi's new owner can pair Mochi with their Nearling."
 
+Approval mode on: the button sends `propose_action(pet_id, {"Transfer":{"receiver_id":"…"}})` and shows the Approve banner; the device's `approve_action` moves the pet. The brain approval path above is hidden then (a wallet `nft_transfer` would fail with `E_APPROVAL_MODE`).
+
 ## 11. `/race`, `/race/[code]` (Build Spec 6)
 
 - Create room -> code shown big + QR; or join by code.
@@ -128,3 +131,17 @@ Server rendered: sprite with shirt and wings, name, stage, fuel meter, "Feed thi
 ## 13. `/` landing
 
 Hero pitch line, a live demo pet from `pets-demo` (watch fuel drop in real time), buttons "Try it in your browser" (`/adopt`) and "I have a Nearling" (explains scanning the QR), three-step how-it-works, privacy strip linking `/privacy`.
+
+## 14. `/pet/[petRef]/device` Device key and approvals (`CLAUDE.md` 7.2, 7.3)
+
+The device signs with a **limited access key** on the owner's account (receiver = the pets contract). Value actions are proposed on the web and approved and signed on the device. Status comes from `GET /pets/:petRef/device` (brain, owner session) plus `get_pet`.
+
+1. **Pair your Nearling**: done when `paired`. Otherwise "scan the QR on its screen" (or Bluetooth). SSE `paired` refreshes the page.
+2. **Give your Nearling its key**: needs `device_pk` (sent by the firmware in `/devices/hello`). One NEAR Connect `signAndSendTransactions` prompt:
+   - tx 1 (skipped when `key_added`): receiver = the owner's own account, `AddKey { publicKey: device_pk, accessKey: { permission: { receiverId: <pets contract>, allowance: 1 NEAR, methodNames: [play, stake_from_food, approve_action] } } }`, plus `feed_from_pantry` when `get_pet` has `pantry_yocto` (pets-v9).
+   - tx 2 (skipped when `get_pet.device_pk == device_pk`): `register_device(pet_id, public_key)`, 30 Tgas. Under approval mode it becomes `propose_action(RegisterDevice)` for the current device to approve.
+   - Done when `key_added` and `chain_device_pk == device_pk`.
+3. **Approve on the device**: on = `set_approval_mode(pet_id, true)` direct (30 Tgas). Off is gated, so it is `propose_action({"SetApprovalMode":{"on":false}})` and the Approve banner.
+4. **Remove this Nearling**: `DeleteKey(device_pk)` on the owner's account, then `POST /pets/:petRef/unpair`. Blocked while approval mode is on (the device could never approve again).
+
+**Approve banner** (`components/device/ApprovalBanner.tsx`, used by device, garden and transfer): after `propose_action` (30 Tgas; the action id is the return value or the `action_proposed` event) it shows the summary line (same text as the device, `actionSummary` in `packages/shared`), polls `get_pending_actions` every 3 s until the id is gone (approved) or `expires_at_ns` passes (10 min), and offers Cancel (`cancel_action`, refunds any held deposit, also after expiry). The device reads the same list from `GET /devices/actions` and signs `approve_action` with 450 Tgas when the action runs a NEARON call.

@@ -3,7 +3,7 @@ import { createApp } from "../app";
 import { issueSession } from "../auth/guard";
 import { subscribe } from "../events";
 import { TEST_PET, testDeps } from "../test/deps";
-import { deviceStatus } from "./devices";
+import { deviceStatus, isEd25519Pk, pollPendingActions } from "./devices";
 
 const PET = "pets-v8.nearling.testnet:1";
 const json = (method: string, body?: unknown, headers: Record<string, string> = {}) => ({
@@ -156,5 +156,107 @@ describe("Hatch & Pair", () => {
     deps.pets["1"] = { ...TEST_PET, owner: "bob.testnet" };
     expect((await hello()).bound).toBe(false);
     expect(deviceStatus(deps.db, PET).paired).toBe(false);
+  });
+});
+
+describe("Device key and pending actions", () => {
+  const PK = "ed25519:BXWkER31HSLP1kSVvMduQHsJxyAopCrTkUfWbuLJ7AvH";
+  const NS = (ms: number) => (BigInt(ms) * 1_000_000n).toString();
+
+  it("validates device_pk on hello", async () => {
+    const { app } = setup();
+    expect(isEd25519Pk(PK)).toBe(true);
+    expect(isEd25519Pk("ed25519:abc")).toBe(false);
+    expect(isEd25519Pk("secp256k1:BXWkER31HSLP1kSVvMduQHsJxyAopCrTkUfWbuLJ7AvH")).toBe(false);
+    const bad = await app.request("/devices/hello", json("POST", { hw_id: "hw-1", device_secret: "s".repeat(32), device_pk: "ed25519:0OIl" }));
+    expect(bad.status).toBe(400);
+  });
+
+  it("GET /pets/:petRef/device reports pairing, key on chain and the owner's access key", async () => {
+    const { deps, app, session, pair } = setup();
+    const status = async (auth?: string) => app.request(`/pets/${PET}/device`, { headers: { Authorization: auth ?? (await session()) } });
+
+    expect(await (await status()).json()).toEqual({
+      paired: false, device_pk: null, last_seen_at: null, chain_device_pk: null, key_added: false, approval_mode: false, pantry_supported: false,
+    });
+    expect((await status(await session("bob.testnet"))).status).toBe(403);
+
+    await app.request("/devices/hello", json("POST", { hw_id: "hw-1", device_secret: "s".repeat(32), device_pk: PK }));
+    await pair();
+    let asked: string | null = null;
+    deps.chain.accessKeys = async (account) => {
+      asked = account;
+      return [
+        { public_key: PK, access_key: { permission: { FunctionCall: { receiver_id: "pets-v8.nearling.testnet", method_names: ["play"] } } } },
+      ];
+    };
+    deps.pets["1"] = { ...TEST_PET, device_pk: PK, approval_mode: true, pantry_yocto: "0" };
+    const body = (await (await status()).json()) as Record<string, unknown>;
+    expect(asked).toBe("alice.testnet");
+    expect(body).toMatchObject({ paired: true, device_pk: PK, chain_device_pk: PK, key_added: true, approval_mode: true, pantry_supported: true });
+
+    // A key for another contract does not count.
+    deps.chain.accessKeys = async () => [
+      { public_key: PK, access_key: { permission: { FunctionCall: { receiver_id: "pets-v7.nearling.testnet", method_names: [] } } } },
+    ];
+    expect(((await (await status()).json()) as { key_added: boolean }).key_added).toBe(false);
+    deps.chain.accessKeys = async () => {
+      throw new Error("fetch failed");
+    };
+    expect(((await (await status()).json()) as { key_added: boolean | null }).key_added).toBeNull();
+  });
+
+  it("GET /devices/actions returns live pending actions with a summary line", async () => {
+    const { deps, app, pair } = setup();
+    const token = await pair();
+    const now = deps.now();
+    let asked: unknown;
+    deps.chain.view = (async (contract: string, method: string, args: unknown) => {
+      asked = { contract, method, args };
+      return [
+        { id: "7", pet_id: "1", action: { Stake: { amount: "1000000000000000000000000" } }, deposit: "1000000000000000000000000", proposer_pk: "ed25519:x", expires_at_ns: NS(now + 60_000) },
+        { id: "6", pet_id: "1", action: "Withdraw", deposit: "0", proposer_pk: "ed25519:x", expires_at_ns: NS(now - 1) },
+      ];
+    }) as typeof deps.chain.view;
+    const res = await app.request("/devices/actions", { headers: { Authorization: `Device ${token}` } });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { actions: { id: string; summary: string; expires_at: number }[]; key_registered: boolean };
+    expect(asked).toEqual({ contract: "pets-v8.nearling.testnet", method: "get_pending_actions", args: { pet_id: "1" } });
+    expect(body.actions).toHaveLength(1);
+    expect(body.actions[0]).toMatchObject({ id: "7", summary: "Stake 1 NEAR", expires_at: now + 60_000 });
+    expect(body.key_registered).toBe(false);
+
+    // Owner sessions cannot use the device route; a transferred pet revokes the device.
+    expect((await app.request("/devices/actions", { headers: { Authorization: "Bearer x" } })).status).toBe(401);
+    deps.pets["1"] = { ...TEST_PET, owner: "bob.testnet" };
+    expect((await app.request("/devices/actions", { headers: { Authorization: `Device ${token}` } })).status).toBe(403);
+    expect(deviceStatus(deps.db, PET).paired).toBe(false);
+  });
+
+  it("publishes action_pending only when the list changes", async () => {
+    const { deps, pair } = setup();
+    await pair();
+    let list: unknown[] = [];
+    deps.chain.view = (async () => list) as typeof deps.chain.view;
+    const seen: unknown[] = [];
+    const stop = subscribe(PET, (e) => {
+      if (e.type === "action_pending") seen.push(e.data);
+    });
+    const last = new Map<string, string>();
+
+    await pollPendingActions(deps, last);
+    expect(seen).toHaveLength(0); // nothing pending, nothing to say
+    list = [
+      { id: "1", pet_id: "1", action: { SetApprovalMode: { on: false } }, deposit: "0", proposer_pk: "ed25519:x", expires_at_ns: NS(deps.now() + 60_000) },
+    ];
+    await pollPendingActions(deps, last);
+    await pollPendingActions(deps, last);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({ actions: [{ id: "1", summary: "Turn approvals off" }] });
+    list = [];
+    await pollPendingActions(deps, last);
+    expect(seen).toHaveLength(2);
+    expect(seen[1]).toMatchObject({ actions: [] });
+    stop();
   });
 });
