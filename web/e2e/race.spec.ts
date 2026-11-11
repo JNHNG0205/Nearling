@@ -112,6 +112,10 @@ test("two browsers race to a result", async ({ browser }) => {
   // the guest was clicked last; give the host window focus back so its key events land
   await host.bringToFront();
   await host.evaluate(() => window.focus());
+  // Two headless pages share one browser: focus moves back to the host a little after
+  // bringToFront. Keys pressed before that never reach the page (seen as a lost first
+  // ArrowRight window and a draw), so wait for real focus before the first key.
+  await host.waitForFunction(() => document.hasFocus(), undefined, { timeout: 5_000 });
   let lane = 0;
   const tickAt = (t: number) => start_at + (t * 1000) / TICKS_PER_SECOND;
   for (const w of switches) {

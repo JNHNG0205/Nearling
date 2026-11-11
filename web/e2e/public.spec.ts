@@ -8,7 +8,7 @@ test("landing draws the live demo pet and shows no sample data", async ({ page }
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Nearling");
 
-  // the hero egg hatches, then the real pet from pets-demo shows with its fuel meter
+  // the hero egg hatches, then the live demo pet (DEMO_PET_REF) shows with its fuel meter
   const hero = page.getByRole("img", { name: new RegExp(`^${live.name}, `) });
   await expect(hero).toBeVisible({ timeout: 20_000 });
   expect(await inkedPixels(hero)).toBeGreaterThan(50);

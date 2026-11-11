@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import type { Locator, Page } from "@playwright/test";
 
 export const BRAIN_URL = process.env.E2E_BRAIN_URL ?? "http://localhost:8788";
-export const DEMO_PET = process.env.E2E_DEMO_PET ?? "pets-demo.nearling.testnet:0";
+export const DEMO_PET = process.env.E2E_DEMO_PET ?? process.env.NEXT_PUBLIC_DEMO_PET_REF ?? "pets-v8.nearling.testnet:4"; // same default as web/lib/brain.ts DEMO_PET_REF
 export const DEMO_PET_PATH = encodeURIComponent(DEMO_PET);
 
 /** Count of non-transparent pixels on a canvas (the pet sprites are 32x32). */

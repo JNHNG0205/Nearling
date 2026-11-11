@@ -41,8 +41,20 @@ async function post<T>(path: string): Promise<T> {
 
 export const createRoom = () => post<{ code: string }>("/race/rooms");
 
-export const joinRoom = (code: string) =>
-  post<{ race_token: string; slot: Slot }>(`/race/rooms/${encodeURIComponent(code)}/join`);
+/**
+ * One join per room code per tab, even if the page mounts twice before the first join returns
+ * (React dev double-mount, fast back/forward). Two joins would take both free slots and the
+ * second would get "race is full". A failed join is forgotten so the user can retry.
+ */
+const joining = new Map<string, Promise<{ race_token: string; slot: Slot }>>();
+export function joinRoom(code: string): Promise<{ race_token: string; slot: Slot }> {
+  const hit = joining.get(code);
+  if (hit) return hit;
+  const p = post<{ race_token: string; slot: Slot }>(`/race/rooms/${encodeURIComponent(code)}/join`);
+  joining.set(code, p);
+  p.catch(() => joining.delete(code));
+  return p;
+}
 
 /** http(s)://brain -> ws(s)://brain/race/ws?... */
 export function raceSocketUrl(code: string, raceToken: string): string {
