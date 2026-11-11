@@ -6,30 +6,12 @@ import { DemoPet } from "@/components/nearling/DemoPet";
 import { GardenPlot } from "@/components/nearling/GardenPlot";
 import { NearlingFrame } from "@/components/nearling/NearlingFrame";
 import { ReceiptCard } from "@/components/talk/ReceiptCard";
-import { DEMO_PET_REF, type Receipt } from "@/lib/brain";
+import { DEMO_PET_REF, getPublicReceipts } from "@/lib/brain";
+import { getConfig, PETS_CONTRACT } from "@/lib/chain";
 
 // Landing (design.md 6.1): one section per screen, hero alone on the first screen.
 
 const DEMO_HREF = `/pet/${encodeURIComponent(DEMO_PET_REF)}`;
-
-// Example data for the receipt section, labelled "Sample receipt" on the card (CLAUDE.md rule 5).
-const SAMPLE: Receipt = {
-  turn_id: "sample",
-  pet_ref: DEMO_PET_REF,
-  at: Date.UTC(2026, 10, 10, 9, 30),
-  soul_version: 2,
-  model: "z-ai/glm-5.3-flash",
-  verification: {
-    status: "model_verified",
-    signature_kind: "provider_tee",
-    signer: "0x3f1a9b7c22e0c09",
-    req_hash: "9b2e5d01aa7f",
-    resp_hash: "41ac77e09d3b",
-    attestation: { fetched_at: null, nras: "pass", tdx: "not checked in app" },
-  },
-  fuel: { cost_micro: 1000, source: "food", tx: "8Fh2kQ9xLmT3vW7" },
-  voice: { provider: "elevenlabs", note: "reply text sent to a third-party voice service" },
-};
 
 const STEPS: { title: string; body: string; anim: "eat" | "talk" | "starving" }[] = [
   { title: "Feed", body: "Anyone sends NEAR to the pet. It lands in the pet's own budget on chain.", anim: "eat" },
@@ -45,17 +27,15 @@ function Screen({ id, label, children, className = "" }: { id: string; label: st
   );
 }
 
-export default function Home() {
+export const revalidate = 60;
+
+export default async function Home() {
+  // A real receipt the demo pet's owner published; the card is hidden when there is none.
+  const receipt = (await getPublicReceipts(DEMO_PET_REF, { next: { revalidate: 60 } }).catch(() => []))[0] ?? null;
+  // Garden numbers come from the pets contract config; hidden if NEAR testnet does not answer.
+  const config = await getConfig(PETS_CONTRACT).catch(() => null);
   return (
     <>
-      <header className="mx-auto flex h-16 max-w-[1200px] items-center justify-between px-4 md:px-6">
-        <span className="font-display text-[32px] leading-8 font-bold">Nearling</span>
-        <nav aria-label="Main" className="flex gap-6 text-sm">
-          <Link href={DEMO_HREF} className="hover:text-accent">Demo pet</Link>
-          <Link href="/privacy" className="hover:text-accent">Privacy</Link>
-        </nav>
-      </header>
-
       <main>
         <section aria-label="Nearling" className="flex min-h-[calc(100dvh-64px)] items-center py-12">
           <div className="mx-auto grid w-full max-w-[1200px] items-center gap-12 px-4 md:grid-cols-2 md:px-6">
@@ -131,7 +111,7 @@ export default function Home() {
             </p>
             <Link href="/privacy" className="pixel-btn pixel-btn--secondary self-start">Read what is verified</Link>
           </div>
-          <ReceiptCard receipt={SAMPLE} sample />
+          {receipt && <ReceiptCard receipt={receipt} />}
         </Screen>
 
         <Screen id="garden" label="Brain Garden">
@@ -144,10 +124,18 @@ export default function Home() {
           </div>
           <div className="pixel-panel flex flex-col items-center gap-4 p-6">
             <GardenPlot />
-            <p className="font-display text-sm text-muted">10 NEAR planted grows</p>
-            <p className="font-mono text-[40px] leading-[44px] text-fuel">+<CountUp to={6.57} decimals={2} /></p>
-            <p className="font-display">thoughts per day</p>
-            <p className="text-sm text-muted">At NEARON&apos;s measured testnet rate of 657 micro-USD per NEAR per day.</p>
+            {config && config.fuel_price_micro > 0 && (
+              <>
+                <p className="font-display text-sm text-muted">10 NEAR planted grows</p>
+                <p className="font-mono text-[40px] leading-[44px] text-fuel">
+                  +<CountUp to={(10 * config.farm_rate_micro_per_near_day) / config.fuel_price_micro} decimals={2} />
+                </p>
+                <p className="font-display">thoughts per day</p>
+                <p className="text-sm text-muted">
+                  At the contract&apos;s NEARON rate of {config.farm_rate_micro_per_near_day} micro-USD per NEAR per day.
+                </p>
+              </>
+            )}
           </div>
         </Screen>
 

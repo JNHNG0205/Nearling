@@ -2,21 +2,44 @@
 // error codes (05 section 5). `name` replaces "Mochi" in the copy with the pet's name.
 
 const CHAIN: Record<string, (name: string) => string> = {
+  // money and amounts
   E_DEPOSIT: () => "The amount didn't match. Please try again.",
+  E_GAS: () => "Not enough gas attached. Please retry.",
+  E_STORAGE: () => "The mint price no longer covers storage. Please tell the Nearling team.",
+  // naming and Soul
   E_NAME: () => "Names need 1 to 32 characters.",
   E_SOUL_SIZE: () => "The Soul is too long (1 KB max).",
+  // who may call
   E_NOT_OWNER: (n) => `Only ${n}'s owner can do that.`,
+  E_NOT_ADMIN: () => "Only the Nearling team can change this.",
+  E_NOT_BRAIN: () => "Only the pet's brain can do that.",
+  E_NOT_DEVICE: (n) => `This needs ${n}'s registered device.`,
+  E_UNKNOWN_PET: () => "That pet doesn't exist on this contract.",
+  // care
+  E_COOLDOWN: (n) => `${n} needs a short break. Try again in a minute.`,
+  E_ASLEEP: (n) => `${n} is asleep. Wake ${n} first.`,
+  E_ITEM: () => "That item can't be added.",
+  // Brain Garden (NEARON)
   E_MIN_STAKE: () => "Plant at least 1 NEAR in the Brain Garden.",
   E_POOL_NOT_READY: () => "The Brain Garden isn't open yet. Try later.",
+  E_POOL_READY: () => "The Brain Garden is already open.",
   E_UNSTAKE_PENDING: () => "You already have NEAR on its way back.",
   E_LOCKED: () => "Still unlocking. Check back after the time shown.",
   E_NO_STAKE: () => "Nothing to unstake.",
   E_NO_UNSTAKE: () => "Nothing to withdraw.",
+  E_FOOD_RESERVE: (n) => `${n} needs to keep a day of food. Try a smaller amount.`,
+  E_DEVICE_CAP: () => "That is over the device limit. Approve it from the web instead.",
+  E_CREDIT_CAP: () => "That correction is too large.",
+  // transfer
   E_STAKED: (n) => `Take ${n}'s NEAR out of the Brain Garden before giving ${n} away.`,
+  // on-chain approvals
+  E_APPROVAL_MODE: (n) => `This needs approval on ${n}'s device first.`,
+  E_EXPIRED: () => "This request expired. Start again.",
+  E_SAME_KEY: () => "The key that asked can't also approve. Approve on the device.",
+  E_NO_ACTION: () => "That request is gone. It was approved, cancelled or expired.",
+  E_TOO_MANY_ACTIONS: () => "Too many requests are waiting. Approve or cancel one first.",
+  // shirts
   E_CLAIMED: () => "You already have your Nearling shirt.",
-  E_GAS: () => "Not enough gas attached. Please retry.",
-  E_UNKNOWN_PET: () => "That pet doesn't exist on this contract.",
-  E_APPROVAL_MODE: () => "This pet needs approval on its device first.",
 };
 
 const BRAIN: Record<string, (name: string) => string> = {

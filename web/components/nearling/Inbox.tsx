@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { minutesAgo, type InboxItem } from "@/lib/brain";
 import css from "./nearling.module.css";
 
@@ -11,6 +11,7 @@ export function InboxPanel({ items, name }: { items: InboxItem[]; name: string }
   return (
     <section aria-label="Inbox" className="pixel-panel flex flex-col gap-3 p-3">
       <h2 className="font-display text-lg">From {name}</h2>
+      <AlertsToggle name={name} />
       {items.length === 0 ? (
         <p className="text-muted">No messages yet. {name} writes when something happens.</p>
       ) : (
@@ -42,5 +43,34 @@ export function InboxToast({ item, name, onClose }: { item: InboxItem; name: str
         Close
       </button>
     </div>
+  );
+}
+
+/**
+ * Browser alert for a new inbox message while this tab is open but hidden (W8). Web push to a
+ * closed tab is roadmap; nothing is sent when permission was not granted.
+ */
+export function notifyInBackground(name: string, text: string): void {
+  if (typeof Notification === "undefined" || Notification.permission !== "granted" || !document.hidden) return;
+  try {
+    new Notification(name, { body: text, tag: "nearling-inbox" });
+  } catch {
+    // some mobile browsers only allow notifications from a service worker
+  }
+}
+
+function AlertsToggle({ name }: { name: string }) {
+  const [perm, setPerm] = useState<NotificationPermission | "unsupported">("default");
+  useEffect(() => {
+    setPerm(typeof Notification === "undefined" ? "unsupported" : Notification.permission);
+  }, []);
+  if (perm === "unsupported") return null;
+  if (perm === "granted") return <p className="text-sm text-muted">Alerts are on while this tab is open.</p>;
+  if (perm === "denied") return <p className="text-sm text-muted">Alerts are blocked in your browser settings.</p>;
+  return (
+    <button type="button" className="pixel-btn pixel-btn--secondary self-start px-3 text-sm"
+      onClick={() => void Notification.requestPermission().then(setPerm).catch(() => undefined)}>
+      Turn on alerts from {name}
+    </button>
   );
 }
