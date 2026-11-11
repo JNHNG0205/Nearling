@@ -51,7 +51,7 @@ export default async function Home() {
                 so you can watch its budget drop.
               </p>
               <div className="flex flex-wrap gap-4">
-                <Link href="/adopt" className="pixel-btn">Hatch a pet</Link>
+                <Link href="/start" className="pixel-btn">Set up my Nearling</Link>
                 <Link href={DEMO_HREF} className="pixel-btn pixel-btn--secondary">Watch the demo pet</Link>
               </div>
             </div>

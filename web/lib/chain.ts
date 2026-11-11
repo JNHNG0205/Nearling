@@ -164,6 +164,16 @@ export async function accountExists(accountId: string): Promise<boolean> {
   }
 }
 
+/** Account balance in yocto (`view_account` amount); 0 for an account that does not exist yet. */
+export async function accountBalance(accountId: string): Promise<bigint> {
+  try {
+    return BigInt((await rpc().viewAccount({ accountId })).amount);
+  } catch (err) {
+    if (/does not exist|UNKNOWN_ACCOUNT/i.test(String(err))) return 0n;
+    throw err;
+  }
+}
+
 /** Current epoch height (garden unlock check). */
 export async function currentEpoch(): Promise<bigint> {
   const v = await rpc().viewValidators();

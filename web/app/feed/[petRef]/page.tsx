@@ -12,6 +12,7 @@ import {
   type PayMode,
 } from "@/components/wallet/brainApi";
 import { PantryCard } from "@/components/garden/PantryCard";
+import { FaucetPanel } from "@/components/wallet/FaucetPanel";
 import { PetHeader } from "@/components/wallet/PetHeader";
 import { PetPage } from "@/components/wallet/PetPage";
 import { ErrorText, Panel, SimulatedPill, TxStatus } from "@/components/wallet/ui";
@@ -19,6 +20,7 @@ import type { PetData } from "@/components/wallet/usePet";
 import { useTx } from "@/components/wallet/useTx";
 import { BrainRequestError } from "@/lib/brain";
 import { eventData, formatNear, tx } from "@/lib/chain";
+import { withGas } from "@/lib/faucet";
 import { brainErrorCopy, CANCELLED, isWalletRejection } from "@/lib/errors";
 import { useWallet } from "@/lib/wallet";
 
@@ -115,6 +117,7 @@ function Feed({ pet }: { pet: PetData }) {
   return (
     <>
       <PetHeader pet={pet} />
+      {activeMode === "direct" && <FaucetPanel need={withGas(pack.feed_yocto)} />}
       <Panel>
         <h2 className="font-display text-lg">Pick a pack</h2>
         <div className="grid grid-cols-3 gap-2">
