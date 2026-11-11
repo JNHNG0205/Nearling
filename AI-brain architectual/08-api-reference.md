@@ -14,16 +14,16 @@ Base: `https://<brain-host>`. JSON unless noted. Big numbers (yocto) are strings
 | Method, path | Auth | Body / query | Returns |
 |---|---|---|---|
 | `GET /auth/nonce` | P | | `{ nonce (base64, 32 bytes), message: "Sign in to Nearling", recipient: "nearling" }` |
-| `POST /session` | P | `{ accountId, publicKey, signature, nonce }` | `{ token, accountId, expires_at }` |
+| `POST /session` | P | `{ accountId, publicKey, signature, nonce }`; `signature` as base64, `ed25519:<base58>` or hex | `{ token, accountId, expires_at }` |
 
 ## Pets
 
 | Method, path | Auth | Returns |
 |---|---|---|
 | `GET /pets/:petRef/state` | P | `PetState` (below) |
-| `GET /me/pets` | S | owned pets on both contracts with `PetState` |
-| `PUT /pets/:petRef/profile` | S | `{ nickname?, owner_tz? }` |
-| `GET /pets/:petRef/stream` | S | SSE: `state`, `fuel_charged`, `fuel_added`, `inbox`, `paired`, `approval_ready`, `approval_status`, `evolved` |
+| `GET /me/pets` | S | `{ pets: PetState[] }`: pets the session account owns on `PETS_CONTRACT` and `DEMO_PETS_CONTRACT` (`nft_tokens_for_owner`, up to 50 each) |
+| `PUT /pets/:petRef/profile` | S (owner) | Body `{ nickname?, owner_tz? }`, at least one. `nickname`: up to 24 letters, digits, spaces or `.'_-`, stored encrypted, used in the talk prompt for this owner only. `owner_tz`: IANA zone (e.g. `Asia/Kuala_Lumpur`), used for greetings and quiet hours. `null` or `""` clears. Returns `{ pet_ref, nickname, owner_tz }` |
+| `GET /pets/:petRef/stream` | S | SSE: `state`, `fuel_charged`, `fuel_added`, `inbox`, `paired`, `approval_ready`, `approval_status`, `evolved`. Ownership is re-checked every 60 s; after a transfer the stream sends `event: closed` (`{ reason: "not_owner" }`) and ends |
 | `GET /pets/:petRef/timeline` | P | `TimelineItem[]` |
 
 ```ts
@@ -51,6 +51,7 @@ interface PetState {
 | `GET /audio/:key` | P (unguessable key, 24 h) | | `audio/wav` or `audio/mpeg` |
 | `GET /receipts/:turnId` | S, or P if published | | Receipt (03 section 7) |
 | `POST /receipts/:turnId/publish` | S | | `{ public: true }` |
+| `GET /pets/:petRef/receipts?public=1` | P with `public=1`, else S (owner) | | `{ receipts: Receipt[] }`, newest first, at most 20; `public=1` lists only published ones (for `/p/[petRef]`) |
 | `GET /attestation` | P | | latest attestation summary per model |
 | `GET /pets/:petRef/inbox?after=<id>` | D or S | | `InboxItem[]` |
 | `POST /pets/:petRef/inbox/ack` | D or S | `{ up_to }` | `{ ok }` |
@@ -99,6 +100,10 @@ interface PetState {
 | `POST /race/rooms/:code/join` | P | `{ race_token, slot }` |
 | `GET /race/ws?code=` | D or race_token | WebSocket (06 section 3) |
 | `GET /race/matches/:id` | P | result |
+
+## Brain signing keys (config)
+
+A function-call key works for one receiver contract, so the brain has one key set per pets contract: `BRAIN_KEYS_PETS` (falls back to `BRAIN_KEYS`) for `PETS_CONTRACT` and `BRAIN_KEYS_DEMO` for `DEMO_PETS_CONTRACT`, all comma-separated keys of `BRAIN_ACCOUNT_ID`. One signer per contract is built at start (`deps.brain.forContract`) and shared by the charge worker and the hourly garden sweep, so they share nonce lanes. Charges for a contract without keys stay queued (`last_error = no_signer`). The feeder (`FEEDER_ACCOUNT_ID`, `FEEDER_KEY`) is likewise one shared signer (`deps.feeder`).
 
 ## Ops (team only, basic auth)
 

@@ -58,6 +58,15 @@ const Env = z.object({
     .string()
     .default("")
     .transform((s) => s.split(",").map((k) => k.trim()).filter(Boolean)),
+  /** Brain function-call keys per contract (B4): a key works for one receiver only. PETS falls back to BRAIN_KEYS. */
+  BRAIN_KEYS_PETS: z
+    .string()
+    .default("")
+    .transform((s) => s.split(",").map((k) => k.trim()).filter(Boolean)),
+  BRAIN_KEYS_DEMO: z
+    .string()
+    .default("")
+    .transform((s) => s.split(",").map((k) => k.trim()).filter(Boolean)),
   GLOBAL_DAILY_SPEND_CAP_USD: z.coerce.number().nonnegative().default(5),
   /** Tests only (CLAUDE.md rule 5): canned fake inference, never in the demo path. */
   MOCK_AI: z
