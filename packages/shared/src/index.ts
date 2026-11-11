@@ -141,6 +141,78 @@ export interface TalkResponse {
   feed_url?: string;
 }
 
+/** `GET /pets/:petRef/inbox` item (AI-brain architectual/08). */
+export interface InboxItem {
+  id: number;
+  /** e.g. `fuel_low`, `morning`, `fed`; billed triggers that fell back to a canned line end in `:canned` in the DB, shown here without it */
+  trigger: string;
+  /** true when no inference produced the text (free) */
+  canned: boolean;
+  text: string;
+  turn_id: string | null;
+  created_at: number;
+  delivered_device_at: number | null;
+  read_at: number | null;
+}
+
+export type TimelineKind =
+  | "minted"
+  | "fed"
+  | "thoughts_day"
+  | "staked"
+  | "staked_from_food"
+  | "unstaked"
+  | "unstake_withdrawn"
+  | "soul_updated"
+  | "stage_up"
+  | "owner_changed"
+  | "dormant"
+  | "revived"
+  | "credit_swept";
+
+/** `GET /pets/:petRef/timeline` item (AI-brain architectual/08). */
+export interface TimelineItem {
+  id: number;
+  kind: TimelineKind;
+  actor: string | null;
+  /**
+   * yocto for fed / staked / staked_from_food / unstaked / unstake_withdrawn, new version for
+   * soul_updated, new stage index for stage_up, total micro-USD for thoughts_day
+   */
+  amount: string | null;
+  /** null only on snapshot rows */
+  tx_hash: string | null;
+  /** ms; block time for event rows, detection time for snapshot rows, newest thought for thoughts_day */
+  at: number;
+  /** "event": a contract EVENT_JSON log; "snapshot": get_pet diff, used only while the indexer fails */
+  source: "event" | "snapshot";
+  /** thoughts_day only: number of thoughts that UTC day and the day itself (YYYY-MM-DD) */
+  count?: number;
+  day?: string;
+}
+
+/** `GET /receipts/:turnId` (AI-brain architectual/03 section 7). */
+export interface Receipt {
+  turn_id: string;
+  pet_ref: string;
+  at: number | null;
+  soul_version: number | null;
+  model: string | null;
+  verification: {
+    status: string;
+    signature_kind: string | null;
+    signer: string | null;
+    req_hash: string | null;
+    resp_hash: string | null;
+    reason: string | null;
+    public: boolean;
+    attestation: { id: string; fetched_at: number; nras: "pass" | "fail" | null; tdx: string; nras_jwt_signature: string } | null;
+  };
+  fuel: { cost_micro: number | null; source: string | null; tx: string | null; status: string | null } | null;
+  provider_cost_usd: number | null;
+  voice: { provider: string; note: string } | null;
+}
+
 export type BrainErrorCode =
   | "unauthorized"
   | "not_owner"

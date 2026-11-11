@@ -37,6 +37,30 @@ export interface PetPalette {
   pattern: Pattern;
   /** 16 RGB entries; entry 0 is transparent and never drawn. */
   rgb: Rgb[];
+  /** Shirt overlay colours, indexed like the overlay layer (raster.ts `SHIRT`): [unused, cloth, shade, trim]. Null = no shirt. */
+  shirt: Rgb[] | null;
+}
+
+/**
+ * Closet shirt colours (Build Spec 5). The shirts contract has one design ("Nearling Shirt"),
+ * so each token gets a colour from its id with `shirtColourIndex`. [cloth, shade, trim]
+ */
+export const SHIRT_COLOURS: ReadonlyArray<{ name: string; colours: readonly [Rgb, Rgb, Rgb] }> = [
+  { name: "red", colours: [[214, 64, 64], [160, 40, 48], [255, 214, 204]] },
+  { name: "blue", colours: [[64, 104, 216], [40, 70, 160], [214, 228, 255]] },
+  { name: "yellow", colours: [[250, 196, 40], [196, 140, 24], [255, 246, 200]] },
+  { name: "purple", colours: [[140, 84, 200], [96, 56, 148], [236, 214, 255]] },
+  { name: "green", colours: [[56, 168, 88], [32, 118, 60], [214, 248, 220]] },
+  { name: "orange", colours: [[240, 128, 40], [184, 88, 24], [255, 228, 196]] },
+  { name: "teal", colours: [[32, 160, 168], [20, 110, 120], [204, 246, 246]] },
+  { name: "white", colours: [[240, 240, 236], [184, 188, 196], [96, 132, 208]] },
+];
+
+/** Colour rule (firmware uses the same): h = h * 31 + char code over the token id, as uint32; colour = h % 8. */
+export function shirtColourIndex(tokenId: string): number {
+  let h = 0;
+  for (let i = 0; i < tokenId.length; i++) h = (Math.imul(h, 31) + tokenId.charCodeAt(i)) >>> 0;
+  return h % SHIRT_COLOURS.length;
 }
 
 export function lookFromTraits(traits: readonly number[]): { bodyIndex: number; pattern: Pattern } {
@@ -45,7 +69,11 @@ export function lookFromTraits(traits: readonly number[]): { bodyIndex: number; 
   return { bodyIndex: t0 % BODY_PALETTES.length, pattern: PATTERNS[t2 % PATTERNS.length] ?? "plain" };
 }
 
-export function buildPalette(traits: readonly number[], variant: "normal" | "grey" = "normal"): PetPalette {
+export function buildPalette(
+  traits: readonly number[],
+  variant: "normal" | "grey" = "normal",
+  shirt: string | null = null,
+): PetPalette {
   const { bodyIndex, pattern } = lookFromTraits(traits);
   const base = BODY_PALETTES[bodyIndex] ?? BODY_PALETTES[0]!;
   const [outline, body, shade, light] = variant === "grey" ? GREY : base.colours;
@@ -57,7 +85,12 @@ export function buildPalette(traits: readonly number[], variant: "normal" | "gre
   for (const [i, c] of Object.entries(FIXED)) rgb[Number(i)] = variant === "grey" ? toGrey(c) : c;
   rgb[14] = pattern === "belly" ? light : body;
   rgb[15] = pattern === "spots" ? shade : body;
-  return { name: variant === "grey" ? `${base.name}-grey` : base.name, pattern, rgb };
+  let shirtRgb: Rgb[] | null = null;
+  if (shirt !== null) {
+    const cloth = (SHIRT_COLOURS[shirtColourIndex(shirt)] ?? SHIRT_COLOURS[0]!).colours;
+    shirtRgb = [[0, 0, 0], ...cloth.map((c) => (variant === "grey" ? toGrey(c) : c))];
+  }
+  return { name: variant === "grey" ? `${base.name}-grey` : base.name, pattern, rgb, shirt: shirtRgb };
 }
 
 function toGrey([r, g, b]: Rgb): Rgb {

@@ -113,40 +113,45 @@ nearling/
 └── docs/                        # MILESTONES.md, CONTRACT_INTERFACE.md (client quick reference), abi/ (generated ABIs), Build Spec
 ```
 
-**Team split (4 people):**
-| Role | Owns |
-|---|---|
-| 1. Contract | `contract/`, `scripts/`, NEARON integration on-chain, device key + approvals |
-| 2. Web + brain | `web/`, `brain/` (chat, NEAR AI, billing, memory, persona, scheduler, STT), `packages/shared/`, NEAR Connect login |
-| 3. Device: body | `firmware/` screens, sprites, touch to pet, mic/audio; `art/` (sprite sheet feeds web and firmware) |
-| 4. Device: link | `firmware/` Wi-Fi, pairing, on-device signing (ed25519, Borsh, RPC), approve flow; brain `pairing.ts` and `actions.ts`; `docs/hardware/`. Works with Role 1 on spike S5 |
+**Team split (4 people, as worked) [updated 2026-11-11]:**
+| Role | People | Owns |
+|---|---|---|
+| 1. Contract | 1 | `contract/`, `shirts/`, `scripts/`, NEARON integration on chain, device key + on-chain approvals (kept in code) |
+| 2. Web + brain | 1 | **All server code:** `brain/` (talk, NEAR AI, receipts, fuel and charge queue, Feed the Brain, Garden sweep, pairing, care, Closet, wallet approvals, race server, proactive inbox), `web/`, `packages/` (`shared`, `race`, `sprites`), NEAR Connect login, deployment (`docs/DEPLOY.md`, CI) |
+| 3 + 4. Hardware | 2 | `firmware/` (C++, PlatformIO), 3D-printed case, soldering and wiring, screens, buttons and sensors, audio, Wi-Fi and pairing client, race C++ port (must match `packages/race` golden vectors), `docs/hardware/` |
 
-Both device owners must be physically available Nov 8 to 14 and each needs a board. Role 2 keeps the web to core pages first (adopt, pet home, device page, public page); shop is P1.
+Roles 3 and 4 are one hardware team of two; the brain routes the device calls (pairing, talk, care, Closet, approvals, race) are built by Role 2 and documented in `AI-brain architectual/08-api-reference.md`. Pets are procedural sprites from `packages/sprites` (no separate art owner).
 
 ---
 
 ## 4. Architecture
 
+Hybrid scope as built [updated 2026-11-11]:
+
 ```
-                 NEAR testnet
-   ┌────────────────────────────────────────────┐
-   │ pets contract (NFT + budget ledger + stats) │◄── NEARON (iNEAR pool, CREDIT, sub-pool shares)
-   └────────────────────────────────────────────┘
-        ▲ view/call          ▲ charge()/credit()          ▲ play / stake_from_food / approve_action (device key)
-        │                    │                            │
-   Web app (NEAR Connect) ─► Brain service ◄────────────── Device (ESP32-S3)
-                             - persona, memory, proactive pings
-                             - bills each thought
-                             - NEAR AI org topped up with NEARON CREDIT
-                                    │
-                                    ▼
-                   NEAR AI Cloud staging API (private TEE models,
-                   chat; speech-to-text [VERIFY on staging])
+                       NEAR testnet
+   ┌──────────────────────────────────────────────┐     ┌──────────────────────────┐
+   │ pets-v8 / pets-demo: pet NFT, fuel budget,   │◄───►│ NEARON iNEAR pool         │
+   │ Soul, stake, events  ·  shirts: Closet NFTs  │     │ stake -> CREDIT           │
+   └──▲──────────────▲──────────────────▲─────────┘     └────────────┬─────────────┘
+      │ mint, feed,  │ charge (1 fuel), │ feed after a settled        │ sweep_credit:
+      │ stake, Soul, │ sweep_credit     │ order (feeder account)      │ CREDIT top-up
+      │ shirt claim, │                  │                             ▼
+      │ wallet tx    │                  │                    NEAR AI Cloud org (staging)
+   Phone web app ──HTTPS, SSE──► Brain service (Node 22, Hono, SQLite) ──► private TEE chat,
+   (Next.js, NEAR Connect,       talk + receipts, memory, inbox,            whisper, attestation
+    Meteor signs value tx)       pairing, care, Closet, approvals, race
+                                     ▲            │
+                    HTTPS + race WS  │            └──► NEAR Intents 1Click (mainnet; dry quotes
+                                     │                 unless a human enables live)
+                  Nearling device (ESP32-S3, 240x240 screen, buttons, touch pad,
+                  motion + light sensors, speaker): hold to talk, offline care,
+                  Closet, Nearling Run, hold-to-approve for wallet actions
 ```
 
-- **On-chain is the source of truth** for ownership, budget, stake, stage, xp, traits, items.
-- **Brain service** owns conversation, memory, billing and proactive messages. It is the only account allowed to call `charge` and `credit`.
-- **Web and device are clients.** Neither talks to NEAR AI directly.
+- **On-chain is the source of truth** for ownership, fuel (food + staking credit), stake, Soul, stage and xp. Care (mood, milestones, winged form) is brain and device state (1.1).
+- **Brain service** owns conversation, memory, receipts, billing, proactive messages, pairing, race rooms and approval requests. It is the only account allowed to call `charge` and `credit`; its feeder account calls `feed` for settled orders.
+- **Web and device are clients.** Neither talks to NEAR AI directly. The device holds no chain key in the demo path: value actions are approved on the device, then signed in Meteor on the phone.
 
 ---
 
@@ -377,26 +382,30 @@ Node 22 + Hono, TypeScript. Holds the `brain` NEAR account key and the NEAR AI s
 
 ### 8.1 NEAR AI
 - **Base URL:** `https://cloud-stg-api.near.ai/v1` (staging, OpenAI-compatible, Bearer key) [FIXED for hackathon].
-- **Default model:** `openai/gpt-oss-120b` (private, TEE with attestation). Alternative: `Qwen/Qwen3.6-35B-A3B-FP8` (private). Do **not** use non-private models for chat. [VERIFY S1 latency]
+- **Default model:** `z-ai/glm-5.3-flash` (private, `verifiable: true`, $0.075 in / $0.25 out per 1M tokens) [FIXED 2026-11-11 from S1, see section 14]. `openai/gpt-oss-120b` is listed as private but staging has **no attestation provider** for it (`/attestation/report` HTTP 503), so its receipts could never be verified. Alternative with attestation: `Qwen/Qwen3.6-35B-A3B-FP8`. Do **not** use non-private models for chat. [VERIFY S1 latency: blocked, the staging key in `.env` is rejected]
 - **Speech-to-text:** `POST /v1/audio/transcriptions`, multipart, `model=openai/whisper-large-v3`, ≤ 25 MB, WAV/MP3/WEBM/FLAC/OGG/M4A (production docs) [VERIFY on staging].
 - **Cost per reply:** compute from returned token usage × model price, or the billing "costs by request IDs" endpoint (nano-USD per `inference-id`) [VERIFY S2].
 
 ### 8.2 API
-| Route | Auth | Purpose |
+**As built [updated 2026-11-11]: the full route list, auth and payloads are in `AI-brain architectual/08-api-reference.md`** (that file wins over this summary). Pets are addressed by `:petRef` = URL-encoded `contract:token_id`, so one brain serves `pets-v8` and `pets-demo`.
+
+| Group | Main routes | Auth |
 |---|---|---|
-| `POST /session` | NEP-413 signed message from owner wallet | Session token for that owner |
-| `POST /pets/:id/chat` | session or device token | `{text}` or multipart `{audio}` → reply, cost, updated stats, sprite state |
-| `GET /pets/:id/state` | public | Stats, life state, sprite, stage, items, budget, self-sustaining |
-| `GET /pets/:id/inbox` | session or device token | Proactive messages since a cursor |
-| `POST /pets/:id/pair` | session | Start pairing; returns a 6-digit code |
-| `POST /devices/claim` | pairing code | Device gets a device token bound to pet + owner |
+| Identity | `GET /auth/nonce`, `POST /session` (NEP-413 signed message → JWT) | public |
+| Pet | `GET /pets/:petRef/state`, `/timeline`, `/stream` (SSE) | public / session |
+| Talk | `POST /pets/:petRef/talk` (text or audio, client `request_id` for safe retries), `GET /receipts/:turnId`, `/audio/:key`, `/attestation` | session or `Authorization: Device <token>` |
+| Feed the Brain | `GET /feed/packs`, `POST /orders`, `GET /orders/:id`, `POST /orders/:id/direct-tx` | public |
+| Device pairing | `POST /devices/hello`, `GET /devices/pairing`, `POST /devices/pairing/confirm` (headers `X-Device-Id`, `X-Device-Secret`); the web claims with `POST /pairings/:token/claim`. QR code with a 128-bit token, not a 6-digit code | device secret / session |
+| Care, Closet, inbox | `POST /pets/:petRef/care`, `GET /pets/:petRef/closet`, `POST .../closet/equip`, `GET /pets/:petRef/inbox` | session or device |
+| Wallet approvals | `POST /approvals`, `/approvals/:id/approve`, `/reject`, `/submitted` | device / session |
+| Race | `POST /race/rooms`, `POST /race/rooms/:code/join`, `GET /race/ws` (WebSocket), `GET /race/matches/:id` | public, race token or device |
 
 ### 8.3 Chat flow
 1. `get_pet`. Starving or Dormant (no fuel) → canned "Low Fuel" reply, no charge; device care still works.
 2. Audio → transcribe.
 3. Prompt = the pet's **Soul** from chain (`get_soul`, version shown on the receipt) + pet state (stage, fullness, shirt, owner nickname) + memory summary + last 10 turns. Replies ≤ 2 sentences for device, ≤ 4 for web.
-4. Chat completion on the private model, non-streaming. Structured tail with `trait_deltas`, `xp_gain`, `mood_delta`, `sprite_state` [TBD: single call with JSON output preferred].
-5. Call `charge(pet, config.fuel_price_micro, usage_ref = inference id, ...)` (hybrid 1.1: one chat = one fuel). Retries with the same `usage_ref` never double-charge. Log the real provider cost separately. Voice playback (TTS) runs after the reply text is saved (Build Spec 2).
+4. Chat completion on the private model, non-streaming, one call. The model returns plain dialogue that starts with one emotion tag (`[happy] [excited] [sleepy] [sad] [hungry] [curious] [silly]`; missing or unknown = `happy`) that drives the animation. No structured tail [FIXED 2026-11-11]: the brain does not ask the model for trait, xp or mood deltas.
+5. Call `charge(pet, config.fuel_price_micro, usage_ref = turn id, trait_deltas = null, xp_gain = 1, mood_delta = 1)` from a queue after the reply is saved (hybrid 1.1: one chat = one fuel). Retries with the same `usage_ref` never double-charge. Log the real provider cost separately. Voice playback (TTS) runs after the reply text is saved (Build Spec 2).
 6. Append to memory; summarise every 20 turns.
 
 ### 8.3b Feed the Brain (hybrid 1.1)
@@ -416,15 +425,26 @@ Every 15 min: proactive message rules (5.5). Hourly: call `sweep_credit()` to mo
 
 Next.js (App Router), TypeScript. **Wallet: NEAR Connect** (`@hot-labs/near-connect`) [FIXED]: wallets include HOT, Meteor, Intear, MyNearWallet, Nightly, Near Mobile Wallet, OKX and WalletConnect; filter `testnet: true`; sign-in with signed message (NEP-413). Email/social login only through Privy-based wallets [VERIFY S3]. Add a limited access key only after the user is active (it costs a transaction).
 
+**Routes as built [updated 2026-11-11]** (`[petRef]` = `contract:token_id`; details in `web-app architectual/03-pages-and-flows.md`):
+
 | Route | Purpose |
 |---|---|
-| `/` | Landing: what Nearling is, adopt button, a live public pet |
-| `/adopt` | Name the egg, mint, hatching animation |
-| `/pet/[id]` | Animated pet, stat bars, chat, inbox, feed / stake / play / sleep, budget ("credit $0.42 + food 0.8 NEAR = 9 days"), self-sustaining badge, cost per reply |
-| `/pet/[id]/shop` | Accessories |
-| `/pet/[id]/device` | Pair a device, add the device key (wallet `AddKey` with receiver = pets contract, methods = `play`, `stake_from_food`, `approve_action`, allowance 1 NEAR), turn approval mode on/off |
-| `/pet/[id]` actions | When approval mode is on, Stake / Unstake / Withdraw create a pending action and show "Approve on your Nearling" until the device approves |
-| `/p/[id]` | Public read-only pet page |
+| `/` | Landing: pitch, live demo-speed pet, try it / I have a Nearling |
+| `/adopt` | Name the egg, optional Soul, Normal or Demo speed contract, mint, hatching |
+| `/hatch?t=<token>` | Hatch & Pair from the device QR: connect, mint or pick a pet, wait for the device button |
+| `/pet/[petRef]` | Browser Nearling (240x240 screen), fuel, text and hold-to-talk chat with receipt badges, care (pat, rock, lights off), inbox, links |
+| `/pet/[petRef]/receipts`, `/receipt/[turnId]` | Turn list and one receipt (verification checks, Soul version, fuel tx, publish opt-in) |
+| `/feed/[petRef]`, `/order/[orderId]` | Feed the Brain: packs, NEAR wallet (testnet), NEAR Intents (when enabled), Simulated (labelled); order status |
+| `/pet/[petRef]/closet` | Claim the free shirt NFT, wear / take off |
+| `/pet/[petRef]/soul` | Read and edit the on-chain Soul |
+| `/pet/[petRef]/garden` | Brain Garden: plant (stake), take out (unstake, withdraw), credit ticker, self-sustaining |
+| `/pet/[petRef]/device` | Paired device status, unpair |
+| `/approve/[approvalId]`, `/wallet` | Device-approved wallet actions signed in Meteor; balances and saved recipients (P1) |
+| `/race`, `/race/[code]` | Nearling Run rooms, browser racer |
+| `/p/[petRef]` | Public pet page with timeline, published receipts, Feed this pet, OG image |
+| `/privacy` | What is verified and what is not |
+
+Not built: the shop (`buy_item`), the AddKey device-key page and approval-mode toggle (on-chain approvals are not the demo path, 1.1).
 
 Stretch: NEP-366 sponsored transactions via a relayer so new players pay no gas.
 
@@ -463,6 +483,8 @@ Stretch: NEP-366 sponsored transactions via a relayer so new players pay no gas.
 
 Pixel art, 64×64 base sprite, 4 stages × about 12 states. One palette that reads on the device screen. Sprite-sheet JSON (frame name → rect) shared by web and firmware.
 
+**Decision 2026-11-11:** procedural 32×32 sprites from `packages/sprites` (no art owner; ×6 on the 240 px screen, quarter of the flash), shared by web and firmware via `art/nearling_sprites.h`; spec in `web-app architectual/07-pet-animation.md`.
+
 ---
 
 ## 12. Scope
@@ -489,16 +511,14 @@ Pixel art, 64×64 base sprite, 4 stages × about 12 states. One palette that rea
 
 ## 13. Timeline (Nov 7 to 14)
 
-| Day | 1. Contract | 2. Web + brain | 3. Device: body | 4. Device: link |
-|---|---|---|---|---|
-| Nov 7 | Interfaces (sections 5 to 8); spike S6 | Spikes S1, S2, S3 | Art style, sprite list; S4 (screen, touch, mic) | S4 (Wi-Fi, HTTPS); start S5 |
-| Nov 8 | NFT mint, feed, get_pet stats | Chat on private model; adopt + pet home | Sprite rendering, idle animations | Wi-Fi, `/state` polling |
-| Nov 9 | charge with caps, life states | Billing, memory; chat UI, stats, budget | Touch to pet, being-petted animation | Pairing on device + brain `pairing.ts` |
-| Nov 10 | NEARON stake/unstake, credit | Persona, trait deltas, scheduler; feed / stake UI, inbox | Hold-to-talk record + upload, reply scroll | Key gen, Borsh, `play` signed from device |
-| Nov 11 | Stages, traits, transfer rule, device key, `stake_from_food` | Proactive messages, STT, limits; public page, device page (AddKey) | New-message alert, food screen | `stake_from_food` from device; brain `actions.ts` |
-| Nov 12 | Approval flow (propose / approve / cancel) | Approval banner, spend cap, shop (P1) | Approve screen UI, polish | `approve_action` signing; approval end to end with Role 1 |
-| Nov 13 | Integration, seed demo pets | Integration, README screenshots | Film device shots | Device integration test, `docs/hardware/` |
-| Nov 14 | Final testnet deploy | Demo video, X post (human posts) | Buffer | Buffer |
+**Updated 2026-11-11.** The original per-day plan (pre-hybrid, four separate roles) is past; what actually landed and what is left:
+
+| When | 1. Contract | 2. Web + brain | Hardware (2 people) |
+|---|---|---|---|
+| Nov 7 to 10 (done) | M0 to M5b: S6 spike, mint, feed, charge, NEARON stake, approvals, Soul, shirts; `pets-v8`, `pets-demo`, `shirts` deployed and seeded (`docs/MILESTONES.md`) | Brain: talk + receipts, fuel and charge queue, Feed the Brain, Garden sweep, pairing, care, Closet, wallet approvals, race server, proactive inbox. Web: all routes in section 9. Shared types, race rules, sprites | Case, wiring, firmware (see `firmware/` and `docs/hardware/`) |
+| Nov 11 to 12 | Brain function-call keys, feeder account, `org_id` (`docs/LIMITATIONS.md` B3, C1, C2) | First end-to-end testnet run (LIMITATIONS B2), spikes S1, S2, S3, S7, deploy (`docs/DEPLOY.md`), README | Device against the hosted brain: pairing, talk, race golden vectors |
+| Nov 13 | Final deploy only if needed, re-seed | Integration fixes, screenshots | Film device shots |
+| Nov 14 | Buffer | Demo video; X post and submission are human actions | Buffer |
 
 **Submit before 2026-11-14T23:59Z (Nov 15 07:59 MYT).** Human submits.
 
@@ -517,6 +537,20 @@ Pixel art, 64×64 base sprite, 4 stages × about 12 states. One palette that rea
 | S7 | NEARON CREDIT top-up into the staging NEAR AI org; whisper on staging | Brain spends CREDIT for chat and STT |
 
 Record results here.
+
+### S1/S2/S7 results (Role 2, 2026-11-11, `brain/scripts/spike-nearai.ts`, `attest-check.ts`, `tts-check.ts`)
+The `NEARAI_API_KEY` in `.env` is rejected by staging (`401 invalid_api_key` on `/chat/completions`, `/audio/transcriptions` and auth-only routes), so every check that needs a key is still open. Rerun `spike-nearai.ts` with a fresh staging key; it stops after the first 401.
+| Question | Result |
+|---|---|
+| `/model/list` format | Public (no key). `{ models, limit: 100, offset, total: 74 }`; each entry `modelId`, `inputCostPerToken` / `outputCostPerToken` as `{ amount, scale: 9, currency }`, `metadata.verifiable`. Matches `parseModelList` |
+| Prices (nano-USD per token, in / out) | `z-ai/glm-5.3-flash` 75 / 250, `openai/gpt-oss-120b` 150 / 550, `Qwen/Qwen3.6-35B-A3B-FP8` 170 / 1100, `openai/whisper-large-v3` 10 / 10; all four `verifiable: true` |
+| Chat latency p50 / p95, token usage, `inference-id` header, `/billing/costs`, json_schema | **Not measured** (key rejected). Estimate for the 800 in / 100 out prompt: $0.000085 per reply on GLM-5.3-flash, $0.000175 on gpt-oss-120b |
+| `/attestation/report` | **Public** (no key; a bad key makes it 401, so the brain sends none). Nonce is echoed in `gateway_attestation.request_nonce` and in each `model_attestations[].request_nonce` (no top-level field). GLM-5.3-flash: 1 model attestation with `nvidia_payload` (JSON string) and `signing_address`, plus a gateway attestation (TDX quote only, no GPU payload). gpt-oss-120b: HTTP 503 "No provider found that supports attestation reports". Qwen3.6-35B and DeepSeek-V4.1-Flash: HTTP 200 |
+| NVIDIA NRAS | Accepts the GLM `nvidia_payload` as is: overall result true, `eat_nonce` = our nonce. `refreshAttestation` ends `ok`, 1 model signer, gateway signer present, in about 2 s |
+| `/signature/{chat_id}`, `signature_kind`, end-to-end `model_verified` | **Not run** (needs a completion, key rejected) |
+| Whisper on staging (WAV, WEBM, `language=en`) | **Not run** (key rejected). Test clips: an ElevenLabs WAV and its Opus WEBM (`SPIKE_AUDIO=a.wav,b.webm`) |
+| ElevenLabs `eleven_flash_v2_5`, `pcm_16000` | Works with a **premade** voice: 44 characters in 483 ms, valid WAV (RIFF size correct, PCM mono 16 kHz 16-bit, 2.28 s, real signal), billed 22 credits (0.5 per character). The voice id in `.env` is a library voice: the free plan gets **402 `paid_plan_required`** for it, so `TTS_VOICE_ID` must be a premade voice (e.g. Jessica, playful and warm) |
+| ElevenLabs credits check | `/v1/user/subscription` works: tier free, limit 10,000 characters; `character_count` updates within a minute |
 
 ### S6 results (2026-11-07, spike contract `s6-spike.nearling.testnet`, code in `spikes/s6-nearon/`)
 | Question | Result |

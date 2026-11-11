@@ -32,15 +32,15 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** The reply receipt (design.md 6.2). `sample` marks example data on the landing page. */
-export function ReceiptCard({ receipt, footer, sample }: { receipt: Receipt; footer?: ReactNode; sample?: boolean }) {
+/** The reply receipt (design.md 6.2). */
+export function ReceiptCard({ receipt, footer }: { receipt: Receipt; footer?: ReactNode }) {
   const checks = receiptChecks(receipt);
   const fuel = receipt.fuel;
   const ref = encodeURIComponent(receipt.pet_ref);
   return (
-    <article className="pixel-panel flex flex-col gap-3 p-4" aria-label={sample ? "Sample receipt" : "Reply receipt"}>
+    <article className="pixel-panel flex flex-col gap-3 p-4" aria-label="Reply receipt">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-display text-xl">{sample ? "Sample receipt" : "Reply receipt"}</h2>
+        <h2 className="font-display text-xl">Reply receipt</h2>
         <VerifyChip status={receipt.verification.status} />
       </div>
       {receipt.verification.status === "unverified" && receipt.verification.reason && (
@@ -51,7 +51,7 @@ export function ReceiptCard({ receipt, footer, sample }: { receipt: Receipt; foo
           {(receipt.soul_version ?? 0) > 0 ? (
             <>
               <span className="font-mono">v{receipt.soul_version}</span>{" "}
-              {!sample && <Link href={`/pet/${ref}/soul`} className="text-accent underline underline-offset-4">View the Soul</Link>}
+              <Link href={`/pet/${ref}/soul`} className="text-accent underline underline-offset-4">View the Soul</Link>
             </>
           ) : "Default personality (no Soul set)"}
         </Row>
@@ -71,9 +71,7 @@ export function ReceiptCard({ receipt, footer, sample }: { receipt: Receipt; foo
             1 thought
             {fuel?.source ? ` . ${SOURCE[fuel.source] ?? fuel.source}` : ""}
             {fuel?.tx ? (
-              sample ? ` . tx ${shortHash(fuel.tx)}` : (
-                <> . <a className={`${css.txLink} text-accent`} href={`${EXPLORER_TX}${fuel.tx}`} target="_blank" rel="noreferrer">tx {shortHash(fuel.tx)}</a></>
-              )
+              <> . <a className={`${css.txLink} text-accent`} href={`${EXPLORER_TX}${fuel.tx}`} target="_blank" rel="noreferrer">tx {shortHash(fuel.tx)}</a></>
             ) : " . charging"}
           </span>
         </Row>

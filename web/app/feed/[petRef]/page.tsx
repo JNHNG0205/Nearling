@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   createOrder,
-  DEFAULT_PACKS,
   getPacks,
   reportDirectTx,
   simulatePay,
@@ -49,13 +48,19 @@ function Feed({ pet }: { pet: PetData }) {
   useEffect(() => {
     getPacks()
       .then(setPacks)
-      .catch(() => {
-        setPacks(DEFAULT_PACKS);
-        setBrainDown(true);
-      });
+      // no made-up packs: prices and fuel come only from the brain
+      .catch(() => setBrainDown(true));
   }, []);
 
+  if (!packs && brainDown) {
+    return (
+      <p role="alert" className="text-sm text-danger">
+        {"Feed packs could not load from Nearling's brain. Check your connection and refresh the page."}
+      </p>
+    );
+  }
   if (!packs) return <p className="font-mono text-sm text-muted">Loading packs...</p>;
+  if (packs.packs.length === 0) return <p className="text-sm text-muted">No feed packs are on sale right now.</p>;
   // live mode stays hidden unless the brain enables it (each live payment needs human approval)
   const modes = packs.modes.filter((m) => m === "direct" || m === "live" || m === "simulated");
   const activeMode = modes.includes(mode) ? mode : modes[0] ?? "direct";

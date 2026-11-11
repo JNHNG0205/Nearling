@@ -225,6 +225,34 @@ describe("receipt routes", () => {
     expect((await app.request("/receipts/nope", as(owner.token))).status).toBe(404);
   });
 
+  it("lists a pet's published receipts publicly, newest first, at most 20 (D6)", async () => {
+    const deps = testDeps();
+    const add = deps.db.prepare(
+      "INSERT INTO verification (turn_id, pet_ref, model, status, public, created_at, updated_at) VALUES (?, ?, ?, 'pending', ?, ?, ?)",
+    );
+    for (let i = 0; i < 22; i++) add.run(`pub-${i}`, PET, MODEL, 1, 1000 + i, 1000 + i);
+    add.run("private-1", PET, MODEL, 0, 5000, 5000);
+    add.run("other-pet", "pets-v8.nearling.testnet:2", MODEL, 1, 6000, 6000);
+    const app = createApp(deps, [receiptsModule]);
+
+    const res = await app.request(`/pets/${PET}/receipts?public=1`);
+    expect(res.status).toBe(200);
+    const { receipts } = (await res.json()) as { receipts: { turn_id: string; verification: { public: boolean } }[] };
+    expect(receipts).toHaveLength(20);
+    expect(receipts[0]!.turn_id).toBe("pub-21");
+    expect(receipts[19]!.turn_id).toBe("pub-2");
+    expect(receipts.every((r) => r.verification.public)).toBe(true);
+
+    // Without public=1 only the owner may list, and sees unpublished ones too.
+    expect((await app.request(`/pets/${PET}/receipts`)).status).toBe(401);
+    const owner = await issueSession(deps, "alice.testnet");
+    const all = (await (await app.request(`/pets/${PET}/receipts`, { headers: { Authorization: `Bearer ${owner.token}` } })).json()) as {
+      receipts: { turn_id: string }[];
+    };
+    expect(all.receipts[0]!.turn_id).toBe("private-1");
+    expect((await app.request("/pets/elsewhere.testnet:1/receipts?public=1")).status).toBe(400);
+  });
+
   it("joins turn and charge_job when those tables exist", async () => {
     fakeNet({ signature: () => signed(modelKey, `${MODEL}:${REQ_H}:${RES_H}`, "provider_tee") });
     const deps = setup();

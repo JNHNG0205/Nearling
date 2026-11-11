@@ -107,7 +107,7 @@ interface TtsProvider { synth(text: string, voice: string): Promise<{ mime: stri
 
 **Provider decided: ElevenLabs** (team has 10,000 credits). Kokoro stays as the fallback backend of the same interface.
 
-- `elevenlabs`: model **Flash v2.5** (about 0.5 credit per character, lowest latency [VERIFY on our plan's pricing page]); output **PCM 16 kHz** or WAV so the ESP32 plays it through the MAX98357 without an MP3 decoder (confirm with firmware); store in `audio_blob` 24 h, return `audio_url`.
+- `elevenlabs`: model **Flash v2.5** (0.5 credit per character, measured 2026-11-11: 44 characters cost 22 credits, 483 ms); `TTS_VOICE_ID` must be a **premade** voice, since the free plan gets 402 `paid_plan_required` for library voices; output **PCM 16 kHz** wrapped in WAV (verified: valid header, mono 16-bit) so the ESP32 plays it through the MAX98357 without an MP3 decoder (confirm with firmware); store in `audio_blob` 24 h, return `audio_url`.
 - `kokoro`: fallback only (self-hosted container, same interface), switched on with `TTS_PROVIDER=kokoro` if credits run out.
 - `none`: text only.
 - TTS failure never fails the turn: `audio_url` = null, the device shows the text (Build Spec: "text remains available").
@@ -129,7 +129,7 @@ A reply is about 100 to 150 characters, so about 75 credits on Flash: **about 13
 
 Build Spec: verify the attestation **before** the model call, keep exact bytes, verify the signature, show prompt version and **Model verified / Gateway verified / Unverified**.
 
-1. **Before**: `attestation` row younger than 30 min for the model, else refresh (fresh 32-byte nonce, `GET /attestation/report?model=..&signing_algo=ecdsa&nonce=..`, NVIDIA NRAS check of each `nvidia_payload`: `x-nvidia-overall-att-result` true and `eat_nonce` matches). If refresh fails, the turn still runs but its receipt can only be `unverified`.
+1. **Before**: `attestation` row younger than 30 min for the model, else refresh (fresh 32-byte nonce, `GET /attestation/report?model=..&signing_algo=ecdsa&nonce=..`, NVIDIA NRAS check of each `nvidia_payload`: `x-nvidia-overall-att-result` true and `eat_nonce` matches). The report is public (sent without the API key) and echoes the nonce in `gateway_attestation.request_nonce` and each `model_attestations[].request_nonce`; the gateway part has a TDX quote but no GPU payload, so a gateway signer needs only the nonce echo. Seen on staging 2026-11-11: GLM-5.3-flash passes NRAS; `openai/gpt-oss-120b` has no attestation provider (HTTP 503), so it cannot be the default model. If refresh fails, the turn still runs but its receipt can only be `unverified`.
 2. **After**: `req_hash = sha256(rawReq)`, `resp_hash = sha256(rawRes)`, `GET /signature/{chat_id}?model=..&signing_algo=ecdsa` with retries on 404 (10 x 1 s).
 3. `provider_tee`: text must equal `model:req_hash:resp_hash`, recovered signer must match exactly one verified model signer -> **Model verified**. `gateway`: text `req_hash:resp_hash`, signer = gateway signer -> **Gateway verified**. Anything else -> **Unverified** with a reason.
 4. Bytes are dropped after hashing. Only hashes, signer and status are stored.

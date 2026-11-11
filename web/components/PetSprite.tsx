@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import {
-  SIZE, clip, paletteFor, stageFromChain, stateAnim, toRgba,
+  SIZE, clip, paletteFor, personalityFromTraits, stageFromChain, stateAnim, toRgba,
   type AnyAnim, type DisplayState,
 } from "@nearling/sprites";
 
@@ -10,6 +10,8 @@ export interface PetSpriteProps {
   traits: readonly number[];
   stageIndex: number; // contract stage 0..3
   winged: boolean;
+  /** Equipped Closet shirt token id (`PetState.equipped_shirt`), or null for none. */
+  shirt?: string | null;
   state: DisplayState; // the loop when nothing else plays
   /** One-shot or override animation. Change `playKey` to replay the same animation. */
   play?: AnyAnim | null;
@@ -22,10 +24,11 @@ export interface PetSpriteProps {
 /**
  * Draws a Nearling on a 32x32 canvas scaled by an integer factor. Looping clips run until
  * `play` changes; one-shot clips (pat, eat, celebrate, evolve, egg_hatch) end and fall back
- * to the state loop. Reduced motion: holds the first frame.
+ * to the state loop. Reduced motion: holds the first frame. Traits pick the colour, pattern and
+ * personality variant; an equipped shirt is drawn as its own layer over the body.
  */
 export function PetSprite({
-  traits, stageIndex, winged, state, play = null, playKey, onDone, scale = 4, label = "Your Nearling",
+  traits, stageIndex, winged, shirt = null, state, play = null, playKey, onDone, scale = 4, label = "Your Nearling",
 }: PetSpriteProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const doneRef = useRef(onDone);
@@ -38,13 +41,13 @@ export function PetSprite({
     if (!canvas || !ctx) return;
 
     const stage = stageFromChain(stageIndex);
-    const look = { stage, winged };
     const t = traitsKey.split(",").map(Number);
+    const look = { stage, winged, shirt, personality: personalityFromTraits(t) };
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const image = ctx.createImageData(SIZE, SIZE);
 
     let current = clip(play ?? stateAnim(state), look);
-    let palette = paletteFor(t, current);
+    let palette = paletteFor(t, current, shirt);
     let start = performance.now();
     let lastFrame = -1;
     let raf = 0;
@@ -52,7 +55,7 @@ export function PetSprite({
     const draw = (i: number) => {
       const frame = current.frames[i];
       if (!frame) return;
-      image.data.set(toRgba(frame, palette));
+      image.data.set(toRgba(frame, palette, current.shirt?.[i]));
       ctx.clearRect(0, 0, SIZE, SIZE);
       ctx.putImageData(image, 0, 0);
     };
@@ -72,7 +75,7 @@ export function PetSprite({
           // one-shot finished: back to the state loop
           doneRef.current?.();
           current = clip(stateAnim(state), look);
-          palette = paletteFor(t, current);
+          palette = paletteFor(t, current, shirt);
           start = now;
           i = 0;
           lastFrame = -1;
@@ -86,7 +89,7 @@ export function PetSprite({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [traitsKey, stageIndex, winged, state, play, playKey]);
+  }, [traitsKey, stageIndex, winged, shirt, state, play, playKey]);
 
   const px = SIZE * Math.max(1, Math.round(scale));
   return (

@@ -1,9 +1,9 @@
 // Draws one frame of a Nearling from a pose. Pure function: same pose, same pixels,
 // so web, brain and the firmware export always agree.
-import { C, SIZE, blank, ellipse, outline, px, rect, stamp, type Bitmap } from "./raster";
+import { C, SHIRT, SIZE, blank, ellipse, get, outline, px, rect, stamp, type Bitmap } from "./raster";
 
-export type Eyes = "open" | "blink" | "closed" | "happy" | "dizzy" | "up" | "half" | "sad" | "big";
-export type Mouth = "smile" | "open" | "o" | "flat" | "frown" | "wavy" | "chomp" | "none";
+export type Eyes = "open" | "blink" | "closed" | "happy" | "dizzy" | "up" | "half" | "sad" | "big" | "left" | "right";
+export type Mouth = "smile" | "open" | "o" | "flat" | "frown" | "wavy" | "chomp" | "smirk" | "none";
 export type BodyStage = "baby" | "teen" | "adult";
 
 export interface Fx {
@@ -46,6 +46,8 @@ const EYES: Record<Eyes, { rows: string[]; ox: number; oy: number }> = {
   up: { rows: ["56", "55", ".."], ox: 0, oy: -1 },
   half: { rows: ["55", "55"], ox: 0, oy: 1 },
   sad: { rows: ["5.", "56", "55"], ox: 0, oy: 0 },
+  left: { rows: ["65", "55", "55"], ox: -1, oy: 0 }, // curious: looks around
+  right: { rows: ["56", "55", "55"], ox: 1, oy: 0 },
 };
 
 const MOUTHS: Record<Mouth, string[]> = {
@@ -56,6 +58,7 @@ const MOUTHS: Record<Mouth, string[]> = {
   frown: [".5.", "5.5"],
   wavy: [".5.5", "5.5."],
   chomp: ["5.5.5", ".5.5."],
+  smirk: ["..5", "55."], // sassy: lopsided grin
   none: [],
 };
 
@@ -77,7 +80,7 @@ export interface PetLook {
   winged: boolean;
 }
 
-export function drawPet(pose: Pose, look: PetLook): Bitmap {
+export function drawPet(pose: Pose, look: PetLook): PetLayers {
   const b = blank();
   const { rx: brx, ry: bry, sprout } = BODY[look.stage];
   const squash = Math.max(0, Math.min(3, pose.squash));
@@ -129,8 +132,40 @@ export function drawPet(pose: Pose, look: PetLook): Bitmap {
 
   outline(b, C.outline);
 
-  // 4. face
+  // 4. shirt (separate layer, its own palette): the lower body below the mouth, inside the
+  // outline, following squash and offsets. Top row is the collar; shaded pixels stay shaded.
   const ey = Math.round(cy - 2 + (squash > 1 ? 1 : 0));
+  const shirt = blank();
+  const shirtTop = Math.min(ey + 5, Math.round(cy + ry) - 3);
+  const mx = Math.round(cx);
+  for (let y = shirtTop; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      const dx = (x + 0.5 - cx) / rx;
+      const dy = (y + 0.5 - cy) / ry;
+      if (dx * dx + dy * dy > 1) continue;
+      const under = get(b, x, y);
+      if (!BODY_PIXELS.has(under)) continue;
+      // collar: a small V of trim at the neckline, leaving the body showing above it
+      const collar = (y === shirtTop && Math.abs(x + 0.5 - mx) <= 2) || (y === shirtTop + 1 && Math.abs(x + 0.5 - mx) <= 1);
+      if (y === shirtTop && !collar) {
+        px(shirt, x, y, SHIRT.cloth);
+        continue;
+      }
+      px(shirt, x, y, collar ? SHIRT.trim : under === C.shade ? SHIRT.shade : SHIRT.cloth);
+    }
+  }
+  // hem: one trim row along the bottom edge of the shirt
+  for (let x = 0; x < SIZE; x++) {
+    for (let y = SIZE - 1; y >= shirtTop + 2; y--) {
+      if (shirt[y * SIZE + x] !== SHIRT.clear) {
+        if (shirt[(y - 1) * SIZE + x] !== SHIRT.clear) shirt[y * SIZE + x] = SHIRT.shade;
+        break;
+      }
+    }
+  }
+  const beforeFace = b.slice();
+
+  // 5. face (drawn over the shirt)
   const e = EYES[pose.eyes];
   const eyeGap = look.stage === "baby" ? 3 : 4;
   stamp(b, Math.round(cx) - eyeGap - 1 + e.ox, ey + e.oy, e.rows);
@@ -143,9 +178,21 @@ export function drawPet(pose: Pose, look: PetLook): Bitmap {
   const mw = m[0]?.length ?? 0;
   stamp(b, Math.round(cx) - Math.floor(mw / 2), ey + 4, m);
 
-  // 5. effects, positioned from the body centre
+  // 6. effects, positioned from the body centre (also over the shirt)
   for (const f of pose.fx) stamp(b, Math.round(cx + f.x), Math.round(cy + f.y), FX[f.kind]);
-  return b;
+
+  // the shirt layer leaves a hole wherever the face or an effect was drawn, so
+  // "frame, then shirt where non-zero" gives body < shirt < face < effects
+  for (let i = 0; i < b.length; i++) if (b[i] !== beforeFace[i]) shirt[i] = SHIRT.clear;
+  return { frame: b, shirt };
+}
+
+const BODY_PIXELS: ReadonlySet<number> = new Set([C.body, C.shade, C.light, C.belly, C.spot]);
+
+export interface PetLayers {
+  frame: Bitmap;
+  /** Shirt overlay (raster.ts `SHIRT` indices), drawn over `frame` where non-zero. */
+  shirt: Bitmap;
 }
 
 export interface EggPose {

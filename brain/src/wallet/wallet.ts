@@ -99,6 +99,8 @@ const CreateBody = z.object({
   receiver_id: z.string(),
   amount_yocto: Amount.optional(),
   token_id: z.string().regex(/^\d+$/).optional(),
+  /** owner-started transfer_pet only: which pet (the device route uses its bound pet) */
+  pet_ref: z.string().optional(),
 });
 const RecipientBody = z.object({ label: z.string().min(1).max(32), account_id: z.string() });
 const SubmittedBody = z.object({ tx_hash: z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{43,44}$/) });
@@ -164,12 +166,26 @@ export function walletRoutes(deps: Deps, over: { rpc?: NearRpc } = {}) {
 
   // ---------- approvals ----------
 
-  app.post("/approvals", deviceOnly, async (c) => {
-    const caller = c.get("caller");
-    if (caller.kind !== "device") return err(c, 403, "unauthorized", "Device only");
+  app.post("/approvals", anyCaller, async (c) => {
+    const who = c.get("caller");
     const body = CreateBody.safeParse(await c.req.json().catch(() => null));
     if (!body.success) return err(c, 400, "invalid", "Bad approval request");
     const { kind, receiver_id, amount_yocto, token_id } = body.data;
+    // Build Spec 8: the owner may start a pet transfer on the phone; it still binds to the pet's
+    // paired device, and only that device can approve it. Send and stake start on the device only.
+    let caller: { account: string; deviceId: string; petRef: string };
+    if (who.kind === "device") {
+      caller = who;
+    } else {
+      if (kind !== "transfer_pet" || !body.data.pet_ref) {
+        return err(c, 403, "unauthorized", "Start send and stake on your Nearling");
+      }
+      const dev = db
+        .prepare("SELECT id FROM device WHERE pet_ref = ? AND owner_account = ? AND revoked_at IS NULL AND token_hash IS NOT NULL")
+        .get(body.data.pet_ref, who.account) as { id: string } | undefined;
+      if (!dev) return err(c, 409, "conflict", "Pair a Nearling to approve transfers");
+      caller = { account: who.account, deviceId: dev.id, petRef: body.data.pet_ref };
+    }
     const ref = parsePetRef(caller.petRef);
     if (!ref) return err(c, 400, "invalid", "Device has no pet");
     const pet = await chain.getPet(ref.contract, ref.tokenId);

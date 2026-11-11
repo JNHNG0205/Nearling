@@ -46,6 +46,36 @@ export function createSigner(accountId: string, keys: string[], rpcUrl: string):
   };
 }
 
+/** Brain signers per pets contract (B4): a function-call key works for one receiver only. */
+export interface BrainSigners {
+  /** The one shared signer for this contract (same lanes for charges and sweeps), or null without keys. */
+  forContract(contractId: string): TxSigner | null;
+}
+
+interface BrainKeyConfig {
+  BRAIN_ACCOUNT_ID: string;
+  PETS_CONTRACT: string;
+  DEMO_PETS_CONTRACT: string;
+  BRAIN_KEYS: string[];
+  BRAIN_KEYS_PETS: string[];
+  BRAIN_KEYS_DEMO: string[];
+  NEAR_RPC_URLS: string[];
+}
+
+/**
+ * Built once in server.ts. `BRAIN_KEYS_PETS` (fallback `BRAIN_KEYS`) sign for PETS_CONTRACT,
+ * `BRAIN_KEYS_DEMO` for DEMO_PETS_CONTRACT. Any other contract gets null.
+ */
+export function createBrainSigners(cfg: BrainKeyConfig, make: typeof createSigner = createSigner): BrainSigners {
+  const rpc = cfg.NEAR_RPC_URLS[0] ?? "https://rpc.testnet.near.org";
+  const byContract = new Map<string, TxSigner | null>();
+  byContract.set(cfg.DEMO_PETS_CONTRACT, make(cfg.BRAIN_ACCOUNT_ID, cfg.BRAIN_KEYS_DEMO, rpc));
+  // PETS last, so it wins if both names point at the same contract.
+  const petsKeys = cfg.BRAIN_KEYS_PETS.length > 0 ? cfg.BRAIN_KEYS_PETS : cfg.BRAIN_KEYS;
+  byContract.set(cfg.PETS_CONTRACT, make(cfg.BRAIN_ACCOUNT_ID, petsKeys, rpc));
+  return { forContract: (id) => byContract.get(id) ?? null };
+}
+
 interface RawOutcome {
   transaction?: { hash?: string };
   transaction_outcome?: { id?: string };

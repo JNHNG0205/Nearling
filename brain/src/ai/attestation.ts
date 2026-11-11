@@ -159,11 +159,11 @@ export async function refreshAttestation(deps: Deps, model: string): Promise<Att
   return toAttestation(row);
 }
 
+/** The report is public on staging (seen 2026-11-11), so no API key is sent: a bad key would 401 it. */
 async function fetchReport(deps: Deps, model: string, nonce: string): Promise<Report> {
-  if (!deps.cfg.NEARAI_API_KEY) throw new Error("no NEAR AI API key");
   const qs = new URLSearchParams({ model, signing_algo: "ecdsa", nonce });
   const res = await io.fetch(`${deps.cfg.NEARAI_BASE_URL}/attestation/report?${qs}`, {
-    headers: { accept: "application/json", Authorization: `Bearer ${deps.cfg.NEARAI_API_KEY}` },
+    headers: { accept: "application/json" },
   });
   if (!res.ok) throw new Error(`attestation report http ${res.status}`);
   return (await res.json()) as Report;
