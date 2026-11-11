@@ -10,11 +10,13 @@ export function CountUp({ to, decimals = 0, ms = 1200, className = "" }: { to: n
   useEffect(() => {
     const el = ref.current;
     if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    setValue(0);
+    // Show the real value until the count actually starts, so screenshots, crawlers and
+    // anyone who never scrolls here see the true figure, never 0.
     let raf = 0;
     const io = new IntersectionObserver(([entry]) => {
       if (!entry?.isIntersecting) return;
       io.disconnect();
+      setValue(0);
       const start = performance.now();
       const tick = (now: number) => {
         const k = Math.min(1, (now - start) / ms);

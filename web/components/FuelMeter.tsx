@@ -32,7 +32,7 @@ export function FuelMeter({ fuel, name = "the pet" }: { fuel: PetState["fuel"]; 
           <span key={i} className={`h-4 w-3 border-2 border-line ${i < filled ? colour : "bg-surface"}`} />
         ))}
       </div>
-      <span className="font-mono text-sm">{thoughts(fuel.left)}</span>
+      <span className="whitespace-nowrap font-mono text-sm">{thoughts(fuel.left)}</span>
     </div>
   );
 }

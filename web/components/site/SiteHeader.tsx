@@ -12,13 +12,14 @@ export function SiteHeader() {
   useTimezoneSync();
   return (
     <header className="border-b-2 border-line">
-      <div className="mx-auto flex min-h-16 max-w-[1200px] flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2 md:px-6">
-        <Link href="/" className="font-display text-2xl leading-8 font-bold md:text-[32px]">Nearling</Link>
-        <nav aria-label="Main" className="flex flex-1 gap-4 text-sm md:gap-6">
+      {/* one row at 390 px too: no wrap, tighter gaps and wordmark on phones */}
+      <div className="mx-auto flex min-h-16 max-w-[1200px] items-center gap-x-3 px-4 py-2 md:gap-x-6 md:px-6">
+        <Link href="/" className="font-display text-xl leading-8 font-bold md:text-[32px]">Nearling</Link>
+        <nav aria-label="Main" className="flex flex-1 gap-3 text-sm md:gap-6">
           <Link href="/my" className="hover:text-accent">My pets</Link>
           <Link href="/race" className="hover:text-accent">Race</Link>
         </nav>
-        <ConnectButton compact />
+        <ConnectButton compact label="Connect wallet" />
       </div>
     </header>
   );

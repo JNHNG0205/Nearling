@@ -179,3 +179,18 @@ describe("timeline snapshot diff", () => {
     ]);
   });
 });
+
+describe("timeline after a redeploy on the same account", () => {
+  it("hides events from before the pet's own birth", async () => {
+    const born = 1_800_000_000_000; // ms
+    const deps = testDeps({ pets: { "1": { ...TEST_PET, born_at_ns: (BigInt(born) * 1_000_000n).toString() } } });
+    const ins = deps.db.prepare(
+      "INSERT INTO pet_event (pet_ref, kind, actor, amount, tx_hash, source, block_ts) VALUES (?, 'minted', ?, NULL, ?, 'event', ?)",
+    );
+    ins.run("pets-v8.nearling.testnet:1", "old-owner.testnet", "OLDTX", born - 86_400_000); // previous deploy
+    ins.run("pets-v8.nearling.testnet:1", "alice.testnet", "NEWTX", born);
+    const res = await createApp(deps).request("/pets/pets-v8.nearling.testnet:1/timeline");
+    const items = (await res.json()) as TimelineItem[];
+    expect(items.map((i) => i.tx_hash)).toEqual(["NEWTX"]);
+  });
+});

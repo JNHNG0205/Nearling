@@ -176,21 +176,25 @@ interface DayRow {
 }
 
 /** Newest first; thoughts folded into one `thoughts_day` row per UTC day. */
-export function readTimeline(deps: Deps, contract: string, petRef: string, limit: number): TimelineItem[] {
+/**
+ * `sinceMs`: the pet's own birth (get_pet born_at_ns). A contract redeployed on the same account
+ * reuses token ids, so older events for the same pet_ref belong to a previous pet and are hidden.
+ */
+export function readTimeline(deps: Deps, contract: string, petRef: string, limit: number, sinceMs = 0): TimelineItem[] {
   const rows = deps.db
     .prepare(
       `SELECT id, kind, actor, amount, tx_hash, block_ts, source FROM pet_event
-       WHERE (pet_ref = ? OR pet_ref = ?) AND kind != 'thought' ORDER BY block_ts DESC, id DESC LIMIT ?`,
+       WHERE (pet_ref = ? OR pet_ref = ?) AND kind != 'thought' AND block_ts >= ? ORDER BY block_ts DESC, id DESC LIMIT ?`,
     )
-    .all(petRef, contract, limit) as EventRow[];
+    .all(petRef, contract, sinceMs, limit) as EventRow[];
   // SQLite returns the other bare columns from the row holding MAX(block_ts): the day's latest tx.
   const days = deps.db
     .prepare(
       `SELECT MAX(block_ts) AS at, MAX(id) AS id, tx_hash, block_ts / ${DAY_MS} AS day, COUNT(*) AS n,
          SUM(CAST(amount AS INTEGER)) AS total
-       FROM pet_event WHERE pet_ref = ? AND kind = 'thought' GROUP BY day ORDER BY day DESC LIMIT ?`,
+       FROM pet_event WHERE pet_ref = ? AND kind = 'thought' AND block_ts >= ? GROUP BY day ORDER BY day DESC LIMIT ?`,
     )
-    .all(petRef, limit) as DayRow[];
+    .all(petRef, sinceMs, limit) as DayRow[];
   const items: TimelineItem[] = [
     ...rows.map(({ block_ts, ...r }): TimelineItem => ({ ...r, at: block_ts })),
     ...days.map(
@@ -214,13 +218,17 @@ export function timelineRoutes(deps: Deps) {
   const app = new Hono();
   const allowed = [deps.cfg.PETS_CONTRACT, deps.cfg.DEMO_PETS_CONTRACT];
 
-  app.get("/pets/:petRef/timeline", (c) => {
+  app.get("/pets/:petRef/timeline", async (c) => {
     const ref = parsePetRef(c.req.param("petRef"));
     if (!ref || !allowed.includes(ref.contract)) {
       return c.json({ error: { code: "invalid", message: "Unknown pet reference" } }, 400);
     }
     const limit = Math.min(Math.max(Number(c.req.query("limit") ?? 50) || 50, 1), 100);
-    return c.json(readTimeline(deps, ref.contract, formatPetRef(ref.contract, ref.tokenId), limit));
+    const pet = await deps.chain.getPet(ref.contract, ref.tokenId);
+    if (!pet) return c.json({ error: { code: "not_found", message: "No such pet" } }, 404);
+    // 1 s of slack: the mint block's timestamp equals born_at
+    const sinceMs = Math.max(0, Math.floor(Number(BigInt(pet.born_at_ns) / 1_000_000n)) - 1000);
+    return c.json(readTimeline(deps, ref.contract, formatPetRef(ref.contract, ref.tokenId), limit, sinceMs));
   });
 
   return app;
