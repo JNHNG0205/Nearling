@@ -16,7 +16,7 @@ import {
 import { authHeaders, useSession } from "@/lib/session";
 import { useStream } from "@/lib/useStream";
 import { useTalk } from "@/lib/useTalk";
-import { InboxPanel, InboxToast } from "./Inbox";
+import { InboxPanel, InboxToast, notifyInBackground } from "./Inbox";
 import { DemoSpeedPill, StatePill, stateBanner } from "./Pills";
 import { talkAnim, turnFromTalk } from "./talkFlow";
 
@@ -91,6 +91,7 @@ export function PetHome({ initial }: { initial: PetState }) {
       if (!item) return;
       setInbox((list) => (list.some((i) => i.id === item.id) ? list : [...list, item]));
       setToast(item);
+      notifyInBackground(pet.name, item.text);
     },
     evolved: () => {
       play("evolve");
@@ -141,10 +142,15 @@ export function PetHome({ initial }: { initial: PetState }) {
     }
   };
 
+  const unread = inbox.filter((i) => i.read_at === null).length;
   const openInbox = () => {
     setInboxOpen((o) => !o);
     const last = inbox.at(-1);
-    if (last && isOwner) void ackInbox(petRef, authHeaders(), last.id).catch(() => undefined);
+    if (last && isOwner && unread > 0) {
+      const at = Date.now();
+      setInbox((list) => list.map((i) => (i.read_at === null ? { ...i, read_at: at } : i)));
+      void ackInbox(petRef, authHeaders(), last.id).catch(() => undefined);
+    }
   };
 
   const lowFuel = pet.fuel.left === 0 || pet.display_state === "starving" || pet.display_state === "dormant";
@@ -162,7 +168,10 @@ export function PetHome({ initial }: { initial: PetState }) {
           {isOwner && (
             <button type="button" className="pixel-btn pixel-btn--secondary px-3 text-sm" onClick={openInbox}
               aria-expanded={inboxOpen}>
-              Inbox{inbox.length > 0 ? ` ${inbox.length}` : ""}
+              Inbox
+              {unread > 0 && (
+                <span className="ml-2 bg-accent px-1 font-mono text-bg" aria-label={`${unread} unread`}>{unread}</span>
+              )}
             </button>
           )}
         </div>
@@ -230,7 +239,7 @@ export function PetHome({ initial }: { initial: PetState }) {
         </div>
       )}
 
-      <ChatLog entries={entries} name={pet.name} readOnly={!isOwner} />
+      <ChatLog entries={entries} name={pet.name} readOnly={!isOwner} petRef={petRef} />
 
       <nav aria-label={`${pet.name} pages`} className="flex flex-wrap gap-2 border-t-2 border-line pt-4">
         {[
@@ -242,6 +251,7 @@ export function PetHome({ initial }: { initial: PetState }) {
           ["/race", "Race"],
           [`/pet/${ref}/receipts`, "Receipts"],
           [`/p/${ref}`, "Share"],
+          ...(isOwner ? [[`/pet/${ref}/settings`, "Settings"], [`/pet/${ref}/transfer`, "Give away"]] : []),
         ].map(([href, label]) => (
           <Link key={href} href={href!} className="pixel-btn pixel-btn--secondary px-3 text-sm">{label}</Link>
         ))}

@@ -8,7 +8,7 @@ import { NearlingFrame } from "@/components/nearling/NearlingFrame";
 import { DemoSpeedPill, StatePill } from "@/components/nearling/Pills";
 import { VerifyChip } from "@/components/talk/ReceiptCard";
 import {
-  BrainRequestError, EXPLORER_TX, getPetState, getReceipt, getTimeline, shortHash,
+  BrainRequestError, EXPLORER_TX, getPetState, getPublicReceipts, getTimeline, shortHash,
   type Receipt, type TimelineItem,
 } from "@/lib/brain";
 import { formatNear, timelineLine } from "@/components/nearling/timeline";
@@ -42,11 +42,10 @@ export async function generateMetadata({ params }: { params: Promise<{ petRef: s
 export default async function PublicPet({ params }: { params: Promise<{ petRef: string }> }) {
   const ref = decodeURIComponent((await params).petRef);
   const pet = await load(ref);
-  const timeline: TimelineItem[] = await getTimeline(ref, CACHE).catch(() => []);
-  const published = timeline.filter((t) => t.turn_id && /receipt/.test(t.kind)).slice(0, 3);
-  const receipts = (
-    await Promise.all(published.map((t) => getReceipt(t.turn_id!, CACHE).catch(() => null)))
-  ).filter((r): r is Receipt => r !== null && r.verification.public !== false);
+  const [timeline, receipts] = await Promise.all([
+    getTimeline(ref, CACHE).catch((): TimelineItem[] => []),
+    getPublicReceipts(ref, CACHE).catch((): Receipt[] => []),
+  ]);
   const events = timeline.filter((t) => !/receipt/.test(t.kind)).slice(0, 12);
   const enc = encodeURIComponent(ref);
 
@@ -87,12 +86,13 @@ export default async function PublicPet({ params }: { params: Promise<{ petRef: 
           <p className="text-muted">The owner has not published a receipt yet. Receipts stay private unless the owner opts in.</p>
         ) : (
           <ul className="grid gap-3 md:grid-cols-3">
-            {receipts.map((r) => (
+            {receipts.slice(0, 12).map((r) => (
               <li key={r.turn_id}>
                 <Link href={`/receipt/${encodeURIComponent(r.turn_id)}`} className="pixel-panel flex flex-col gap-2 p-3">
                   <VerifyChip status={r.verification.status} />
                   <span className="font-mono text-sm">{r.model ?? "model not recorded"} . Soul v{r.soul_version ?? 0}</span>
                   <span className="font-mono text-sm text-muted">{r.fuel?.tx ? `tx ${shortHash(r.fuel.tx)}` : "charging"}</span>
+                  {r.at != null && <span className="font-mono text-sm text-muted">{new Date(r.at).toISOString().slice(0, 16).replace("T", " ")} UTC</span>}
                 </Link>
               </li>
             ))}
