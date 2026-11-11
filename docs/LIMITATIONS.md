@@ -9,7 +9,7 @@ Severity: **Blocker** (the demo or submission fails without it), **High** (a hea
 | # | Item | Why it matters | Fix | Owner |
 |---|---|---|---|---|
 | B1 | No `LICENSE` file in the repo | HACKATHON.md requires one (MIT is fine) | Add `LICENSE` (MIT) | Team |
-| B2 | Nothing that writes to the chain has run end to end: `charge`, feeder `feed`, `sweep_credit`, and every wallet transaction from the web | "The pet pays for each thought" is the core claim; it is untested | Run the 13-step walkthrough in INTEGRATION_PLAN.md section 3 | Role 2 + you |
+| B2 | **Partly done 2026-11-11** (INTEGRATION_PLAN.md section 5, `scripts/e2e-chain.ts`): mint, `set_soul`, direct `feed` (checked by the brain's `verifyFeedTx`), feeder `feed` via the brain signer, shirt `claim` and `stake` ran on testnet and every event parses with the web and brain code. Still not run: brain `charge`, `sweep_credit`, wallet popups from the web; `unstake` is blocked (C6) | "The pet pays for each thought" is the core claim; `charge` is still untested | Run steps 1 to 6 and 12 of INTEGRATION_PLAN.md section 3 once brain keys exist (B3) | Role 2 + you |
 | B3 | Brain keys not configured: `BRAIN_ACCOUNT_ID` and `BRAIN_KEYS` empty in `.env`; `brain.nearling.testnet` has one full access key, no function-call keys | Every charge stays `queued`; fuel never drops after a chat | Contract teammate adds function-call keys per contract; fill `.env` (INTEGRATION_PLAN G2, G6) | Contract + Role 2 |
 | B4 | One brain key pool for both contracts, but a function-call key works for one receiver only; charge worker and garden sweep build separate signers on the same keys | Charges on `pets-demo` pets fail; nonce clashes between jobs | Per-contract key sets and one shared signer per contract (INTEGRATION_PLAN G3, G4) | Role 2 |
 | B5 | Not deployed: no Fly.io / Railway config for the brain, no Vercel project for the web, no public URLs | Judges need a hosted demo or a working local run; the device needs HTTPS | Add `brain/Dockerfile` + `fly.toml` (volume for SQLite), Vercel project rooted at `web/`, set env | Role 2 |
@@ -21,10 +21,11 @@ Severity: **Blocker** (the demo or submission fails without it), **High** (a hea
 | # | Item | Severity | Fix |
 |---|---|---|---|
 | C1 | `config.org_id` is `00000000-0000-0000-0000-000000000000` on `pets-v8` and `pets-demo` | High | `set_config` with our NEAR AI staging org UUID |
-| C2 | `feeder.nearling.testnet` has no keys and needs funds | High | Full access key (feeding attaches NEAR), 5 to 20 testnet NEAR; fill `FEEDER_ACCOUNT_ID` / `FEEDER_KEY` |
+| C2 | **Resolved 2026-11-11** for testing: faucet-funded feeder `nearling-feeder-s1zspx.testnet` (about 10 NEAR, full access key in the gitignored `brain/data/testnet-accounts.env`) fed a pet through `brain/src/chain/signer.ts`. Copy `FEEDER_ACCOUNT_ID` / `FEEDER_KEY` into `.env`; `feeder.nearling.testnet` itself still has no keys | Low | Top up from the faucet when `feeder balance low` alerts |
 | C3 | Real CREDIT top-up into the NEAR AI org never done (MILESTONES M3, S6/S7) | High | Needs C1 plus at least 0.01 CREDIT claimable (about 15 NEAR-days of stake across pets) |
 | C4 | Final testnet deploy and re-seed pending (MILESTONES M6, M7); a new `pets-vN` needs new brain function-call keys and `.env` updates | Medium | Agree a freeze date; redeploy once, then re-key |
 | C5 | Contract Rust tests not re-run on this branch (no Rust toolchain in this environment) | Low | `cargo test` in `contract/` and `shirts/` before submission |
+| C6 | **New 2026-11-11:** NEARON now requires 0.00772 NEAR attached to `unstake` (pool `get_account.unstake_deposit`, refunded on withdraw); the contract attaches 1 yocto, so every `unstake` on `pets-v8` and `pets-demo` fails and the callback keeps the stake (tx `AhFwj7C9SgkfTavhWp9EtY1jfj1XfWzDdGpJXvqYVeKj`). Staked pets cannot unstake or transfer | High | Contract: attach `unstake_deposit` to the pool call (owner pays it, refund passed on in `withdraw`), redeploy (C4), then `scripts/e2e-chain.ts --garden <id>` and `--withdraw <id>` |
 
 ## 3. AI brain
 
@@ -57,10 +58,10 @@ Severity: **Blocker** (the demo or submission fails without it), **High** (a hea
 | # | Item | Severity |
 |---|---|---|
 | F1 | NEAR Intents has no testnet. Live mode requests dry quotes only until a human sets `INTENTS_LIVE_CONFIRMED=1`; every live payment is a mainnet transaction that needs explicit approval | High |
-| F2 | 1Click request and response shapes, status list, destination asset (`nep141:wrap.near`), EXACT_OUTPUT pricing and route minimum are unverified; live pack prices are [TBD] | High (if live is demoed) |
+| F2 | **Resolved 2026-11-11** with dry quotes only (INTEGRATION_PLAN.md 5.5): shapes match the OpenAPI spec, `nep141:wrap.near` is right, Solana USDC route minimum 0.0604 NEAR out / 0.2215 USDC in; packs cost 0.37 / 1.86 / 3.71 USDC; live price = same NEAR as the testnet pack. Live (`dry: false`) is still never sent without a human | Low |
 | F3 | A failed feeder `feed` call marks the order failed and is not retried | Low |
-| F4 | `WALLET_VALIDATOR_POOL` default `legends.pool.f863973.m0` not confirmed live on testnet | Medium |
-| F5 | NEARON pool `get_account` fields beyond `claimable` unverified | Low |
+| F4 | **Resolved 2026-11-11:** `legends` is live but keeps 100% of rewards; default is now `stakely_v2.pool.f863973.m0` (active, 3% fee, `get_account_staked_balance` works) | Low |
+| F5 | **Resolved 2026-11-11:** real fields recorded (INTEGRATION_PLAN.md 5.3) and typed in `fuel/garden.ts`; `claimable` was already right. Watch `claim_deposit` (0 today) | Low |
 | F6 | Reading the NEAR AI org balance after a sweep is not implemented | Low |
 | F7 | The `credit` correction path exists in the contract but the brain never calls it (fuel is a flat price, so no corrections are needed) | Low |
 
