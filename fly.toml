@@ -1,0 +1,46 @@
+# Fly.io config for the Nearling brain. Steps: docs/DEPLOY.md. Deploy from the repo root.
+# One machine only: rate limits, per-pet locks, race rooms and SSE subscribers live in memory.
+app = "nearling-brain"            # change if the name is taken (fly apps create picks the real one)
+primary_region = "sin"
+
+[build]
+  dockerfile = "brain/Dockerfile"
+
+[env]
+  NEAR_NETWORK = "testnet"
+  PORT = "8787"
+  DB_PATH = "/data/nearling.db"
+  BACKUP_DIR = "/data/backups"
+  NEARAI_BASE_URL = "https://cloud-stg-api.near.ai/v1"
+  PETS_CONTRACT = "pets-v8.nearling.testnet"
+  DEMO_PETS_CONTRACT = "pets-demo.nearling.testnet"
+  SHIRTS_CONTRACT = "shirts.nearling.testnet"
+  NEARON_POOL = "mw-pool-1024.testnet"
+  # WEB_ORIGIN and PUBLIC_WEB_URL are set with `fly secrets set` once the Vercel URL is known.
+
+[mounts]
+  source = "nearling_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8787
+  force_https = true              # the device and the web need HTTPS; Fly terminates TLS
+  auto_stop_machines = "off"      # the scheduler, charge queue and race rooms must keep running
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "connections"          # SSE and race WebSockets are long-lived connections
+    soft_limit = 200
+    hard_limit = 250
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/health"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "20s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

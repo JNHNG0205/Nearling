@@ -1,0 +1,24 @@
+# Build context is the repo root (brain/Dockerfile). Keep it small and secret-free.
+**/node_modules
+**/.next
+**/target
+**/*.db
+**/*.db-*
+brain/data
+.env
+.env.*
+!.env.example
+.git
+.github
+.claude
+contract
+shirts
+spikes
+firmware
+art
+web
+docs
+conceptual
+AI-brain architectual
+web-app architectual
+*.md
