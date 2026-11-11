@@ -38,6 +38,7 @@ All device traffic is HTTPS (and `wss://` for the race) to the hosted brain; see
 | `PUT /pets/:petRef/profile` | S (owner) | Body `{ nickname?, owner_tz? }`, at least one. `nickname`: up to 24 letters, digits, spaces or `.'_-`, stored encrypted, used in the talk prompt for this owner only. `owner_tz`: IANA zone (e.g. `Asia/Kuala_Lumpur`), used for greetings and quiet hours. `null` or `""` clears. Returns `{ pet_ref, nickname, owner_tz }` |
 | `GET /pets/:petRef/stream` | S | SSE: `state`, `fuel_charged`, `fuel_added`, `inbox`, `paired`, `approval_ready`, `approval_status`, `evolved`. Ownership is re-checked every 60 s; after a transfer the stream sends `event: closed` (`{ reason: "not_owner" }`) and ends |
 | `GET /pets/:petRef/timeline?limit=50` | P | `TimelineItem[]`, newest first (below), max 100 |
+| `GET /pets/:petRef/metadata` | P | Latest public metadata pinned to IPFS (docs/IPFS.md): `{ version, json_cid, png_cid, gateway_url, image_url, pinned_at, on_chain }`. `gateway_url` / `image_url` are HTTPS gateway links for the JSON and PNG; `on_chain` is true when the NFT's NEP-177 `metadata.reference` is `ipfs://<json_cid>` (pets-v9 `set_metadata`). 404 `not_found` until the first pin (or always, while `PINATA_JWT` is unset) |
 
 ```ts
 interface PetState {
@@ -155,6 +156,10 @@ charge. `played`, `device_*`, `action_*` and `item_bought` are left out.
 ## Brain signing keys (config)
 
 A function-call key works for one receiver contract, so the brain has one key set per pets contract: `BRAIN_KEYS_PETS` (falls back to `BRAIN_KEYS`) for `PETS_CONTRACT` and `BRAIN_KEYS_DEMO` for `DEMO_PETS_CONTRACT`, all comma-separated keys of `BRAIN_ACCOUNT_ID`. One signer per contract is built at start (`deps.brain.forContract`) and shared by the charge worker and the hourly garden sweep, so they share nonce lanes. Charges for a contract without keys stay queued (`last_error = no_signer`). The feeder (`FEEDER_ACCOUNT_ID`, `FEEDER_KEY`) is likewise one shared signer (`deps.feeder`).
+
+### Pet metadata on IPFS (module `brain/src/metadata/`)
+
+Bus events `evolved`, `hatched` and `closet_equipped` (new, from `POST /pets/:petRef/closet/equip`, `{ equipped }`), plus a 60 s check of each known pet's look (name, Soul version, stage, form, shirt, traits), trigger a re-pin, debounced per pet to one run per 60 s. The PNG and the JSON are pinned only when their sha256 changed; each new JSON is a new row in `pet_metadata` (migration 700). If the pets contract has `set_metadata` (pets-v9; detected with a free view call, missing method = skip and log once, rechecked every 10 min), the brain signer calls it with `media`, `media_hash`, `reference`, `reference_hash` (base64 sha256). The brain function-call key needs `set_metadata` in its method list.
 
 ### Race WebSocket as built (additions to 06 section 3)
 

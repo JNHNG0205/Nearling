@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { SoulView } from "@nearling/shared";
 import { getTimeline, toMs, type TimelineItem } from "@/components/wallet/brainApi";
+import { IpfsLinks } from "@/components/nearling/IpfsLinks";
 import { SoulField } from "@/components/wallet/MintForm";
 import { OwnerGate } from "@/components/wallet/OwnerGate";
 import { PetPage } from "@/components/wallet/PetPage";
@@ -65,6 +66,7 @@ function Soul({ pet }: { pet: PetData }) {
           <p className="whitespace-pre-wrap">{soul.prompt}</p>
         )}
         <p className="text-sm text-muted">Every reply's receipt shows the Soul version it used.</p>
+        <IpfsLinks petRef={pet.ref} />
       </Panel>
 
       <OwnerGate owner={pet.chain!.owner} name={name} needSession={false}>

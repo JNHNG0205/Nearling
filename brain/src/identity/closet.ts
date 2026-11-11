@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { requirePetAccess, type AuthEnv } from "../auth/guard";
 import type { Deps, Module } from "../deps";
+import { publish } from "../events";
 import { ensureProfile } from "../profiles";
 import { fail, jsonBody, servedPet, servedPetRef } from "./common";
 
@@ -46,6 +47,7 @@ export function closetRoutes(deps: Deps) {
       return fail(c, 403, "not_owner", "That shirt is not in your closet");
     }
     db.prepare("UPDATE pet_profile SET equipped_shirt = ? WHERE pet_ref = ?").run(tokenId, ref.petRef);
+    publish(ref.petRef, "closet_equipped", { equipped: tokenId });
     return c.json({ equipped: tokenId });
   });
 

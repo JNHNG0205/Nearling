@@ -11,7 +11,7 @@ const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), "migrations
  * Opens SQLite and applies every `migrations/NNN_name.sql` not yet applied, in name order.
  * Number ranges per area so parallel work never edits the same file:
  *   001-099 foundation, 100-199 identity/devices/care, 200-299 talk/memory/receipts,
- *   300-399 fuel/orders/garden/wallet, 400-499 race, 500-599 proactive/inbox, 600-699 ops.
+ *   300-399 fuel/orders/garden/wallet, 400-499 race, 500-599 proactive/inbox, 600-699 ops, 700-709 IPFS metadata.
  * Raw SQL (no ORM): the schema is small and readable this way.
  */
 export function openDb(path: string): Db {

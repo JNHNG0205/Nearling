@@ -1,6 +1,6 @@
 // Shared review-sheet renderer: one row per clip, frames (or chosen columns) scaled ×4 on the UI background.
 import { SIZE, paletteFor, toRgba, type Clip } from "../src/index";
-import { encodePng } from "./png";
+import { encodePng } from "../src/png";
 
 export interface SheetRow {
   clip: Clip;
