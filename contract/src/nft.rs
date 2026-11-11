@@ -11,7 +11,7 @@ use near_contract_standards::non_fungible_token::metadata::{
 use near_contract_standards::non_fungible_token::{Token, TokenId};
 use near_sdk::json_types::U128;
 use near_sdk::serde_json::json;
-use near_sdk::{near, require, AccountId, PromiseOrValue};
+use near_sdk::{near, require, AccountId, NearToken, Promise, PromiseOrValue};
 use std::collections::HashMap;
 
 #[near]
@@ -53,7 +53,8 @@ impl NonFungibleTokenCore for Contract {
 impl Contract {
     /// Stake belongs to the owner, so it must be unstaked and withdrawn first. The new owner
     /// starts with no device and approval mode off; old device keys live on the old owner's
-    /// account anyway. Pending actions are dropped and their deposits refunded.
+    /// account anyway. Pending actions are dropped and their deposits refunded, and the pantry
+    /// (the owner's unspent NEAR, not the pet's food) goes back to the old owner.
     pub(crate) fn before_transfer(&mut self, token_id: &TokenId) {
         let owner = self.owner_of(token_id);
         let mut pet = self.load_pet(token_id);
@@ -69,7 +70,17 @@ impl Contract {
         }
         pet.approval_mode = false;
         self.drop_pending_actions(&mut pet, &owner);
+        let pantry = std::mem::take(&mut pet.pantry_yocto);
         self.save_pet(token_id, pet);
+        if pantry > 0 {
+            Promise::new(owner.clone())
+                .transfer(NearToken::from_yoctonear(pantry))
+                .detach();
+            events::emit(
+                "pantry_emptied",
+                json!({ "pet_id": token_id, "owner": owner, "amount": U128(pantry), "pantry": U128(0) }),
+            );
+        }
     }
 }
 

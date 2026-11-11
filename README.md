@@ -13,7 +13,7 @@ AI pets usually run on a company's servers and a company's bill. Nearling makes 
 ```
              NEAR testnet
    ┌──────────────────────────────────────┐        ┌───────────────────────────┐
-   │ pets contract (pets-v8)              │◄──────►│ NEARON iNEAR pool          │
+   │ pets contract (pets-v9)              │◄──────►│ NEARON iNEAR pool          │
    │ pet NFT · fuel budget · Soul · stake │ stake, │ (stake NEAR -> AI CREDIT)  │
    │ events (thought, fed, staked, ...)   │ sweep  └─────────────┬─────────────┘
    └──────▲───────────────▲───────────────┘                      │ CREDIT top-up
@@ -39,7 +39,7 @@ Everything below runs with the [NEAR CLI](https://github.com/near/near-cli-rs) (
 
 ```bash
 for id in 1 2 3 4; do
-  near contract call-function as-read-only pets-v8.nearling.testnet get_pet \
+  near contract call-function as-read-only pets-v9.nearling.testnet get_pet \
     json-args "{\"pet_id\":\"$id\"}" network-config testnet now
 done
 ```
@@ -49,14 +49,14 @@ You see `#1 Sunny` **Happy**, `#2 Crumb` **Hungry** (`budget_micro` 1000, `fulln
 **2. Read a pet's Soul**, its public, versioned personality:
 
 ```bash
-near contract call-function as-read-only pets-v8.nearling.testnet get_soul \
+near contract call-function as-read-only pets-v9.nearling.testnet get_soul \
   json-args '{"pet_id":"1"}' network-config testnet now
 ```
 
 **3. Adopt your own pet** (needs a funded testnet account, `YOU.testnet`):
 
 ```bash
-near contract call-function as-transaction pets-v8.nearling.testnet nft_mint_pet \
+near contract call-function as-transaction pets-v9.nearling.testnet nft_mint_pet \
   json-args '{"name":"Mochi","soul":"A shy, curious cat who loves rainy days."}' \
   prepaid-gas '50 Tgas' attached-deposit '0.2 NEAR' \
   sign-as YOU.testnet network-config testnet sign-with-keychain send
@@ -69,26 +69,26 @@ You see `nft_mint` and `soul_updated` events and the new token id. `get_pet` sho
 **5. Let it starve, then feed it:** on the demo-speed contract a fresh pet starves in about 14 minutes and goes dormant about 43 minutes later.
 
 ```bash
-near contract call-function as-transaction pets-demo.nearling.testnet nft_mint_pet \
+near contract call-function as-transaction pets-demo-v9.nearling.testnet nft_mint_pet \
   json-args '{"name":"Blink"}' prepaid-gas '50 Tgas' attached-deposit '0.105 NEAR' \
   sign-as YOU.testnet network-config testnet sign-with-keychain send
 # about an hour later: "life_state": "Dormant"
-near contract call-function as-transaction pets-demo.nearling.testnet feed \
+near contract call-function as-transaction pets-demo-v9.nearling.testnet feed \
   json-args '{"pet_id":"ID"}' prepaid-gas '30 Tgas' attached-deposit '0.1 NEAR' \
   sign-as YOU.testnet network-config testnet sign-with-keychain send
 ```
 
-You see `revived` and `fed`, and `life_state` goes from **Dormant** to **Hungry**: at demo speed 0.1 NEAR is about 4.8 hours of food, still short of the three days that count as full. `pets-demo` runs the same code with about 100× faster rates (`config.demo_speed = true`) and is labelled **demo speed** everywhere.
+You see `revived` and `fed`, and `life_state` goes from **Dormant** to **Hungry**: at demo speed 0.1 NEAR is about 4.8 hours of food, still short of the three days that count as full. `pets-demo-v9` runs the same code with about 100× faster rates (`config.demo_speed = true`) and is labelled **demo speed** everywhere.
 
 **6. Stake to live (Brain Garden):**
 
 ```bash
-near contract call-function as-transaction pets-v8.nearling.testnet stake \
+near contract call-function as-transaction pets-v9.nearling.testnet stake \
   json-args '{"pet_id":"ID"}' prepaid-gas '450 Tgas' attached-deposit '2 NEAR' \
   sign-as YOU.testnet network-config testnet sign-with-keychain send
 ```
 
-The contract deposits into the NEARON pool `mw-pool-1024.testnet`; `get_pet` now shows `staked`, `credit_micro` growing every second, and `"self_sustaining": true` once the daily credit covers the daily burn (2 NEAR is enough at the testnet farm rate of $0.000657 per NEAR per day). `unstake` and `withdraw` give the NEAR back after 12 to 24 hours.
+The contract deposits into the NEARON pool `mw-pool-1024.testnet`; `get_pet` now shows `staked`, `credit_micro` growing every second, and `"self_sustaining": true` once the daily credit covers the daily burn (2 NEAR is enough at the testnet farm rate of $0.000657 per NEAR per day). `unstake` (attach the pool's unstake deposit, `config().pool_unstake_deposit`, 0.00772 NEAR) and `withdraw` give the NEAR and the deposit back after 12 to 24 hours.
 
 **7. Claim a Closet shirt:**
 
@@ -130,7 +130,7 @@ _Still to be filled by the hardware team (Roles 3 and 4): photos, video, parts l
 | `privacy` | Every reply runs on a private (TEE) model on NEAR AI Cloud and comes with a receipt: GPU attestation with a fresh nonce, and a signature over the exact request and response hashes. Memories are encrypted at rest; logs hold ids and costs, never content |
 | `security` | See below |
 
-**NEARON:** the pets contract is the plain iNEAR holder of `mw-pool-1024.testnet`. It stakes per pet with `deposit_and_stake`, unstakes with `unstake` and `withdraw` (each with the 1 yocto the pool requires), and sweeps CREDIT into the brain's NEAR AI org with `sync_from_farm` + `claim_and_topup`. Per-pet credit accrues lazily on chain at the measured farm rate. A one-time house deposit at deploy (`register_pool`) absorbs the pool's first-deposit fee, so every pet stake is recorded 1:1 with the iNEAR actually held. Spike results: `CLAUDE.md` 14.
+**NEARON:** the pets contract is the plain iNEAR holder of `mw-pool-1024.testnet`. It stakes per pet with `deposit_and_stake`, unstakes with `unstake` (attaching the pool's unstake deposit, paid by the owner and returned with the withdrawal) and `withdraw` (1 yocto), and sweeps CREDIT into the brain's NEAR AI org with `sync_from_farm` + `claim_and_topup`. Per-pet credit accrues lazily on chain at the measured farm rate. A one-time house deposit at deploy (`register_pool`) absorbs the pool's first-deposit fee, so every pet stake is recorded 1:1 with the iNEAR actually held. Spike results: `CLAUDE.md` 14.
 
 **NEAR AI Cloud (brain):** all inference goes through the brain to the staging API (`https://cloud-stg-api.near.ai/v1`, OpenAI-compatible); web and device never call it directly.
 - **Private models only:** the default chat model is `z-ai/glm-5.3-flash` (`NEARAI_CHAT_MODEL`), a private model that runs in a TEE; non-private models are never used for chat. Replies are short (2 sentences on the device, 4 on the web) and start with an emotion tag (`[happy]`, `[sleepy]`, ...) that drives the animation.
@@ -153,8 +153,9 @@ _Still to be filled by the hardware team (Roles 3 and 4): photos, video, parts l
 - **Transfer is blocked while a pet has stake, a pending unstake or a stake in flight**, and it resets device access and pending approvals.
 - **Retries are safe:** a repeated `usage_ref` is a no-op, so the brain can retry a charge blindly.
 - **Every pool call is locked before and restored on failure**, so a failed NEARON call never loses or double-counts stake.
-- In code but not the demo path: a limited device key that can never attach deposits, and on-chain hold-to-approve where the wallet proposes and only the device key can approve (`CLAUDE.md` 7.3).
-- Stable error codes (`E_NOT_OWNER: ...`) for every rejection; 143 unit tests cover each rule, including every NEARON callback on success and failure, and each flow was also run on testnet.
+- **The device signs with a limited function-call key that can never attach NEAR:** it can feed the pet from a pantry the owner stocked (at most 1 NEAR a day), stake the pet's own food (capped), and approve actions the wallet proposed (hold-to-approve, where only the device key can approve, `CLAUDE.md` 7.3). It can never send NEAR to another account; on transfer the pantry goes back to the old owner.
+- **The NFT shows the pet:** the brain pins the pet's image and public JSON to IPFS and points the token's NEP-177 metadata at them (`set_metadata`, brain only, sha256 hashes, once a minute at most).
+- Stable error codes (`E_NOT_OWNER: ...`) for every rejection; 186 unit tests (pets 181, shirts 5) cover each rule, including every NEARON callback on success and failure, and each flow was also run on testnet.
 
 ## Limitations
 

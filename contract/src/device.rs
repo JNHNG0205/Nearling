@@ -13,6 +13,8 @@ const YOCTO_PER_NEAR: u128 = 1_000_000_000_000_000_000_000_000;
 impl Contract {
     /// Owner only. Replaces any previous device key for this pet. In approval mode, use
     /// `propose_action(RegisterDevice)` so a stolen wallet key cannot swap in its own device.
+    /// The device's function-call key (receiver = this contract) lists the methods `play`,
+    /// `stake_from_food`, `feed_from_pantry` and `approve_action`.
     pub fn register_device(&mut self, pet_id: TokenId, public_key: PublicKey) {
         let owner = self.require_owner(&pet_id);
         self.require_direct(&pet_id);

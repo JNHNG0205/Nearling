@@ -56,7 +56,8 @@ impl Contract {
         self.save_pet(&pet_id, pet);
     }
 
-    /// Owner wallet, approval mode on. `Stake` attaches exactly `amount`; others attach nothing.
+    /// Owner wallet, approval mode on. `Stake` attaches exactly `amount`, `Unstake` at least
+    /// `config.pool_unstake_deposit`; others attach nothing.
     #[payable]
     pub fn propose_action(&mut self, pet_id: TokenId, action: Action) -> U64 {
         self.require_owner(&pet_id);
@@ -75,6 +76,13 @@ impl Contract {
                 );
                 let min = self.config.min_stake;
                 require!(deposit >= min, format!("E_MIN_STAKE: Stake at least {min}"));
+            }
+            Action::Unstake { .. } => {
+                let need = self.config.pool_unstake_deposit;
+                require!(
+                    deposit >= need,
+                    format!("E_DEPOSIT: Attach at least {need} for the pool unstake deposit")
+                );
             }
             _ => require!(deposit.is_zero(), "E_DEPOSIT: Attach no deposit"),
         }
@@ -129,7 +137,9 @@ impl Contract {
                 NearToken::from_yoctonear(amount.0),
             )),
             Action::Unstake { amount } => {
-                PromiseOrValue::Promise(self.internal_unstake(pet_id, amount))
+                let deposit =
+                    self.take_unstake_deposit(&owner, NearToken::from_yoctonear(pending.deposit.0));
+                PromiseOrValue::Promise(self.internal_unstake(pet_id, owner, amount, deposit))
             }
             Action::Withdraw => PromiseOrValue::Promise(self.internal_withdraw(pet_id, owner)),
             Action::StakeFromFood { amount } => {

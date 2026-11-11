@@ -62,11 +62,14 @@ impl Contract {
         self.internal_stake(pet_id, owner, env::attached_deposit())
     }
 
-    /// Owner only; one pending unstake per pet, always treated as pending (S6).
+    /// Owner only; one pending unstake per pet, always treated as pending (S6). Attach
+    /// `config.pool_unstake_deposit` (any excess is refunded); it comes back with the withdrawal.
+    #[payable]
     pub fn unstake(&mut self, pet_id: TokenId, amount: U128) -> Promise {
-        self.require_owner(&pet_id);
+        let owner = self.require_owner(&pet_id);
         self.require_direct(&pet_id);
-        self.internal_unstake(pet_id, amount)
+        let deposit = self.take_unstake_deposit(&owner, env::attached_deposit());
+        self.internal_unstake(pet_id, owner, amount, deposit)
     }
 
     /// Owner only, after `unlock_epoch`.
@@ -98,12 +101,21 @@ impl Contract {
     }
 
     #[private]
-    pub fn on_unstake(&mut self, pet_id: TokenId, amount: U128) -> bool {
+    pub fn on_unstake(
+        &mut self,
+        pet_id: TokenId,
+        owner: AccountId,
+        amount: U128,
+        deposit: U128,
+    ) -> bool {
         let mut pet = self.load_pet(&pet_id);
         if !call_succeeded() {
             pet.staked += amount.0;
             pet.pending_unstake = None;
             self.save_pet(&pet_id, pet);
+            Promise::new(owner)
+                .transfer(NearToken::from_yoctonear(deposit.0))
+                .detach();
             return false;
         }
         events::emit(
@@ -113,28 +125,37 @@ impl Contract {
         true
     }
 
+    /// The pool's `withdraw` pays out principal and unstake deposit, so both go to the owner.
     #[private]
-    pub fn on_withdraw(&mut self, pet_id: TokenId, owner: AccountId, amount: U128) -> bool {
+    pub fn on_withdraw(
+        &mut self,
+        pet_id: TokenId,
+        owner: AccountId,
+        amount: U128,
+        deposit: U128,
+    ) -> bool {
         if !call_succeeded() {
             let mut pet = self.load_pet(&pet_id);
             pet.pending_unstake = Some(PendingUnstake {
                 amount,
                 unlock_epoch: U64(env::epoch_height()),
+                deposit,
             });
             self.save_pet(&pet_id, pet);
             return false;
         }
         Promise::new(owner.clone())
-            .transfer(NearToken::from_yoctonear(amount.0))
+            .transfer(NearToken::from_yoctonear(amount.0 + deposit.0))
             .detach();
         events::emit(
             "unstake_withdrawn",
-            json!({ "pet_id": pet_id, "owner": owner, "amount": amount }),
+            json!({ "pet_id": pet_id, "owner": owner, "amount": amount, "deposit": deposit }),
         );
         true
     }
 
-    /// Anyone; CREDIT can only go to `config.org_id`.
+    /// Anyone; CREDIT can only go to `config.org_id`. The pool's `claim_deposit` is 0 today
+    /// (`get_account`); if a pool upgrade raises it, attach it here like the unstake deposit.
     pub fn sweep_credit(&mut self) -> Promise {
         require!(
             env::prepaid_gas() >= MIN_PREPAID_SWEEP,
@@ -193,7 +214,32 @@ impl Contract {
             )
     }
 
-    pub(crate) fn internal_unstake(&mut self, pet_id: TokenId, amount: U128) -> Promise {
+    /// Checks `attached` covers `config.pool_unstake_deposit`, refunds the excess to `owner`,
+    /// and returns the deposit to attach to the pool.
+    pub(crate) fn take_unstake_deposit(&self, owner: &AccountId, attached: NearToken) -> u128 {
+        let need = self.config.pool_unstake_deposit.as_yoctonear();
+        let got = attached.as_yoctonear();
+        require!(
+            got >= need,
+            format!("E_DEPOSIT: Attach {need} yocto for the pool unstake deposit")
+        );
+        if got > need {
+            Promise::new(owner.clone())
+                .transfer(NearToken::from_yoctonear(got - need))
+                .detach();
+        }
+        need
+    }
+
+    /// `deposit` goes to the pool `unstake`; the pool needs at least 1 yocto (S6).
+    pub(crate) fn internal_unstake(
+        &mut self,
+        pet_id: TokenId,
+        owner: AccountId,
+        amount: U128,
+        deposit: u128,
+    ) -> Promise {
+        let deposit = deposit.max(1);
         let mut pet = self.load_pet(&pet_id);
         require!(
             pet.pending_unstake.is_none(),
@@ -207,14 +253,18 @@ impl Contract {
         pet.pending_unstake = Some(PendingUnstake {
             amount,
             unlock_epoch: U64(env::epoch_height() + UNLOCK_EPOCHS),
+            deposit: U128(deposit),
         });
         self.save_pet(&pet_id, pet);
         self.pool_call(
             "unstake",
             json!({ "amount": amount }),
-            NearToken::from_yoctonear(1),
+            NearToken::from_yoctonear(deposit),
         )
-        .then(self.callback().on_unstake(pet_id, amount))
+        .then(
+            self.callback()
+                .on_unstake(pet_id, owner, amount, U128(deposit)),
+        )
     }
 
     pub(crate) fn internal_withdraw(&mut self, pet_id: TokenId, owner: AccountId) -> Promise {
@@ -229,7 +279,10 @@ impl Contract {
         );
         self.save_pet(&pet_id, pet);
         self.pool_call("withdraw", json!({}), NearToken::from_yoctonear(1))
-            .then(self.callback().on_withdraw(pet_id, owner, pending.amount))
+            .then(
+                self.callback()
+                    .on_withdraw(pet_id, owner, pending.amount, pending.deposit),
+            )
     }
 
     /// Value actions run directly only when approval mode is off (CLAUDE.md 7.3).

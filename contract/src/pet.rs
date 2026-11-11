@@ -79,6 +79,9 @@ pub struct Pet {
     /// The pet's device key (one per pet), checked with `env::signer_account_pk()`.
     pub device_pk: Option<PublicKey>,
     pub device_staked_today: u128,
+    /// Owner's NEAR waiting to become food (`feed_from_pantry`); refunded on transfer.
+    pub pantry_yocto: u128,
+    pub device_fed_today: u128,
     /// Stakes sent to the pool whose callback has not run yet; transfer waits for them.
     pub stakes_in_flight: u8,
     /// First 8 bytes of sha256(usage_ref) of the last charges, oldest first.
@@ -89,6 +92,8 @@ pub struct Pet {
     /// Public personality prompt; `soul_version` 0 means none set (brain uses its default).
     pub soul: String,
     pub soul_version: u32,
+    /// Last `set_metadata` (cooldown).
+    pub metadata_at_ns: Option<u64>,
 }
 
 #[near(serializers = [json])]
@@ -106,6 +111,8 @@ pub enum PlayAction {
 pub struct PendingUnstake {
     pub amount: U128,
     pub unlock_epoch: U64,
+    /// Attached to the pool `unstake`; returned to the owner with the withdrawal.
+    pub deposit: U128,
 }
 
 /// What the brain asks `charge` to apply; all values are clamped (CLAUDE.md 7.2).
@@ -166,12 +173,15 @@ impl Pet {
             items: Vec::new(),
             device_pk: None,
             device_staked_today: 0,
+            pantry_yocto: 0,
+            device_fed_today: 0,
             stakes_in_flight: 0,
             recent_usage_refs: Vec::new(),
             approval_mode: false,
             pending_actions: Vec::new(),
             soul: String::new(),
             soul_version: 0,
+            metadata_at_ns: None,
         }
     }
 
@@ -206,6 +216,7 @@ impl Pet {
         self.xp_today = 0;
         self.traits_moved_today = [0; 5];
         self.device_staked_today = 0;
+        self.device_fed_today = 0;
     }
 
     /// First owner interaction of a UTC day: extends the streak. Returns the check-in xp.

@@ -15,16 +15,22 @@ All three changes alter state layout, so they ship together in **one fresh deplo
 
 ## 0. Checklist (tick in order)
 
-- [ ] 1. Unstake deposit (section 1) + tests
-- [ ] 2. `set_metadata` + richer `nft_token` metadata (section 2) + tests
-- [ ] 3. Pantry: `stock_pantry`, `feed_from_pantry`, `empty_pantry` (section 3) + tests
-- [ ] 4. `PetView` and `Config` additions (section 4)
-- [ ] 5. New events and error codes (section 5)
-- [ ] 6. `cargo fmt`, `cargo clippy -D warnings`, `cargo test`
-- [ ] 7. Regenerate the ABI into `docs/abi/` and update `docs/CONTRACT_INTERFACE.md`
-- [ ] 8. Deploy `pets-v9` (+ `pets-demo-v9` if you redeploy demo), `register_pool`, set `pool_unstake_deposit`, seed (section 6)
-- [ ] 9. Add the brain's function-call key (section 6.3), send Role 2 the contract ids
-- [ ] 10. Update `CLAUDE.md` sections 7.1, 7.2, 7.5 and 14 (rule 7)
+- [x] 1. Unstake deposit (section 1) + tests
+- [x] 2. `set_metadata` + richer `nft_token` metadata (section 2) + tests
+- [x] 3. Pantry: `stock_pantry`, `feed_from_pantry`, `empty_pantry` (section 3) + tests
+- [x] 4. `PetView` and `Config` additions (section 4)
+- [x] 5. New events and error codes (section 5)
+- [x] 6. `cargo fmt`, `cargo clippy -D warnings`, `cargo test` (pets 181)
+- [x] 7. Regenerate the ABI into `docs/abi/` and update `docs/CONTRACT_INTERFACE.md`
+- [x] 8. Deploy `pets-v9` + `pets-demo-v9`, `register_pool`, set `pool_unstake_deposit`, seed (section 6)
+- [ ] 9. Add the brain's function-call keys (section 6.3): waiting for the public keys from Role 2; run `scripts/add-brain-keys.sh <contract> <pk>...` once per contract
+- [x] 10. Update `CLAUDE.md` sections 7.1, 7.2, 7.5 and 14 (rule 7)
+
+**Status (Role 1, 2026-11-11):** live as `pets-v9.nearling.testnet` and `pets-demo-v9.nearling.testnet`, all names and JSON shapes exactly as written below. Smoke test results and tx ids: `CLAUDE.md` 14 ("pets-v9 on testnet"). Notes:
+- `PETS_VERSION=9 ./scripts/deploy-testnet.sh` does not work as written: the script sources `.env` with `set -a`, which overrides the command-line value. Set `PETS_VERSION=9` in `.env` instead. The demo deploy is now named `pets-demo-v$PETS_VERSION` by the script.
+- The pool's `unstake_deposit` is per holder and changed after the first unstake (0.00772 to 0.00183 for `pets-v9`); the contract keeps attaching `config.pool_unstake_deposit` (0.00772). Whether the pool's `withdraw` returns the deposit is checked after unlock epoch 5438.
+- On transfer the pantry refund also emits `pantry_emptied` (with `pantry: "0"`), so the timeline can show it.
+- `empty_pantry` has no proposal action: in approval mode the owner turns approval mode off first (device approval), then empties.
 
 ---
 
