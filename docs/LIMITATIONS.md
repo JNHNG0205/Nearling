@@ -91,8 +91,8 @@ Severity: **Blocker** (the demo or submission fails without it), **High** (a hea
 
 | # | Item | Severity |
 |---|---|---|
-| W1 | Never run in a real browser with a wallet: Meteor one-popup sign-in, mint and token id read-back, 450 Tgas stake/unstake/withdraw in Meteor, failed-tx error copy, popup cancel, phone layout in Meteor's in-app browser | High |
-| W2 | Hold-to-talk (MediaRecorder WEBM), the SSE live stream, audio playback, sprite animations and the race canvas are compiled and unit-tested but have never been seen running | High |
+| W1 | **Partly done 2026-11-11:** owner flows run in Playwright with a real NEP-413 session signed by a testnet account (session, inbox, closet gate, honest failure reply). Still unverified: the NEAR Connect / Meteor popup itself, which cannot be driven headless; needs one manual run. Never run in a real browser with a wallet: Meteor one-popup sign-in, mint and token id read-back, 450 Tgas stake/unstake/withdraw in Meteor, failed-tx error copy, popup cancel, phone layout in Meteor's in-app browser | High |
+| W2 | **Partly done 2026-11-11:** verified in real Chromium: sprite and care animations, race canvas over WebSocket (8/8), public page, OG image. Still open: hold-to-talk, SSE and audio need a valid NEAR AI key. Hold-to-talk (MediaRecorder WEBM), the SSE live stream, audio playback, sprite animations and the race canvas are compiled and unit-tested but have never been seen running | High |
 | W3 | **Fixed 2026-11-11:** `/pet/[petRef]/transfer`: direct transfer, blocked while staked, or started on the phone and approved on the paired device. No pet transfer page (`/pet/[petRef]/transfer`, Build Spec 8, stretch); the brain supports `transfer_pet` approvals | Low |
 | W4 | **Fixed 2026-11-11:** shirt drawn as its own layer in every clip, web and device header (309 KB frames). No shirt layer on the pet sprite (sprites package has none), so an equipped shirt is not drawn on web or device | Medium |
 | W5 | **Fixed 2026-11-11:** QR + copy for the live deposit address. Live Intents deposit address is text only (no QR) | Low |
@@ -102,8 +102,8 @@ Severity: **Blocker** (the demo or submission fails without it), **High** (a hea
 | W9 | **Fixed 2026-11-11:** copy for all 30 contract `E_` codes, enforced by a test. 19 contract error codes have no friendly copy (mostly device, admin, approval paths the web does not call) | Low |
 | W10 | **Fixed 2026-11-11:** one global header with wallet button. Landing page has its own header; a global header with `ConnectButton` would duplicate it | Low |
 | W11 | **Fixed 2026-11-11:** `/my` page. No "my pets" page (`/my`); pets are found via Hatch & Pair or a direct link | Low |
-| W12 | No Playwright or other browser tests | Low |
-| W13 | taste-skill layout and finish checks not run (no Chrome here); only its copy linter ran (0 FAIL, 1 WARN kept on purpose) | Low |
+| W12 | **Fixed 2026-11-11:** Playwright suite `web/e2e` (`pnpm --filter web e2e`): 52 passed, 2 skipped (need a valid NEAR AI key) against the live testnet. No Playwright or other browser tests | Low |
+| W13 | **Partly done 2026-11-11:** copy-lint 0 FAIL; `consistency.mjs` runs (157 FAIL / 43 WARN, mostly layout-taste rules that do not count pixel canvases as visuals; focus ring fixed; muted-text contrast 5.3 to 5.8:1 vs the 7:1 it wants). taste-skill layout and finish checks not run (no Chrome here); only its copy linter ran (0 FAIL, 1 WARN kept on purpose) | Low |
 | W14 | **Fixed 2026-11-11:** `web/AGENTS.md` committed (Next.js agent rules). Next.js 16 created `web/AGENTS.md` on first start; commit or delete | Low |
 | W15 | Figma file for the pixel design was not created (connector was disconnected) | Low |
 
@@ -149,3 +149,13 @@ Found 2026-11-11 by `scripts/e2e-chain.ts` on `pets-v8` (pet 5 holds 1 NEAR stak
 3. Same for the approval path `Unstake { amount }` (attach the deposit at `propose_action`).
 4. `PendingUnstake` changes shape, so this is a breaking state change: deploy `pets-v9` (no migrations, `CLAUDE.md` 7), re-register the pool, re-seed, then Role 2 updates `PETS_CONTRACT` and the brain function-call keys, and the web attaches the deposit in `unstake` (`web/lib/chain.ts`, read from `config()`).
 5. Check `get_account.claim_deposit` the same way for `sweep_credit` (0 today).
+
+## 9. Found and fixed during the browser test round (2026-11-11)
+
+| # | Item | Status |
+|---|---|---|
+| E1 | Public timeline showed events from a previous deploy on the same contract account (token ids repeat after an in-place redeploy) | Fixed: timeline only shows events since the pet's own `born_at_ns`, with a test |
+| E2 | Race page joined a room twice on a quick remount (React dev double mount, fast back/forward) and got "race is full" | Fixed: one in-flight join per room code, with tests |
+| E3 | Fuel count wrapped, landing figure showed "+0.00" until scrolled, header wrapped at 390 px | Fixed |
+| E4 | Landing showed a dormant egg as the demo pet | Fixed: default demo pet is `pets-v8.nearling.testnet:4` (happy, self-sustaining); override with `NEXT_PUBLIC_DEMO_PET_REF` |
+| E5 | Landing receipt section is half empty at 1440 px when no receipt is published yet | Open (publish one real receipt once NEAR AI works) |
