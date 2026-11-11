@@ -1,7 +1,6 @@
-import { createSigner, type TxSigner } from "../chain/signer";
+import type { BrainSigners } from "../chain/signer";
 import type { Deps, Module } from "../deps";
 import { log } from "../log";
-import { splitKeys } from "../wallet/rpc";
 
 /**
  * Brain Garden sweep (AI-brain 04 section 5, CONTRACT_INTERFACE.md): hourly, for each pets
@@ -20,7 +19,7 @@ interface PoolAccount {
 
 export type SweepResult = "swept" | "below_threshold" | "nothing_to_claim" | "no_signer" | "error";
 
-export async function sweepOnce(deps: Deps, brain: TxSigner | null): Promise<Record<string, SweepResult>> {
+export async function sweepOnce(deps: Deps, signers: BrainSigners | null): Promise<Record<string, SweepResult>> {
   const contracts = [...new Set([deps.cfg.PETS_CONTRACT, deps.cfg.DEMO_PETS_CONTRACT])];
   const out: Record<string, SweepResult> = {};
   for (const contract of contracts) {
@@ -31,6 +30,7 @@ export async function sweepOnce(deps: Deps, brain: TxSigner | null): Promise<Rec
         out[contract] = "below_threshold";
         continue;
       }
+      const brain = signers?.forContract(contract) ?? null;
       if (!brain) {
         out[contract] = "no_signer";
         continue;
@@ -52,16 +52,13 @@ export async function sweepOnce(deps: Deps, brain: TxSigner | null): Promise<Rec
   return out;
 }
 
-export function gardenModule(over: { brain?: TxSigner | null } = {}): Module {
+export function gardenModule(over: { brain?: BrainSigners | null } = {}): Module {
   return {
     name: "garden",
     start(deps) {
-      // Separate signer instance from the charge queue's: an hourly call, a nonce clash just retries next hour.
-      const brain =
-        over.brain !== undefined
-          ? over.brain
-          : createSigner(deps.cfg.BRAIN_ACCOUNT_ID, splitKeys(deps.cfg.BRAIN_KEYS), deps.cfg.NEAR_RPC_URLS[0] ?? "");
-      if (!brain) log.warn("brain signer not configured (BRAIN_ACCOUNT_ID, BRAIN_KEYS); credit sweeps skipped");
+      // Same signers as the charge worker (deps.brain), so sweeps and charges share nonce lanes.
+      const brain = over.brain !== undefined ? over.brain : (deps.brain ?? null);
+      if (!brain) log.warn("brain signers not configured; credit sweeps skipped");
       const tick = () => void sweepOnce(deps, brain).catch(() => undefined);
       const first = setTimeout(tick, 60_000);
       const t = setInterval(tick, HOUR_MS);

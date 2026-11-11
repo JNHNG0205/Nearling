@@ -2,12 +2,12 @@ import { randomUUID } from "node:crypto";
 import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { parsePetRef } from "@nearling/shared";
-import { createSigner, type TxSigner } from "../chain/signer";
+import type { TxSigner } from "../chain/signer";
 import type { Config } from "../config";
 import type { Deps, Module } from "../deps";
 import { publish } from "../events";
 import { log } from "../log";
-import { createRpc, isAccountId, splitKeys, type NearRpc, type TxStatus } from "../wallet/rpc";
+import { createRpc, isAccountId, type NearRpc, type TxStatus } from "../wallet/rpc";
 import { NEAR_ASSET, createOneClick, type OneClick } from "./intents";
 
 /**
@@ -99,10 +99,7 @@ function ioFor(deps: Deps, over: Partial<OrdersIo>): OrdersIo {
     const { cfg } = deps;
     io = {
       rpc: over.rpc ?? createRpc(cfg.NEAR_RPC_URLS),
-      feeder:
-        over.feeder !== undefined
-          ? over.feeder
-          : createSigner(cfg.FEEDER_ACCOUNT_ID, splitKeys(cfg.FEEDER_KEY), cfg.NEAR_RPC_URLS[0] ?? ""),
+      feeder: over.feeder !== undefined ? over.feeder : (deps.feeder ?? null), // the one shared feeder signer
       oneclick:
         over.oneclick ??
         createOneClick({ baseUrl: cfg.ONECLICK_BASE_URL, jwt: cfg.ONECLICK_JWT, liveConfirmed: cfg.INTENTS_LIVE_CONFIRMED === "1" }),
