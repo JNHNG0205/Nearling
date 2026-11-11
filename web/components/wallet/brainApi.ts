@@ -68,20 +68,10 @@ export interface Order {
   quote?: { origin_asset?: string; amount_in?: string; amount_in_formatted?: string; deadline?: string } | null;
 }
 
-/** Fallback when the brain does not answer: the documented packs, direct mode only. */
-export const DEFAULT_PACKS: PacksResponse = {
-  packs: [
-    { id: "snack", name: "Snack", fuel: 20, feed_yocto: "100000000000000000000000" },
-    { id: "meal", name: "Meal", fuel: 100, feed_yocto: "500000000000000000000000" },
-    { id: "feast", name: "Feast", fuel: 200, feed_yocto: "1000000000000000000000000" },
-  ],
-  modes: ["direct"],
-};
-
 export async function getPacks(): Promise<PacksResponse> {
   const r = await req<Partial<PacksResponse> & { enabled_modes?: PayMode[] }>("/feed/packs");
   return {
-    packs: r.packs?.length ? r.packs : DEFAULT_PACKS.packs,
+    packs: r.packs ?? [],
     modes: r.modes ?? r.enabled_modes ?? ["direct"],
   };
 }
