@@ -29,6 +29,7 @@ function Garden({ pet }: { pet: PetData }) {
   const c = pet.chain!;
   const [fuelPrice, setFuelPrice] = useState(1000);
   const [minStake, setMinStake] = useState<bigint>(MIN_STAKE);
+  const [unstakeDeposit, setUnstakeDeposit] = useState(0n); // pets-v9 config.pool_unstake_deposit, 0 on v8
   const [loadedAt, setLoadedAt] = useState(() => Date.now());
   const [now, setNow] = useState(() => Date.now());
 
@@ -37,6 +38,7 @@ function Garden({ pet }: { pet: PetData }) {
       .then((cfg) => {
         setFuelPrice(cfg.fuel_price_micro || 1000);
         setMinStake(BigInt(cfg.min_stake));
+        setUnstakeDeposit(BigInt(cfg.pool_unstake_deposit ?? "0"));
       })
       .catch(() => undefined);
   }, [pet.contract]);
@@ -71,7 +73,7 @@ function Garden({ pet }: { pet: PetData }) {
         {c.pending_unstake ? (
           <Collect pet={pet} amount={c.pending_unstake.amount} unlockEpoch={c.pending_unstake.unlock_epoch} />
         ) : (
-          staked > 0n && <Unplant pet={pet} staked={staked} />
+          staked > 0n && <Unplant pet={pet} staked={staked} deposit={unstakeDeposit} />
         )}
       </OwnerGate>
 
@@ -141,7 +143,7 @@ function Plant({ pet, minStake }: { pet: PetData; minStake: bigint }) {
   );
 }
 
-function Unplant({ pet, staked }: { pet: PetData; staked: bigint }) {
+function Unplant({ pet, staked, deposit }: { pet: PetData; staked: bigint; deposit: bigint }) {
   const [amount, setAmount] = useState(formatNear(staked));
   const { send, state, busy } = useTx(pet.chain!.name);
   const y = parseNear(amount);
@@ -149,7 +151,7 @@ function Unplant({ pet, staked }: { pet: PetData; staked: bigint }) {
 
   async function unplant() {
     if (!y) return;
-    const r = await send(tx.unstake(pet.contract, pet.tokenId, y));
+    const r = await send(tx.unstake(pet.contract, pet.tokenId, y, deposit));
     if (r) await pet.reload();
   }
 
@@ -158,6 +160,9 @@ function Unplant({ pet, staked }: { pet: PetData; staked: bigint }) {
       <h2 className="font-display text-lg">Take NEAR out</h2>
       <AmountInput label={`Amount (up to ${formatNear(staked)} NEAR)`} value={amount} onChange={setAmount} />
       <p className="text-sm text-muted">It returns in 12 to 24 h. Then collect it here.</p>
+      {deposit > 0n && (
+        <p className="text-sm text-muted">{formatNear(deposit, 5)} NEAR is held by the pool and returned with your NEAR.</p>
+      )}
       <button className="pixel-btn pixel-btn--secondary" disabled={!ok || busy} onClick={() => void unplant()}>
         {busy ? "Check your wallet..." : `Unplant ${y ? formatNear(y) : ""} NEAR`}
       </button>

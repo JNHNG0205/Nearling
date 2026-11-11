@@ -6,6 +6,7 @@ import type { PetState } from "@nearling/shared";
 import type { AnyAnim, CareEvent } from "@nearling/sprites";
 import { FuelMeter } from "@/components/FuelMeter";
 import { PetScreen } from "@/components/PetScreen";
+import { PantryCard } from "@/components/garden/PantryCard";
 import { ChatLog, type ChatEntry } from "@/components/talk/ChatLog";
 import { TalkBar } from "@/components/talk/TalkBar";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
@@ -268,6 +269,7 @@ export function PetHome({ initial }: { initial: PetState }) {
 
       <ChatLog entries={entries} name={pet.name} readOnly={!isOwner} petRef={petRef} />
 
+      <PantryCard compact contract={pet.contract} tokenId={pet.token_id} name={pet.name} />
       <nav aria-label={`${pet.name} pages`} className="flex flex-wrap gap-2 border-t-2 border-line pt-4">
         {[
           [`/feed/${ref}`, "Feed"],

@@ -7,6 +7,8 @@ export interface PetsConfig {
   near_usd_rate_micro: number;
   farm_rate_micro_per_near_day: number;
   demo_speed: boolean;
+  /** pets-v9 only: yocto attached to `unstake` */
+  pool_unstake_deposit?: string;
 }
 
 export interface Chain {
