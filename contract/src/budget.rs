@@ -3,8 +3,9 @@
 use crate::pet::{day_of, Thought};
 use crate::{events, Contract, ContractExt};
 use near_contract_standards::non_fungible_token::TokenId;
+use near_sdk::json_types::U128;
 use near_sdk::serde_json::json;
-use near_sdk::{env, near, require, NearToken, Promise};
+use near_sdk::{env, near, require, AccountId, NearToken, Promise};
 
 #[near]
 impl Contract {
@@ -13,21 +14,11 @@ impl Contract {
     pub fn feed(&mut self, pet_id: TokenId) {
         let amount = env::attached_deposit();
         require!(!amount.is_zero(), "E_DEPOSIT: Attach NEAR to feed");
-        let mut pet = self.load_pet(&pet_id);
-        pet.food_yocto += amount.as_yoctonear();
-        pet.mood = (pet.mood + 5).min(100);
-        pet.starving_since_ns = None;
-        let stage_up = if env::predecessor_account_id() == self.owner_of(&pet_id) {
-            let xp = pet.check_in(day_of(env::block_timestamp()));
-            pet.add_xp(xp)
-        } else {
-            None
-        };
-        self.save_pet(&pet_id, pet);
-        self.emit_stage_up(&pet_id, stage_up);
-        events::emit(
-            "fed",
-            json!({ "pet_id": pet_id, "by": env::predecessor_account_id(), "amount": amount }),
+        self.internal_feed(
+            &pet_id,
+            env::predecessor_account_id(),
+            amount.as_yoctonear(),
+            "wallet",
         );
     }
 
@@ -99,7 +90,34 @@ impl Contract {
 }
 
 impl Contract {
-    fn require_brain(&self) {
+    /// Adds food, lifts mood, revives a starving pet; the owner feeding is a daily check-in.
+    /// `source` is `wallet` (`feed`) or `pantry` (`feed_from_pantry`).
+    pub(crate) fn internal_feed(
+        &mut self,
+        pet_id: &TokenId,
+        by: AccountId,
+        amount: u128,
+        source: &str,
+    ) {
+        let mut pet = self.load_pet(pet_id);
+        pet.food_yocto += amount;
+        pet.mood = (pet.mood + 5).min(100);
+        pet.starving_since_ns = None;
+        let stage_up = if by == self.owner_of(pet_id) {
+            let xp = pet.check_in(day_of(env::block_timestamp()));
+            pet.add_xp(xp)
+        } else {
+            None
+        };
+        self.save_pet(pet_id, pet);
+        self.emit_stage_up(pet_id, stage_up);
+        events::emit(
+            "fed",
+            json!({ "pet_id": pet_id, "by": by, "amount": U128(amount), "source": source }),
+        );
+    }
+
+    pub(crate) fn require_brain(&self) {
         require!(
             env::predecessor_account_id() == self.config.brain,
             "E_NOT_BRAIN: Only brain"

@@ -18,11 +18,12 @@ pub struct SoulView {
 
 #[near]
 impl Contract {
-    /// Owner only, at most 1 KB. Bumps the version.
+    /// Owner only, at most 1 KB. Bumps the version and updates the NFT description.
     pub fn set_soul(&mut self, pet_id: TokenId, prompt: String) {
         self.require_owner(&pet_id);
         let mut pet = self.load_pet(&pet_id);
         write_soul(&pet_id, &mut pet, prompt);
+        self.sync_description(&pet_id, &pet);
         self.save_pet(&pet_id, pet);
     }
 

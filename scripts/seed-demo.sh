@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Seeds demo pets in each state on $PETS_CONTRACT, plus one on pets-demo that goes dormant within
+# Seeds demo pets in each state on $PETS_CONTRACT, plus one on the demo-speed contract that goes dormant within
 # about an hour (CLAUDE.md 7 demo speed, README "do X, see Y").
 # Needs: near CLI, .env, the SEED_OWNER and BRAIN_ACCOUNT keys in ~/.near-credentials (legacy keychain).
 # The owner pays about 3.2 NEAR (4 mints, a 2 NEAR stake, the demo mint, gas).
@@ -9,7 +9,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 set -a; source "$ROOT/.env"; set +a
 
 OWNER="${SEED_OWNER:-nearling-seed.testnet}"
-DEMO="pets-demo.${NEAR_PARENT_ACCOUNT}"
+DEMO="${DEMO_PETS_CONTRACT:-pets-demo-v${PETS_VERSION}.${NEAR_PARENT_ACCOUNT}}"
 RUN="$(date +%s)"   # makes usage_refs unique per run (charge is idempotent on usage_ref)
 
 call() { # signer contract method args gas deposit

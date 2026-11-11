@@ -7,7 +7,7 @@
       "compiler": "rustc 1.99.1",
       "builder": "cargo-near cargo-near-build 0.11.5"
     },
-    "wasm_hash": "BanL3H3j5u23iwqnMJf1b9VJwjbFdF8cX6AgDPDYcrEV"
+    "wasm_hash": "GvWhNwo5TXy9DqC2voEQXidQCZaPunh1sg1tYJZNggKz"
   },
   "body": {
     "functions": [
@@ -181,6 +181,28 @@
         }
       },
       {
+        "name": "empty_pantry",
+        "doc": " Owner only, gated by approval mode like `withdraw`: pantry NEAR back to the owner.",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "pet_id",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "amount",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        }
+      },
+      {
         "name": "feed",
         "doc": " Anyone can feed any pet.",
         "kind": "call",
@@ -192,6 +214,28 @@
           "args": [
             {
               "name": "pet_id",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "feed_from_pantry",
+        "doc": " Device key or owner wallet, no deposit: moves pantry into food. The device is capped at\n `config.device_feed_max_per_day`; the wallet is not.",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "pet_id",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "amount",
               "type_schema": {
                 "type": "string"
               }
@@ -772,7 +816,20 @@
               }
             },
             {
+              "name": "owner",
+              "type_schema": {
+                "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                "type": "string"
+              }
+            },
+            {
               "name": "amount",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "deposit",
               "type_schema": {
                 "type": "string"
               }
@@ -788,6 +845,7 @@
       },
       {
         "name": "on_withdraw",
+        "doc": " The pool's `withdraw` pays out principal and unstake deposit, so both go to the owner.",
         "kind": "call",
         "modifiers": [
           "private"
@@ -810,6 +868,12 @@
             },
             {
               "name": "amount",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "deposit",
               "type_schema": {
                 "type": "string"
               }
@@ -846,7 +910,7 @@
       },
       {
         "name": "propose_action",
-        "doc": " Owner wallet, approval mode on. `Stake` attaches exactly `amount`; others attach nothing.",
+        "doc": " Owner wallet, approval mode on. `Stake` attaches exactly `amount`, `Unstake` at least\n `config.pool_unstake_deposit`; others attach nothing.",
         "kind": "call",
         "modifiers": [
           "payable"
@@ -877,7 +941,7 @@
       },
       {
         "name": "register_device",
-        "doc": " Owner only. Replaces any previous device key for this pet. In approval mode, use\n `propose_action(RegisterDevice)` so a stolen wallet key cannot swap in its own device.",
+        "doc": " Owner only. Replaces any previous device key for this pet. In approval mode, use\n `propose_action(RegisterDevice)` so a stolen wallet key cannot swap in its own device.\n The device's function-call key (receiver = this contract) lists the methods `play`,\n `stake_from_food`, `feed_from_pantry` and `approve_action`.",
         "kind": "call",
         "params": {
           "serialization_type": "json",
@@ -949,8 +1013,48 @@
         }
       },
       {
+        "name": "set_metadata",
+        "doc": " Brain only, at most once a minute per pet. `media` and `reference` are `ipfs://` links,\n each hash is the sha256 of the pinned file.",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "pet_id",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "media",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "media_hash",
+              "type_schema": {
+                "$ref": "#/definitions/Base64VecU8"
+              }
+            },
+            {
+              "name": "reference",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "reference_hash",
+              "type_schema": {
+                "$ref": "#/definitions/Base64VecU8"
+              }
+            }
+          ]
+        }
+      },
+      {
         "name": "set_soul",
-        "doc": " Owner only, at most 1 KB. Bumps the version.",
+        "doc": " Owner only, at most 1 KB. Bumps the version and updates the NFT description.",
         "kind": "call",
         "params": {
           "serialization_type": "json",
@@ -1024,8 +1128,27 @@
         }
       },
       {
+        "name": "stock_pantry",
+        "doc": " Owner only, any amount. Direct even in approval mode: it adds money, like `feed`.",
+        "kind": "call",
+        "modifiers": [
+          "payable"
+        ],
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "pet_id",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        }
+      },
+      {
         "name": "sweep_credit",
-        "doc": " Anyone; CREDIT can only go to `config.org_id`.",
+        "doc": " Anyone; CREDIT can only go to `config.org_id`. The pool's `claim_deposit` is 0 today\n (`get_account`); if a pool upgrade raises it, attach it here like the unstake deposit.",
         "kind": "call",
         "result": {
           "serialization_type": "json",
@@ -1036,8 +1159,11 @@
       },
       {
         "name": "unstake",
-        "doc": " Owner only; one pending unstake per pet, always treated as pending (S6).",
+        "doc": " Owner only; one pending unstake per pet, always treated as pending (S6). Attach\n `config.pool_unstake_deposit` (any excess is refunded); it comes back with the withdrawal.",
         "kind": "call",
+        "modifiers": [
+          "payable"
+        ],
         "params": {
           "serialization_type": "json",
           "args": [
@@ -1242,6 +1368,7 @@
             "cooldown_play_ns",
             "credit_correction_max_micro",
             "demo_speed",
+            "device_feed_max_per_day",
             "device_stake_max_per_action",
             "device_stake_max_per_day",
             "device_stake_min",
@@ -1258,6 +1385,7 @@
             "near_usd_rate_micro",
             "org_id",
             "pool",
+            "pool_unstake_deposit",
             "starter_food",
             "treasury",
             "xp_max_per_call",
@@ -1300,6 +1428,9 @@
             "demo_speed": {
               "description": "Fast rates for judges; clients label this deployment \"demo speed\".",
               "type": "boolean"
+            },
+            "device_feed_max_per_day": {
+              "type": "string"
             },
             "device_stake_max_per_action": {
               "type": "string"
@@ -1368,6 +1499,10 @@
             },
             "pool": {
               "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+              "type": "string"
+            },
+            "pool_unstake_deposit": {
+              "description": "NEARON's `unstake_deposit`, attached to the pool `unstake`, refunded on withdraw. Admin re-checks it with the pool's `get_account` after pool upgrades.",
               "type": "string"
             },
             "starter_food": {
@@ -1506,10 +1641,15 @@
           "type": "object",
           "required": [
             "amount",
+            "deposit",
             "unlock_epoch"
           ],
           "properties": {
             "amount": {
+              "type": "string"
+            },
+            "deposit": {
+              "description": "Attached to the pool `unstake`; returned to the owner with the withdrawal.",
               "type": "string"
             },
             "unlock_epoch": {
@@ -1536,6 +1676,7 @@
             "mood",
             "name",
             "owner",
+            "pantry_yocto",
             "self_sustaining",
             "soul_version",
             "stage",
@@ -1619,6 +1760,9 @@
             },
             "owner": {
               "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+              "type": "string"
+            },
+            "pantry_yocto": {
               "type": "string"
             },
             "pending_unstake": {

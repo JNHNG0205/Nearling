@@ -5,7 +5,9 @@ mod budget;
 mod device;
 mod events;
 mod items;
+mod metadata;
 mod nft;
+mod pantry;
 mod pet;
 mod play;
 mod soul;
@@ -55,9 +57,13 @@ pub struct Config {
     pub mood_delta_max: u8,
     pub credit_correction_max_micro: u64,
     pub min_stake: NearToken,
+    /// NEARON's `unstake_deposit`, attached to the pool `unstake`, refunded on withdraw.
+    /// Admin re-checks it with the pool's `get_account` after pool upgrades.
+    pub pool_unstake_deposit: NearToken,
     pub device_stake_min: NearToken,
     pub device_stake_max_per_action: NearToken,
     pub device_stake_max_per_day: NearToken,
+    pub device_feed_max_per_day: NearToken,
     pub cooldown_pet_ns: u64,
     pub cooldown_play_ns: u64,
     pub mood_ns_per_point: u64,
@@ -96,9 +102,11 @@ impl Config {
             mood_delta_max: 10,
             credit_correction_max_micro: 100_000,
             min_stake: NearToken::from_near(1),
+            pool_unstake_deposit: NearToken::from_yoctonear(7_720_000_000_000_000_000_000),
             device_stake_min: NearToken::from_near(1),
             device_stake_max_per_action: NearToken::from_near(2),
             device_stake_max_per_day: NearToken::from_near(5),
+            device_feed_max_per_day: NearToken::from_near(1),
             cooldown_pet_ns: 5 * MINUTE_NS,
             cooldown_play_ns: MINUTE_NS,
             mood_ns_per_point: pet::MOOD_NS_PER_POINT,
@@ -142,6 +150,7 @@ pub struct PetView {
     pub name: String,
     pub born_at_ns: U64,
     pub food_yocto: U128,
+    pub pantry_yocto: U128,
     pub credit_micro: u64,
     pub budget_micro: u64,
     pub fullness: u8,
@@ -220,15 +229,16 @@ impl Contract {
             self.config.starter_food.as_yoctonear(),
             traits,
         );
+        if let Some(prompt) = soul {
+            soul::write_soul(&id, &mut pet, prompt);
+        }
         let metadata = TokenMetadata {
             title: Some(name),
+            description: metadata::soul_description(&pet),
             ..Default::default()
         };
         self.tokens
             .internal_mint_with_refund(id.clone(), owner.clone(), Some(metadata), None);
-        if let Some(prompt) = soul {
-            soul::write_soul(&id, &mut pet, prompt);
-        }
         self.pets.insert(id.clone(), pet);
         self.pets.flush();
 
@@ -263,6 +273,7 @@ impl Contract {
             name: pet.name,
             born_at_ns: pet.born_at_ns.into(),
             food_yocto: pet.food_yocto.into(),
+            pantry_yocto: pet.pantry_yocto.into(),
             credit_micro: pet.credit_micro,
             mood: pet.mood,
             energy: pet.energy,
@@ -772,24 +783,77 @@ mod tests {
         assert!(view.self_sustaining);
     }
 
+    /// NEARON's `unstake_deposit` (0.00772 NEAR on testnet, C6), refunded with the withdrawal.
+    const UNSTAKE_DEPOSIT: u128 = 7_720_000_000_000_000_000_000;
+
+    fn as_owner_unstaking(deposit: u128) {
+        ctx_full(accounts(3), NearToken::from_yoctonear(deposit), DAY, 10);
+    }
+
     #[test]
-    fn unstake_calls_the_pool_with_one_yocto_and_locks_the_amount() {
+    fn unstake_deposit_defaults_to_the_testnet_pool_value() {
+        assert_eq!(
+            setup().config().pool_unstake_deposit.as_yoctonear(),
+            UNSTAKE_DEPOSIT
+        );
+    }
+
+    #[test]
+    fn unstake_attaches_the_pool_deposit_and_locks_the_amount() {
         let (mut contract, id) = staked(10);
-        ctx_full(accounts(3), NearToken::from_yoctonear(0), DAY, 10);
+        as_owner_unstaking(UNSTAKE_DEPOSIT);
         let _ = contract.unstake(id.clone(), U128(2 * NEAR));
         let args = format!("{{\"amount\":\"{}\"}}", 2 * NEAR);
-        assert_eq!(pool_calls(), vec![("unstake".into(), args, 1, 400)]);
+        assert_eq!(
+            pool_calls(),
+            vec![("unstake".into(), args, UNSTAKE_DEPOSIT, 400)]
+        );
         let view = contract.get_pet(id);
         assert_eq!(view.staked.0, 8 * NEAR);
         let pending = view.pending_unstake.unwrap();
         assert_eq!((pending.amount.0, pending.unlock_epoch.0), (2 * NEAR, 12));
+        assert_eq!(pending.deposit.0, UNSTAKE_DEPOSIT);
+    }
+
+    #[test]
+    #[should_panic(expected = "E_DEPOSIT: Attach 7720000000000000000000 yocto")]
+    fn unstake_without_the_pool_deposit_is_rejected() {
+        let (mut contract, id) = staked(10);
+        as_owner_unstaking(UNSTAKE_DEPOSIT - 1);
+        let _ = contract.unstake(id, U128(NEAR));
+    }
+
+    #[test]
+    fn unstake_refunds_a_deposit_above_the_pool_deposit() {
+        let (mut contract, id) = staked(10);
+        as_owner_unstaking(UNSTAKE_DEPOSIT + NEAR);
+        let _ = contract.unstake(id.clone(), U128(NEAR));
+        assert_eq!(transfers_to(&accounts(3)), vec![NearToken::from_near(1)]);
+        assert_eq!(pool_calls()[0].2, UNSTAKE_DEPOSIT);
+        assert_eq!(
+            contract.get_pet(id).pending_unstake.unwrap().deposit.0,
+            UNSTAKE_DEPOSIT
+        );
+    }
+
+    #[test]
+    fn a_zero_pool_deposit_still_attaches_one_yocto() {
+        let (mut contract, id) = staked(10);
+        let mut c = contract.config();
+        c.pool_unstake_deposit = NearToken::from_yoctonear(0);
+        ctx(accounts(0), NearToken::from_yoctonear(0), DAY);
+        contract.set_config(c);
+        as_owner_unstaking(0);
+        let _ = contract.unstake(id.clone(), U128(NEAR));
+        assert_eq!(pool_calls()[0].2, 1);
+        assert_eq!(contract.get_pet(id).pending_unstake.unwrap().deposit.0, 1);
     }
 
     #[test]
     #[should_panic(expected = "E_UNSTAKE_PENDING: Unstake already pending")]
     fn second_unstake_while_pending_is_rejected() {
         let (mut contract, id) = staked(10);
-        ctx_full(accounts(3), NearToken::from_yoctonear(0), DAY, 10);
+        as_owner_unstaking(UNSTAKE_DEPOSIT);
         let _ = contract.unstake(id.clone(), U128(NEAR));
         let _ = contract.unstake(id, U128(NEAR));
     }
@@ -798,28 +862,51 @@ mod tests {
     #[should_panic(expected = "E_NO_STAKE: Not enough stake")]
     fn unstake_more_than_staked_is_rejected() {
         let (mut contract, id) = staked(1);
-        ctx_full(accounts(3), NearToken::from_yoctonear(0), DAY, 10);
+        as_owner_unstaking(UNSTAKE_DEPOSIT);
         let _ = contract.unstake(id, U128(NEAR + 1));
     }
 
     #[test]
-    fn failed_unstake_restores_stake() {
+    fn failed_unstake_restores_stake_and_refunds_the_deposit() {
         let (mut contract, id) = staked(10);
-        ctx_full(accounts(3), NearToken::from_yoctonear(0), DAY, 10);
+        as_owner_unstaking(UNSTAKE_DEPOSIT);
         let _ = contract.unstake(id.clone(), U128(2 * NEAR));
         callback(false);
-        contract.on_unstake(id.clone(), U128(2 * NEAR));
+        contract.on_unstake(
+            id.clone(),
+            accounts(3),
+            U128(2 * NEAR),
+            U128(UNSTAKE_DEPOSIT),
+        );
         let view = contract.get_pet(id);
         assert_eq!(view.staked.0, 10 * NEAR);
         assert!(view.pending_unstake.is_none());
+        assert_eq!(
+            transfers_to(&accounts(3)),
+            vec![NearToken::from_yoctonear(UNSTAKE_DEPOSIT)]
+        );
+    }
+
+    #[test]
+    fn the_unstaked_event_carries_the_deposit() {
+        let (_, _) = unstaked_2();
+        let deposit = format!("\"deposit\":\"{UNSTAKE_DEPOSIT}\"");
+        assert!(events()
+            .iter()
+            .any(|e| e.contains("\"event\":\"unstaked\"") && e.contains(&deposit)));
     }
 
     fn unstaked_2() -> (Contract, TokenId) {
         let (mut contract, id) = staked(10);
-        ctx_full(accounts(3), NearToken::from_yoctonear(0), DAY, 10);
+        as_owner_unstaking(UNSTAKE_DEPOSIT);
         let _ = contract.unstake(id.clone(), U128(2 * NEAR));
         callback(true);
-        contract.on_unstake(id.clone(), U128(2 * NEAR));
+        contract.on_unstake(
+            id.clone(),
+            accounts(3),
+            U128(2 * NEAR),
+            U128(UNSTAKE_DEPOSIT),
+        );
         (contract, id)
     }
 
@@ -832,27 +919,47 @@ mod tests {
     }
 
     #[test]
-    fn withdraw_after_unlock_pays_the_owner() {
+    fn withdraw_after_unlock_pays_the_owner_the_amount_and_the_deposit() {
         let (mut contract, id) = unstaked_2();
         ctx_full(accounts(3), NearToken::from_yoctonear(0), DAY, 12);
         let _ = contract.withdraw(id.clone());
         assert_eq!(pool_calls(), vec![("withdraw".into(), "{}".into(), 1, 400)]);
         callback(true);
-        contract.on_withdraw(id.clone(), accounts(3), U128(2 * NEAR));
-        assert_eq!(transfers_to(&accounts(3)), vec![NearToken::from_near(2)]);
+        contract.on_withdraw(
+            id.clone(),
+            accounts(3),
+            U128(2 * NEAR),
+            U128(UNSTAKE_DEPOSIT),
+        );
+        assert_eq!(
+            transfers_to(&accounts(3)),
+            vec![NearToken::from_yoctonear(2 * NEAR + UNSTAKE_DEPOSIT)]
+        );
         assert!(contract.get_pet(id).pending_unstake.is_none());
-        assert!(events().iter().any(|e| e.contains("unstake_withdrawn")));
+        let deposit = format!("\"deposit\":\"{UNSTAKE_DEPOSIT}\"");
+        assert!(events()
+            .iter()
+            .any(|e| e.contains("unstake_withdrawn") && e.contains(&deposit)));
     }
 
     #[test]
-    fn failed_withdraw_keeps_the_unstake_pending() {
+    fn failed_withdraw_keeps_the_unstake_pending_with_its_deposit() {
         let (mut contract, id) = unstaked_2();
         ctx_full(accounts(3), NearToken::from_yoctonear(0), DAY, 12);
         let _ = contract.withdraw(id.clone());
         callback(false);
-        contract.on_withdraw(id.clone(), accounts(3), U128(2 * NEAR));
+        contract.on_withdraw(
+            id.clone(),
+            accounts(3),
+            U128(2 * NEAR),
+            U128(UNSTAKE_DEPOSIT),
+        );
         assert!(transfers_to(&accounts(3)).is_empty());
-        assert!(contract.get_pet(id).pending_unstake.is_some());
+        let pending = contract.get_pet(id).pending_unstake.unwrap();
+        assert_eq!(
+            (pending.amount.0, pending.deposit.0),
+            (2 * NEAR, UNSTAKE_DEPOSIT)
+        );
     }
 
     #[test]
@@ -1483,16 +1590,54 @@ mod tests {
         let _ = contract.stake(id);
     }
 
+    fn unstake_action() -> Action {
+        Action::Unstake { amount: U128(NEAR) }
+    }
+
+    #[test]
+    #[should_panic(expected = "E_DEPOSIT")]
+    fn an_unstake_proposal_must_hold_the_pool_deposit() {
+        let (mut contract, id) = guarded();
+        propose(
+            &mut contract,
+            &id,
+            unstake_action(),
+            NearToken::from_yoctonear(UNSTAKE_DEPOSIT - 1),
+        );
+    }
+
+    #[test]
+    fn cancelling_an_unstake_proposal_refunds_its_deposit() {
+        let (mut contract, id) = guarded();
+        let dep = NearToken::from_yoctonear(UNSTAKE_DEPOSIT);
+        let action_id = propose(&mut contract, &id, unstake_action(), dep);
+        assert_eq!(
+            contract.get_pending_actions(id).pop().unwrap().deposit.0,
+            UNSTAKE_DEPOSIT
+        );
+        wallet(NearToken::from_yoctonear(0));
+        contract.cancel_action(action_id);
+        assert_eq!(transfers_to(&accounts(3)), vec![dep]);
+    }
+
     #[test]
     fn approval_can_unstake_and_withdraw() {
         let (mut contract, id) = guarded();
         callback(true);
         contract.on_stake(id.clone(), accounts(3), U128(3 * NEAR));
-        approve(&mut contract, &id, Action::Unstake { amount: U128(NEAR) });
+        // Held deposit above the pool deposit: the excess goes back to the owner on approval.
+        let held = NearToken::from_yoctonear(UNSTAKE_DEPOSIT + NEAR);
+        let action_id = propose(&mut contract, &id, unstake_action(), held);
+        device();
+        let _ = contract.approve_action(action_id);
         let args = format!("{{\"amount\":\"{NEAR}\"}}");
-        assert_eq!(pool_calls(), vec![("unstake".into(), args, 1, 400)]);
+        assert_eq!(
+            pool_calls(),
+            vec![("unstake".into(), args, UNSTAKE_DEPOSIT, 400)]
+        );
+        assert_eq!(transfers_to(&accounts(3)), vec![NearToken::from_near(1)]);
         callback(true);
-        contract.on_unstake(id.clone(), U128(NEAR));
+        contract.on_unstake(id.clone(), accounts(3), U128(NEAR), U128(UNSTAKE_DEPOSIT));
         testing_env!(VMContextBuilder::new()
             .predecessor_account_id(accounts(3))
             .signer_account_pk(wallet_pk())
@@ -1659,6 +1804,408 @@ mod tests {
         ctx(accounts(3), NearToken::from_yoctonear(1), DAY);
         contract.nft_transfer(accounts(4), id.clone(), None, None);
         assert_eq!(contract.get_soul(id).prompt, "Loyal.");
+    }
+
+    use near_sdk::json_types::Base64VecU8;
+
+    const MEDIA: &str = "ipfs://bafkreihz7qo37lkdkpxyws43xfjx6hzrfnlwhcbepirgr2hozknagzrzoa";
+    const REFERENCE: &str = "ipfs://bafkreidhldo67eikc56veqskchamat4qqi2zfgei4b6swbnufskureenuy";
+
+    fn hash(byte: u8, len: usize) -> Base64VecU8 {
+        Base64VecU8(vec![byte; len])
+    }
+
+    fn set_meta(contract: &mut Contract, id: &TokenId, media: &str, media_hash: Base64VecU8) {
+        contract.set_metadata(
+            id.clone(),
+            media.into(),
+            media_hash,
+            REFERENCE.into(),
+            hash(2, 32),
+        );
+    }
+
+    #[test]
+    fn the_brain_points_the_nft_at_the_pinned_image_and_json() {
+        let mut contract = setup();
+        ctx(accounts(3), MINT, DAY);
+        let id = contract.nft_mint_pet("Mochi".into(), Some("A shy cat.".into()));
+        as_brain(DAY);
+        set_meta(&mut contract, &id, MEDIA, hash(1, 32));
+        let m = contract.nft_token(id.clone()).unwrap().metadata.unwrap();
+        assert_eq!(m.title.as_deref(), Some("Mochi"));
+        assert_eq!(m.description.as_deref(), Some("A shy cat."));
+        assert_eq!(m.media.as_deref(), Some(MEDIA));
+        assert_eq!(m.media_hash, Some(hash(1, 32)));
+        assert_eq!(m.reference.as_deref(), Some(REFERENCE));
+        assert_eq!(m.reference_hash, Some(hash(2, 32)));
+        assert_eq!(m.updated_at, Some((DAY / 1_000_000).to_string()));
+        assert!(events()
+            .iter()
+            .any(|e| e.contains("\"event\":\"metadata_updated\"")
+                && e.contains(MEDIA)
+                && e.contains(REFERENCE)));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_NOT_BRAIN")]
+    fn only_the_brain_sets_metadata() {
+        let (mut contract, id) = minted();
+        ctx(accounts(3), NearToken::from_yoctonear(0), DAY);
+        set_meta(&mut contract, &id, MEDIA, hash(1, 32));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_UNKNOWN_PET")]
+    fn metadata_needs_a_known_pet() {
+        let mut contract = setup();
+        as_brain(DAY);
+        set_meta(&mut contract, &"7".to_string(), MEDIA, hash(1, 32));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_METADATA")]
+    fn a_media_hash_of_31_bytes_is_rejected() {
+        let (mut contract, id) = minted();
+        as_brain(DAY);
+        set_meta(&mut contract, &id, MEDIA, hash(1, 31));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_METADATA")]
+    fn a_reference_hash_of_33_bytes_is_rejected() {
+        let (mut contract, id) = minted();
+        as_brain(DAY);
+        contract.set_metadata(id, MEDIA.into(), hash(1, 32), REFERENCE.into(), hash(2, 33));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_METADATA")]
+    fn media_outside_ipfs_is_rejected() {
+        let (mut contract, id) = minted();
+        as_brain(DAY);
+        set_meta(
+            &mut contract,
+            &id,
+            "https://example.com/pet.png",
+            hash(1, 32),
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "E_METADATA")]
+    fn a_reference_outside_ipfs_is_rejected() {
+        let (mut contract, id) = minted();
+        as_brain(DAY);
+        contract.set_metadata(id, MEDIA.into(), hash(1, 32), "ar://x".into(), hash(2, 32));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_METADATA")]
+    fn a_link_over_256_bytes_is_rejected() {
+        let (mut contract, id) = minted();
+        as_brain(DAY);
+        let long = format!("ipfs://{}", "a".repeat(250));
+        set_meta(&mut contract, &id, &long, hash(1, 32));
+    }
+
+    #[test]
+    fn a_link_of_256_bytes_is_accepted() {
+        let (mut contract, id) = minted();
+        as_brain(DAY);
+        let exact = format!("ipfs://{}", "a".repeat(249));
+        set_meta(&mut contract, &id, &exact, hash(1, 32));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_COOLDOWN")]
+    fn metadata_updates_at_most_once_a_minute() {
+        let (mut contract, id) = minted();
+        as_brain(DAY);
+        set_meta(&mut contract, &id, MEDIA, hash(1, 32));
+        as_brain(DAY + MIN - 1);
+        set_meta(&mut contract, &id, MEDIA, hash(3, 32));
+    }
+
+    #[test]
+    fn metadata_can_update_again_after_a_minute() {
+        let (mut contract, id) = minted();
+        as_brain(DAY);
+        set_meta(&mut contract, &id, MEDIA, hash(1, 32));
+        as_brain(DAY + MIN);
+        set_meta(&mut contract, &id, MEDIA, hash(3, 32));
+        let m = contract.nft_token(id).unwrap().metadata.unwrap();
+        assert_eq!(m.media_hash, Some(hash(3, 32)));
+    }
+
+    #[test]
+    fn the_description_is_the_soul_cut_on_a_char_boundary() {
+        let mut contract = setup();
+        ctx(accounts(3), MINT, DAY);
+        // 199 ASCII bytes, then a 4-byte emoji that would cross byte 200.
+        let soul = format!("{}\u{1F431} purr", "x".repeat(199));
+        let id = contract.nft_mint_pet("Mochi".into(), Some(soul));
+        as_brain(DAY);
+        set_meta(&mut contract, &id, MEDIA, hash(1, 32));
+        let m = contract.nft_token(id).unwrap().metadata.unwrap();
+        assert_eq!(m.description, Some("x".repeat(199)));
+    }
+
+    #[test]
+    fn a_pet_without_a_soul_has_no_description() {
+        let (mut contract, id) = minted();
+        as_brain(DAY);
+        set_meta(&mut contract, &id, MEDIA, hash(1, 32));
+        let m = contract.nft_token(id).unwrap().metadata.unwrap();
+        assert_eq!(m.description, None);
+    }
+
+    #[test]
+    fn a_new_soul_updates_the_nft_description_at_once() {
+        let (mut contract, id) = minted();
+        ctx(accounts(3), NearToken::from_yoctonear(0), DAY);
+        contract.set_soul(id.clone(), "Brave now.".into());
+        let m = contract.nft_token(id).unwrap().metadata.unwrap();
+        assert_eq!(m.description.as_deref(), Some("Brave now."));
+    }
+
+    #[test]
+    fn metadata_stays_with_the_pet_on_transfer() {
+        let (mut contract, id) = minted();
+        as_brain(DAY);
+        set_meta(&mut contract, &id, MEDIA, hash(1, 32));
+        ctx(accounts(3), NearToken::from_yoctonear(1), DAY);
+        contract.nft_transfer(accounts(4), id.clone(), None, None);
+        let m = contract.nft_token(id).unwrap().metadata.unwrap();
+        assert_eq!(m.media.as_deref(), Some(MEDIA));
+    }
+
+    #[test]
+    fn mint_storage_covers_a_full_soul_and_full_metadata() {
+        let mut contract = setup();
+        ctx(accounts(3), MINT, DAY);
+        let before = env::storage_usage();
+        let id = contract.nft_mint_pet("x".repeat(32), Some("y".repeat(1024)));
+        as_brain(DAY);
+        let link = format!("ipfs://{}", "a".repeat(249));
+        contract.set_metadata(id, link.clone(), hash(1, 32), link, hash(2, 32));
+        let cost = env::storage_byte_cost().saturating_mul((env::storage_usage() - before) as u128);
+        assert!(
+            cost <= contract.config().mint_storage,
+            "storage cost {cost}"
+        );
+    }
+
+    const MILLI: u128 = NEAR / 1_000;
+
+    /// Pet with a device and `near_milli` mNEAR stocked in its pantry by the owner wallet.
+    fn stocked(near_milli: u128) -> (Contract, TokenId) {
+        let (mut contract, id) = with_device();
+        wallet(NearToken::from_yoctonear(near_milli * MILLI));
+        contract.stock_pantry(id.clone());
+        (contract, id)
+    }
+
+    fn device_at(ts: u64) {
+        testing_env!(VMContextBuilder::new()
+            .predecessor_account_id(accounts(3))
+            .signer_account_pk(device_pk())
+            .block_timestamp(ts)
+            .build());
+    }
+
+    #[test]
+    fn device_feed_cap_defaults_to_one_near_a_day() {
+        assert_eq!(
+            setup().config().device_feed_max_per_day,
+            NearToken::from_near(1)
+        );
+    }
+
+    #[test]
+    fn the_owner_stocks_the_pantry() {
+        let (contract, id) = stocked(500);
+        let json = near_sdk::serde_json::to_value(contract.get_pet(id)).unwrap();
+        assert_eq!(json["pantry_yocto"], (500 * MILLI).to_string());
+        assert!(events()
+            .iter()
+            .any(|e| e.contains("\"event\":\"pantry_stocked\"")
+                && e.contains(&format!("\"pantry\":\"{}\"", 500 * MILLI))));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_NOT_OWNER")]
+    fn a_stranger_cannot_stock_the_pantry() {
+        let (mut contract, id) = minted();
+        ctx(accounts(4), NearToken::from_near(1), DAY);
+        contract.stock_pantry(id);
+    }
+
+    #[test]
+    #[should_panic(expected = "E_DEPOSIT")]
+    fn stocking_nothing_is_rejected() {
+        let (mut contract, id) = minted();
+        ctx(accounts(3), NearToken::from_yoctonear(0), DAY);
+        contract.stock_pantry(id);
+    }
+
+    #[test]
+    fn stocking_stays_direct_in_approval_mode() {
+        let (mut contract, id) = guarded();
+        wallet(NearToken::from_near(1));
+        contract.stock_pantry(id.clone());
+        assert_eq!(contract.get_pet(id).pantry_yocto.0, NEAR);
+    }
+
+    #[test]
+    fn the_device_feeds_from_the_pantry() {
+        let (mut contract, id) = stocked(500);
+        let before = contract.get_pet(id.clone());
+        device();
+        contract.feed_from_pantry(id.clone(), U128(200 * MILLI));
+        let view = contract.get_pet(id);
+        assert_eq!(view.food_yocto.0, before.food_yocto.0 + 200 * MILLI);
+        assert_eq!(view.pantry_yocto.0, 300 * MILLI);
+        assert_eq!(view.mood, (before.mood + 5).min(100));
+        assert!(events()
+            .iter()
+            .any(|e| e.contains("\"event\":\"fed\"") && e.contains("\"source\":\"pantry\"")));
+    }
+
+    #[test]
+    fn wallet_feeding_reports_its_source() {
+        let (mut contract, id) = minted();
+        ctx(accounts(4), NearToken::from_near(1), DAY);
+        contract.feed(id);
+        assert!(events()
+            .iter()
+            .any(|e| e.contains("\"event\":\"fed\"") && e.contains("\"source\":\"wallet\"")));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_DEVICE_CAP")]
+    fn the_device_feeds_at_most_the_daily_cap() {
+        let (mut contract, id) = stocked(2_000);
+        device();
+        contract.feed_from_pantry(id.clone(), U128(600 * MILLI));
+        contract.feed_from_pantry(id, U128(401 * MILLI));
+    }
+
+    #[test]
+    fn the_device_feed_cap_resets_the_next_day() {
+        let (mut contract, id) = stocked(2_000);
+        device_at(DAY);
+        contract.feed_from_pantry(id.clone(), U128(NEAR));
+        device_at(2 * DAY);
+        contract.feed_from_pantry(id.clone(), U128(NEAR));
+        assert_eq!(contract.get_pet(id).pantry_yocto.0, 0);
+    }
+
+    #[test]
+    fn the_wallet_key_skips_the_device_cap() {
+        let (mut contract, id) = stocked(2_000);
+        wallet(NearToken::from_yoctonear(0));
+        contract.feed_from_pantry(id.clone(), U128(2 * NEAR));
+        assert_eq!(contract.get_pet(id).pantry_yocto.0, 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "E_PANTRY: Not enough in the pantry")]
+    fn feeding_more_than_the_pantry_is_rejected() {
+        let (mut contract, id) = stocked(500);
+        device();
+        contract.feed_from_pantry(id, U128(500 * MILLI + 1));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_PANTRY")]
+    fn feeding_nothing_from_the_pantry_is_rejected() {
+        let (mut contract, id) = stocked(500);
+        device();
+        contract.feed_from_pantry(id, U128(0));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_NOT_OWNER")]
+    fn a_stranger_cannot_feed_from_the_pantry() {
+        let (mut contract, id) = stocked(500);
+        ctx_signed(accounts(4), device_pk(), NearToken::from_yoctonear(0));
+        contract.feed_from_pantry(id, U128(MILLI));
+    }
+
+    #[test]
+    fn feeding_from_the_pantry_revives_a_starving_pet() {
+        let (mut contract, id) = minted();
+        ctx(accounts(3), NearToken::from_near(1), DAY);
+        contract.stock_pantry(id.clone());
+        let later = DAY + 22 * DAY; // starter food lasts 20 days
+        ctx(accounts(3), NearToken::from_yoctonear(0), later);
+        assert_eq!(contract.get_pet(id.clone()).life_state, LifeState::Starving);
+        contract.feed_from_pantry(id.clone(), U128(100 * MILLI));
+        let view = contract.get_pet(id);
+        assert_eq!(view.starving_since_ns, None);
+        assert_ne!(view.life_state, LifeState::Starving);
+    }
+
+    #[test]
+    fn the_owner_empties_the_pantry() {
+        let (mut contract, id) = stocked(500);
+        wallet(NearToken::from_yoctonear(0));
+        contract.empty_pantry(id.clone(), U128(200 * MILLI));
+        assert_eq!(
+            transfers_to(&accounts(3)),
+            vec![NearToken::from_millinear(200)]
+        );
+        assert_eq!(contract.get_pet(id).pantry_yocto.0, 300 * MILLI);
+        assert!(events()
+            .iter()
+            .any(|e| e.contains("\"event\":\"pantry_emptied\"")));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_PANTRY")]
+    fn emptying_more_than_the_pantry_is_rejected() {
+        let (mut contract, id) = stocked(500);
+        wallet(NearToken::from_yoctonear(0));
+        contract.empty_pantry(id, U128(500 * MILLI + 1));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_PANTRY")]
+    fn emptying_nothing_is_rejected() {
+        let (mut contract, id) = stocked(500);
+        wallet(NearToken::from_yoctonear(0));
+        contract.empty_pantry(id, U128(0));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_NOT_OWNER")]
+    fn a_stranger_cannot_empty_the_pantry() {
+        let (mut contract, id) = stocked(500);
+        ctx(accounts(4), NearToken::from_yoctonear(0), DAY);
+        contract.empty_pantry(id, U128(MILLI));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_APPROVAL_MODE")]
+    fn emptying_the_pantry_is_gated_in_approval_mode() {
+        let (mut contract, id) = stocked(500);
+        contract.set_approval_mode(id.clone(), true);
+        wallet(NearToken::from_yoctonear(0));
+        contract.empty_pantry(id, U128(MILLI));
+    }
+
+    #[test]
+    fn transfer_refunds_the_pantry_to_the_old_owner() {
+        let (mut contract, id) = stocked(500);
+        wallet(NearToken::from_yoctonear(1));
+        contract.nft_transfer(accounts(4), id.clone(), None, None);
+        assert_eq!(
+            transfers_to(&accounts(3)),
+            vec![NearToken::from_millinear(500)]
+        );
+        let view = contract.get_pet(id);
+        assert_eq!((view.owner, view.pantry_yocto.0), (accounts(4), 0));
     }
 
     #[test]
