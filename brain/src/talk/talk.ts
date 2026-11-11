@@ -129,7 +129,8 @@ export async function runTurn(deps: Deps, ai: NearAi, input: TurnInput): Promise
   }
 
   const profile = ensureProfile(db, petRef, pet.owner, t);
-  const nickRow = db.prepare("SELECT nickname_enc FROM pet_profile WHERE pet_ref = ?").get(petRef) as { nickname_enc: Buffer | null } | undefined;
+  // Set by PUT /pets/:petRef/profile; only for the owner who set it (a new owner starts without one).
+  const nickRow = db.prepare("SELECT nickname_enc FROM pet_profile WHERE pet_ref = ? AND owner_account = ?").get(petRef, pet.owner) as { nickname_enc: Buffer | null } | undefined;
   let nickname: string | null = null;
   try {
     nickname = nickRow?.nickname_enc ? sealer.open(petRef, nickRow.nickname_enc) : null;
