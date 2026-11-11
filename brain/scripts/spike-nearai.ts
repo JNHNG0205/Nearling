@@ -2,13 +2,15 @@
  * Spikes S1 / S2 (conceptual/07-plan-and-risks.md section 2) against the NEAR AI staging API.
  *
  *   NEARAI_API_KEY=... pnpm --filter brain exec tsx --env-file-if-exists=../.env scripts/spike-nearai.ts
- *   optional: SPIKE_MODELS="z-ai/glm-5.3-flash,openai/gpt-oss-120b" SPIKE_RUNS=20
+ *   optional: SPIKE_MODELS="z-ai/glm-5.3-flash,openai/gpt-oss-120b" SPIKE_RUNS=15
+ *             SPIKE_AUDIO="a.wav,b.webm" (whisper check; each file is transcribed once)
  *
  * Prints latency p50 / p95, token usage, inference-id and chat id presence, billing costs,
  * attestation and signature availability, and whether json_schema output works.
  * Never prints chat content (CLAUDE.md rule 4): only ids, sizes, statuses, costs and timings.
  */
 import { createHash, randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { costNano, createNearAi, type ChatMessage, type ChatResult } from "../src/ai/nearai";
 
 const KEY = process.env.NEARAI_API_KEY;
@@ -18,7 +20,8 @@ if (!KEY) {
 }
 const BASE = (process.env.NEARAI_BASE_URL ?? "https://cloud-stg-api.near.ai/v1").replace(/\/$/, "");
 const MODELS = (process.env.SPIKE_MODELS ?? "z-ai/glm-5.3-flash,openai/gpt-oss-120b").split(",").map((s) => s.trim()).filter(Boolean);
-const RUNS = Number(process.env.SPIKE_RUNS ?? 20);
+const RUNS = Number(process.env.SPIKE_RUNS ?? 15);
+const AUDIO = (process.env.SPIKE_AUDIO ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 const sha = (s: string) => createHash("sha256").update(s, "utf8").digest("hex");
 const auth = { Authorization: `Bearer ${KEY}`, "Accept-Encoding": "identity" };
 
@@ -37,8 +40,9 @@ const pct = (xs: number[], p: number) => {
   return s[Math.min(s.length - 1, Math.floor((p / 100) * s.length))] ?? NaN;
 };
 
-async function getJson(url: string, init: RequestInit = {}) {
-  const res = await fetch(url, { ...init, headers: { ...auth, ...(init.headers as Record<string, string>) } });
+async function getJson(url: string, init: RequestInit = {}, withAuth = true) {
+  const headers = { ...(withAuth ? auth : {}), ...(init.headers as Record<string, string>) };
+  const res = await fetch(url, { ...init, headers });
   const text = await res.text();
   let json: unknown = null;
   try {
@@ -51,10 +55,40 @@ async function getJson(url: string, init: RequestInit = {}) {
 
 const keysOf = (j: unknown) => (j && typeof j === "object" ? Object.keys(j as object).join(",") : String(j));
 
+/** Public endpoint: the nonce is echoed per attestation (gateway and each model), not at the top level. */
+async function attestation(model: string) {
+  const nonce = randomBytes(32).toString("hex");
+  const att = await getJson(`${BASE}/attestation/report?model=${encodeURIComponent(model)}&signing_algo=ecdsa&nonce=${nonce}`, {}, false);
+  const r = att.json as {
+    gateway_attestation?: { request_nonce?: string; signing_address?: string };
+    model_attestations?: { request_nonce?: string; signing_address?: string; nvidia_payload?: unknown }[];
+  } | null;
+  const models = r?.model_attestations ?? [];
+  console.log(
+    `attestation: HTTP ${att.status}, gateway nonce echoed ${r?.gateway_attestation?.request_nonce === nonce}, ` +
+      `model attestations ${models.length}, model nonces echoed ${models.filter((m) => m.request_nonce === nonce).length}, ` +
+      `nvidia payloads ${models.filter((m) => m.nvidia_payload !== undefined).length}`,
+  );
+}
+
+async function whisper(ai: ReturnType<typeof createNearAi>) {
+  for (const path of AUDIO) {
+    const mime = path.endsWith(".webm") ? "audio/webm" : path.endsWith(".ogg") ? "audio/ogg" : "audio/wav";
+    try {
+      const r = await ai.transcribe(new Uint8Array(readFileSync(path)), mime);
+      console.log(`whisper ${mime}: ${r.ms} ms, words ${r.text ? r.text.split(/\s+/).length : 0}`);
+    } catch (e) {
+      console.log(`whisper ${mime}: error ${(e as Error).message}`);
+    }
+  }
+}
+
 async function main() {
   const ai = createNearAi({ NEARAI_BASE_URL: BASE, NEARAI_API_KEY: KEY, NEARAI_CHAT_MODEL: MODELS[0]!, NEARAI_STT_MODEL: "openai/whisper-large-v3" });
   const prices = await ai.modelPrices().catch((e) => (console.log("model/list failed:", (e as Error).message), new Map()));
   console.log(`model/list: ${prices.size} models`);
+
+  await whisper(ai);
 
   for (const model of MODELS) {
     const price = prices.get(model) ?? null;
@@ -68,9 +102,16 @@ async function main() {
       } catch (e) {
         errors++;
         console.log(`run ${i}: error ${(e as Error).message}`);
+        if (/_40[13]$/.test((e as Error).message)) {
+          console.log("API key rejected; skipping the remaining chat runs for this model.");
+          break;
+        }
       }
     }
-    if (!results.length) continue;
+    if (!results.length) {
+      await attestation(model);
+      continue;
+    }
     const ms = results.map((r) => r.ms);
     const mean = (xs: number[]) => Math.round(xs.reduce((a, b) => a + b, 0) / xs.length);
     const reasoning = results.map((r) => {
@@ -100,10 +141,7 @@ async function main() {
     console.log(`billing/costs: HTTP ${billing.status}, keys ${keysOf(billing.json)}`);
     if (billing.status === 200) console.log("billing body:", JSON.stringify(billing.json).slice(0, 600));
 
-    const nonce = randomBytes(32).toString("hex");
-    const att = await getJson(`${BASE}/attestation/report?model=${encodeURIComponent(model)}&signing_algo=ecdsa&nonce=${nonce}`);
-    const report = att.json as { request_nonce?: string; model_attestations?: unknown[] } | null;
-    console.log(`attestation: HTTP ${att.status}, nonce echoed ${report?.request_nonce === nonce}, model attestations ${report?.model_attestations?.length ?? 0}`);
+    await attestation(model);
 
     const first = results[0]!;
     const sig = await getJson(`${BASE}/signature/${encodeURIComponent(first.chatId)}?model=${encodeURIComponent(model)}&signing_algo=ecdsa`);

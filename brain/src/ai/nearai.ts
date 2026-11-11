@@ -181,7 +181,8 @@ export function createNearAi(
 
     async transcribe(audio, mime) {
       const form = new FormData();
-      const ext = mime.includes("webm") ? "webm" : "wav";
+      // Whisper picks the decoder from the file name; Safari records audio/mp4.
+      const ext = mime.includes("webm") ? "webm" : mime.includes("ogg") ? "ogg" : mime.includes("mp4") ? "m4a" : mime.includes("mpeg") ? "mp3" : "wav";
       form.append("file", new Blob([new Uint8Array(audio)], { type: mime }), `audio.${ext}`);
       form.append("model", cfg.NEARAI_STT_MODEL);
       form.append("language", "en");
