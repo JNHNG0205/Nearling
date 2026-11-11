@@ -1,0 +1,20 @@
+{
+  "name": "@nearling/device",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "vectors": "tsx scripts/vectors.ts",
+    "live": "tsx scripts/live-testnet.ts"
+  },
+  "dependencies": {
+    "@noble/curves": "2.2.0",
+    "@noble/hashes": "2.2.0",
+    "@scure/base": "2.2.0",
+    "near-api-js": "7.4.0"
+  },
+  "devDependencies": { "@types/node": "22.19.1", "tsx": "4.23.15", "typescript": "5.9.3", "vitest": "3.2.4" }
+}
