@@ -377,7 +377,7 @@ Node 22 + Hono, TypeScript. Holds the `brain` NEAR account key and the NEAR AI s
 
 ### 8.1 NEAR AI
 - **Base URL:** `https://cloud-stg-api.near.ai/v1` (staging, OpenAI-compatible, Bearer key) [FIXED for hackathon].
-- **Default model:** `openai/gpt-oss-120b` (private, TEE with attestation). Alternative: `Qwen/Qwen3.6-35B-A3B-FP8` (private). Do **not** use non-private models for chat. [VERIFY S1 latency]
+- **Default model:** `z-ai/glm-5.3-flash` (private, `verifiable: true`, $0.075 in / $0.25 out per 1M tokens) [FIXED 2026-11-11 from S1, see section 14]. `openai/gpt-oss-120b` is listed as private but staging has **no attestation provider** for it (`/attestation/report` HTTP 503), so its receipts could never be verified. Alternative with attestation: `Qwen/Qwen3.6-35B-A3B-FP8`. Do **not** use non-private models for chat. [VERIFY S1 latency: blocked, the staging key in `.env` is rejected]
 - **Speech-to-text:** `POST /v1/audio/transcriptions`, multipart, `model=openai/whisper-large-v3`, ≤ 25 MB, WAV/MP3/WEBM/FLAC/OGG/M4A (production docs) [VERIFY on staging].
 - **Cost per reply:** compute from returned token usage × model price, or the billing "costs by request IDs" endpoint (nano-USD per `inference-id`) [VERIFY S2].
 
@@ -517,6 +517,20 @@ Pixel art, 64×64 base sprite, 4 stages × about 12 states. One palette that rea
 | S7 | NEARON CREDIT top-up into the staging NEAR AI org; whisper on staging | Brain spends CREDIT for chat and STT |
 
 Record results here.
+
+### S1/S2/S7 results (Role 2, 2026-11-11, `brain/scripts/spike-nearai.ts`, `attest-check.ts`, `tts-check.ts`)
+The `NEARAI_API_KEY` in `.env` is rejected by staging (`401 invalid_api_key` on `/chat/completions`, `/audio/transcriptions` and auth-only routes), so every check that needs a key is still open. Rerun `spike-nearai.ts` with a fresh staging key; it stops after the first 401.
+| Question | Result |
+|---|---|
+| `/model/list` format | Public (no key). `{ models, limit: 100, offset, total: 74 }`; each entry `modelId`, `inputCostPerToken` / `outputCostPerToken` as `{ amount, scale: 9, currency }`, `metadata.verifiable`. Matches `parseModelList` |
+| Prices (nano-USD per token, in / out) | `z-ai/glm-5.3-flash` 75 / 250, `openai/gpt-oss-120b` 150 / 550, `Qwen/Qwen3.6-35B-A3B-FP8` 170 / 1100, `openai/whisper-large-v3` 10 / 10; all four `verifiable: true` |
+| Chat latency p50 / p95, token usage, `inference-id` header, `/billing/costs`, json_schema | **Not measured** (key rejected). Estimate for the 800 in / 100 out prompt: $0.000085 per reply on GLM-5.3-flash, $0.000175 on gpt-oss-120b |
+| `/attestation/report` | **Public** (no key; a bad key makes it 401, so the brain sends none). Nonce is echoed in `gateway_attestation.request_nonce` and in each `model_attestations[].request_nonce` (no top-level field). GLM-5.3-flash: 1 model attestation with `nvidia_payload` (JSON string) and `signing_address`, plus a gateway attestation (TDX quote only, no GPU payload). gpt-oss-120b: HTTP 503 "No provider found that supports attestation reports". Qwen3.6-35B and DeepSeek-V4.1-Flash: HTTP 200 |
+| NVIDIA NRAS | Accepts the GLM `nvidia_payload` as is: overall result true, `eat_nonce` = our nonce. `refreshAttestation` ends `ok`, 1 model signer, gateway signer present, in about 2 s |
+| `/signature/{chat_id}`, `signature_kind`, end-to-end `model_verified` | **Not run** (needs a completion, key rejected) |
+| Whisper on staging (WAV, WEBM, `language=en`) | **Not run** (key rejected). Test clips: an ElevenLabs WAV and its Opus WEBM (`SPIKE_AUDIO=a.wav,b.webm`) |
+| ElevenLabs `eleven_flash_v2_5`, `pcm_16000` | Works with a **premade** voice: 44 characters in 483 ms, valid WAV (RIFF size correct, PCM mono 16 kHz 16-bit, 2.28 s, real signal), billed 22 credits (0.5 per character). The voice id in `.env` is a library voice: the free plan gets **402 `paid_plan_required`** for it, so `TTS_VOICE_ID` must be a premade voice (e.g. Jessica, playful and warm) |
+| ElevenLabs credits check | `/v1/user/subscription` works: tier free, limit 10,000 characters; `character_count` updates within a minute |
 
 ### S6 results (2026-11-07, spike contract `s6-spike.nearling.testnet`, code in `spikes/s6-nearon/`)
 | Question | Result |

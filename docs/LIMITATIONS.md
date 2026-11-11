@@ -14,7 +14,7 @@ Severity: **Blocker** (the demo or submission fails without it), **High** (a hea
 | B4 | One brain key pool for both contracts, but a function-call key works for one receiver only; charge worker and garden sweep build separate signers on the same keys | Charges on `pets-demo` pets fail; nonce clashes between jobs | Per-contract key sets and one shared signer per contract (INTEGRATION_PLAN G3, G4) | Role 2 |
 | B5 | Not deployed: no Fly.io / Railway config for the brain, no Vercel project for the web, no public URLs | Judges need a hosted demo or a working local run; the device needs HTTPS | Add `brain/Dockerfile` + `fly.toml` (volume for SQLite), Vercel project rooted at `web/`, set env | Role 2 |
 | B6 | README web and brain sections are still "To be filled by Role 2" (try-it steps, NEAR AI, verification, NEAR Connect, limitations) | AI judges read the README first; "do X, see Y" must work | Write after B2 | Role 2 |
-| B7 | Spikes S1, S2, S3, S7 not run (`brain/scripts/spike-nearai.ts` exists, never executed with a key) | Model choice, latency, cost per reply, staging verification support, whisper on staging, wallet support are all assumptions | Run the spike; record results in `CLAUDE.md` 14 | Role 2 |
+| B7 | **Partly done 2026-11-11:** spike run (`CLAUDE.md` 14, S1/S2/S7 table): model list, prices, attestation, NRAS and ElevenLabs verified; chat latency, billing, signature and whisper blocked because the staging key in `.env` is rejected (401). S3 not in scope here | Model choice, latency, cost per reply, staging verification support, whisper on staging, wallet support are all assumptions | Run the spike; record results in `CLAUDE.md` 14 | Role 2 |
 
 ## 2. Chain configuration (needs the contract teammate)
 
@@ -31,9 +31,9 @@ Severity: **Blocker** (the demo or submission fails without it), **High** (a hea
 ### Talk, models, voice
 | # | Item | Severity |
 |---|---|---|
-| A1 | Default model `z-ai/glm-5.3-flash` in code, but `CLAUDE.md` 8.1 still says `openai/gpt-oss-120b`; decide after S1 and update the spec | Medium |
-| A2 | `/model/list` format, `inference-id` header, whisper on staging (`language=en`, WEBM) and `/billing/costs` body are unverified with a real key | High |
-| A3 | Voice is off: `TTS_PROVIDER=none` in `.env`; ElevenLabs `pcm_16000` output and the credits check (`/v1/user/subscription`) are untested; 10,000 credits = about 130 replies | Medium |
+| A1 | **Fixed 2026-11-11:** `CLAUDE.md` 8.1 now says `z-ai/glm-5.3-flash` (cheapest private model; staging has no attestation provider for `openai/gpt-oss-120b`, HTTP 503). Latency still unmeasured (A2) | Medium |
+| A2 | **Partly done 2026-11-11:** `/model/list` format verified (matches `parseModelList`). Still open, because the `NEARAI_API_KEY` in `.env` gets 401 on staging: `inference-id` header, whisper (`language=en`, WEBM), `/billing/costs` body, latency. Needs a fresh staging key, then `brain/scripts/spike-nearai.ts` | High |
+| A3 | **Partly done 2026-11-11:** ElevenLabs `pcm_16000` to WAV and the credits check verified (`brain/scripts/tts-check.ts`, 0.5 credit per character). Left: the `TTS_VOICE_ID` in `.env` is a library voice and gets 402 `paid_plan_required` on the free plan; set a premade voice and `TTS_PROVIDER=elevenlabs` | Medium |
 | A4 | The web never requests voice (to save credits); "Play voice" only appears for device turns. Tap-to-hear on the web would need an on-demand TTS route | Low |
 | A5 | No billing reconcile: provider cost is estimated from tokens x price; `/v1/billing/costs` is not called by a job (design 03 section 5) | Low |
 | A6 | Global daily spend cap counts chat and summary tokens only; STT has no price and TTS is counted in characters, not dollars | Low |
@@ -45,9 +45,9 @@ Severity: **Blocker** (the demo or submission fails without it), **High** (a hea
 ### Verification and privacy
 | # | Item | Severity |
 |---|---|---|
-| P1 | Unknown whether staging exposes `/attestation/report` and `/signature`, and where the report echoes our nonce; if it does not, every receipt is Unverified | High |
+| P1 | **Partly done 2026-11-11:** `/attestation/report` works on staging (public), echoes the nonce per gateway and model attestation, and GLM-5.3-flash passes NRAS (`brain/scripts/attest-check.ts`). `/signature` and an end-to-end `model_verified` receipt are still untested (needs a working key, A2) | High |
 | P2 | Intel TDX quote not verified in app; NRAS JWT signature not checked (only its claims); gateway TLS binding not checked. All shown honestly on receipts | Medium |
-| P3 | `gateway_verified` only needs the gateway report's nonce, not an NRAS pass (the gateway has no GPU); confirm this policy | Low |
+| P3 | **Fixed 2026-11-11:** confirmed on staging: `gateway_attestation` carries a TDX quote and our nonce but no `nvidia_payload`, so `gateway_verified` rightly needs only the nonce echo | Low |
 | P4 | The brain operator can read memories (master key on the server); brain in OutLayer / TEE is roadmap | Medium (disclose) |
 | P5 | With ElevenLabs on, reply text leaves the TEE; receipts hard-code the provider as `elevenlabs` whenever audio exists | Medium (disclose) |
 | P6 | E2EE to the model (client-side encryption) not implemented | Low (roadmap) |

@@ -77,5 +77,9 @@ describe("nearai client", () => {
     expect((await ai.transcribe(new Uint8Array([1, 2]), "audio/wav")).text).toBe("hello");
     expect(form!.get("model")).toBe("openai/whisper-large-v3");
     expect(form!.get("file")).toBeInstanceOf(Blob);
+    expect((form!.get("file") as File).name).toBe("audio.wav");
+    expect(form!.get("language")).toBe("en");
+    await ai.transcribe(new Uint8Array([1]), "audio/mp4");
+    expect((form!.get("file") as File).name).toBe("audio.m4a");
   });
 });
