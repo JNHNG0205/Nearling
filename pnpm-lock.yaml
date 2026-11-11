@@ -57,6 +57,34 @@ importers:
         specifier: 3.2.4
         version: 3.2.4(@types/node@22.19.1)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.15)
 
+  packages/device:
+    dependencies:
+      '@noble/curves':
+        specifier: 2.2.0
+        version: 2.2.0
+      '@noble/hashes':
+        specifier: 2.2.0
+        version: 2.2.0
+      '@scure/base':
+        specifier: 2.2.0
+        version: 2.2.0
+      near-api-js:
+        specifier: 7.4.0
+        version: 7.4.0
+    devDependencies:
+      '@types/node':
+        specifier: 22.19.1
+        version: 22.19.1
+      tsx:
+        specifier: 4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/node@22.19.1)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.15)
+
   packages/race:
     devDependencies:
       typescript:
@@ -95,6 +123,9 @@ importers:
       '@hot-labs/near-connect':
         specifier: 0.12.0
         version: 0.12.0
+      '@nearling/device':
+        specifier: workspace:*
+        version: link:../packages/device
       '@nearling/race':
         specifier: workspace:*
         version: link:../packages/race
