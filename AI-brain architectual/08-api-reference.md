@@ -24,7 +24,7 @@ Base: `https://<brain-host>`. JSON unless noted. Big numbers (yocto) are strings
 | `GET /me/pets` | S | owned pets on both contracts with `PetState` |
 | `PUT /pets/:petRef/profile` | S | `{ nickname?, owner_tz? }` |
 | `GET /pets/:petRef/stream` | S | SSE: `state`, `fuel_charged`, `fuel_added`, `inbox`, `paired`, `approval_ready`, `approval_status`, `evolved` |
-| `GET /pets/:petRef/timeline` | P | `TimelineItem[]` |
+| `GET /pets/:petRef/timeline?limit=50` | P | `TimelineItem[]`, newest first (below), max 100 |
 
 ```ts
 interface PetState {
@@ -41,6 +41,44 @@ interface PetState {
   as_of: number;
 }
 ```
+
+### Timeline
+
+Source: the pets contract's own `EVENT_JSON` logs, read every 30 s from the FastNEAR transactions API
+(`https://tx.test.fastnear.com`, keyless: `POST /v0/account` lists the contract's txs from a per-contract
+block-height cursor, `POST /v0/transactions` returns their receipts with logs, 20 per call). Only successful
+receipts executed by the pets contract count. Rows are idempotent by (tx_hash, receipt_id, log_index, pet_ref);
+a tx is read again on every pass until it is 2 minutes old, so late callback receipts (`staked` lands in
+`on_stake`) are not missed. NearBlocks v3 was not used: its account listings carry no logs or args and ignore
+`per_page`.
+
+Fallback: when FastNEAR is unreachable, errors, or its newest block is over 5 minutes old, the brain diffs
+`get_pet` snapshots for that contract and marks those rows `source: "snapshot"` (no tx hash or payer, amounts
+net of metabolism drain, two changes of one kind inside 30 s merge). When the indexer recovers it replays from
+its cursor and deletes that contract's snapshot rows.
+
+```ts
+interface TimelineItem {   // packages/shared
+  id: number;
+  kind: "minted" | "fed" | "thoughts_day" | "staked" | "staked_from_food" | "unstaked" | "unstake_withdrawn"
+      | "soul_updated" | "stage_up" | "owner_changed" | "dormant" | "revived" | "credit_swept";
+  actor: string | null;    // fed: payer (`by`); staked / unstake_withdrawn: owner; minted / owner_changed: new owner;
+                           // others: tx signer; stage_up, dormant, revived, thoughts_day: null
+  amount: string | null;   // yocto for fed / staked / staked_from_food / unstaked / unstake_withdrawn;
+                           // version for soul_updated; stage index for stage_up; total micro-USD for thoughts_day
+  tx_hash: string | null;  // null only on snapshot rows
+  at: number;              // ms: block time (event), detection time (snapshot), newest thought (thoughts_day)
+  source: "event" | "snapshot";
+  count?: number;          // thoughts_day: thoughts that UTC day
+  day?: string;            // thoughts_day: "YYYY-MM-DD"
+}
+```
+
+Events kept: nearling `fed`, `thought`, `staked`, `staked_from_food`, `unstaked`, `unstake_withdrawn`,
+`soul_updated` (prompt not copied), `stage_up`, `dormant`, `revived`, `credit_swept` (contract-wide: shown on every
+pet of that contract); NEP-171 `nft_mint` (as `minted`) and `nft_transfer` (as `owner_changed`). `thought` events are
+folded into one `thoughts_day` row per UTC day so chat does not flood the timeline; its `tx_hash` is the day's latest
+charge. `played`, `device_*`, `action_*` and `item_bought` are left out.
 
 ## Talk and receipts
 
