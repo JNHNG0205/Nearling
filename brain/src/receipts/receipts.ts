@@ -1,5 +1,5 @@
 import { type Context, Hono } from "hono";
-import { parsePetRef } from "@nearling/shared";
+import { parsePetRef, type Receipt } from "@nearling/shared";
 import { type AttestationRow, ATTESTATION_TTL_MS, knownModels, refreshAttestation } from "../ai/attestation";
 import { type AuthEnv, requireCaller } from "../auth/guard";
 import type { Db } from "../db/db";
@@ -53,7 +53,7 @@ function optionalRow<T>(db: Db, sql: string, id: string): T | null {
 
 const nras = (a: AttestationRow | null) => (a ? (a.ok ? "pass" : "fail") : null);
 
-function buildReceipt(db: Db, turnId: string) {
+function buildReceipt(db: Db, turnId: string): { public: boolean; petRef: string; body: Receipt } | null {
   const v = db.prepare("SELECT * FROM verification WHERE turn_id = ?").get(turnId) as VerificationRow | undefined;
   const t = optionalRow<TurnRow>(db, "SELECT * FROM turn WHERE id = ?", turnId);
   if (!v && !t) return null;
