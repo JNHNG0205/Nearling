@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { createApp } from "../app";
 import { issueSession, sha256 } from "../auth/guard";
 import { publish } from "../events";
-import { testDeps } from "../test/deps";
+import { TEST_PET, testDeps } from "../test/deps";
+import { streamRoutes } from "./stream";
 
 const REF = "pets-v8.nearling.testnet:1";
 const PATH = `/pets/${REF}/stream`;
@@ -35,6 +36,26 @@ describe("GET /pets/:petRef/stream", () => {
     expect(text).toContain(": connected");
     expect(text).toContain('event: inbox\ndata: {"id":1}');
     expect(text).not.toContain("99");
+  });
+
+  it("re-checks ownership and closes after a transfer (D3)", async () => {
+    const deps = testDeps({ pets: { "1": { ...TEST_PET } } });
+    const { token } = await issueSession(deps, "alice.testnet");
+    const app = createApp(deps, [{ name: "stream", routes: (d) => streamRoutes(d, 60_000, 20) }]);
+    const res = await app.request(`${PATH}?t=${token}`);
+    expect(res.status).toBe(200);
+    setTimeout(() => {
+      deps.pets["1"] = { ...TEST_PET, owner: "bob.testnet" };
+    }, 50);
+    const reader = res.body!.getReader();
+    const dec = new TextDecoder();
+    let text = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break; // the server ended the stream
+      text += dec.decode(value);
+    }
+    expect(text).toContain('event: closed\ndata: {"reason":"not_owner"}');
   });
 
   it("also accepts the Authorization header", async () => {
