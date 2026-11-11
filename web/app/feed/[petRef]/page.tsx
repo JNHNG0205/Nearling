@@ -11,6 +11,7 @@ import {
   type PacksResponse,
   type PayMode,
 } from "@/components/wallet/brainApi";
+import { PantryCard } from "@/components/garden/PantryCard";
 import { FaucetPanel } from "@/components/wallet/FaucetPanel";
 import { PetHeader } from "@/components/wallet/PetHeader";
 import { PetPage } from "@/components/wallet/PetPage";
@@ -189,6 +190,7 @@ function Feed({ pet }: { pet: PetData }) {
         <ErrorText>{error}</ErrorText>
       </Panel>
 
+      <PantryCard contract={pet.contract} tokenId={pet.tokenId} name={name} />
       {fedHere !== null && (
         <Panel>
           <p className="font-display text-lg text-fuel">+{fedHere} thoughts</p>

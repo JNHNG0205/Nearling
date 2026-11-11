@@ -25,10 +25,13 @@ export interface PetView {
   starving_since_ns: string | null;
   life_state: ChainLifeState;
   staked: string;
-  pending_unstake: { amount: string; unlock_epoch: string } | null;
+  /** `deposit` (pets-v9): NEARON unstake deposit, paid back with the withdrawal */
+  pending_unstake: { amount: string; unlock_epoch: string; deposit?: string } | null;
   daily_credit_micro: number;
   daily_burn_micro: number;
   self_sustaining: boolean;
+  /** pets-v9: NEAR the owner stocked for the device to feed from. Absent on pets-v8. */
+  pantry_yocto?: string;
   items: number[];
   device_pk: string | null;
   approval_mode: boolean;
@@ -124,7 +127,11 @@ export interface PetState {
     credit_micro: number;
     daily_credit_micro: number;
     self_sustaining: boolean;
-    pending_unstake: { amount: string; unlock_epoch: string } | null;
+    pending_unstake: { amount: string; unlock_epoch: string; deposit?: string } | null;
+    /** pets-v9 pantry in yocto; "0" on contracts without a pantry */
+    pantry_yocto: string;
+    /** pets-v9 `config.pool_unstake_deposit` (yocto) attached to `unstake`; null on contracts without it */
+    pool_unstake_deposit: string | null;
   };
   soul_version: number;
   equipped_shirt: string | null;
