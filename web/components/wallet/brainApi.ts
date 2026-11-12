@@ -55,7 +55,7 @@ export const getDeviceStatus = (petRef: string) => req<DeviceStatus>(`/pets/${en
 
 // ---------- feed ----------
 
-export type PayMode = "direct" | "live" | "simulated";
+export type PayMode = "direct" | "live";
 export interface Pack {
   id: string;
   name: string;
@@ -95,7 +95,6 @@ export const createOrder = (petRef: string, packId: string, mode: PayMode, origi
   req<Order>("/orders", post({ pet_ref: petRef, pack_id: packId, mode, origin_asset: originAsset }));
 export const getOrder = (id: string) => req<Order>(`/orders/${enc(id)}`);
 export const reportDirectTx = (id: string, txHash: string) => req<Order>(`/orders/${enc(id)}/direct-tx`, post({ tx_hash: txHash }));
-export const simulatePay = (id: string) => req<Order>(`/orders/${enc(id)}/simulate-pay`, post({}));
 
 // ---------- closet ----------
 

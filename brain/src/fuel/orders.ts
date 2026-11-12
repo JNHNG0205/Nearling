@@ -12,10 +12,9 @@ import { createFeederNonce, errorTxHash, FEED_RETRY_DELAYS_MS, MAX_FEED_TRIES } 
 import { NEAR_ASSET, createOneClick, type OneClick } from "./intents";
 
 /**
- * Feed the Brain (AI-brain 04 section 3): one order pipeline, three payment modes.
+ * Feed the Brain (AI-brain 04 section 3): one order pipeline, two payment modes.
  *   direct    payer's own testnet wallet calls feed(pet); the brain verifies the tx on chain
  *   live      NEAR Intents 1Click on mainnet, then the feeder feeds on testnet
- *   simulated labelled button, then the feeder feeds on testnet
  * Pending, failed, refunded and expired orders never touch fuel. settle_ref and feed_tx are
  * UNIQUE and settled -> feeding is one guarded UPDATE, so duplicates feed once.
  */
@@ -35,7 +34,7 @@ export const PACKS = [
   { id: "feast", name: "Feast", feed_yocto: NEAR, fuel: 200 },
 ] as const;
 
-export type Mode = "direct" | "live" | "simulated";
+export type Mode = "direct" | "live";
 export type OrderStatus = "created" | "quoted" | "pending" | "settled" | "feeding" | "fed" | "failed" | "refunded" | "expired";
 
 export interface OrderRow {
@@ -65,18 +64,16 @@ export interface OrdersIo {
   feederNonce?: () => Promise<bigint | null>;
 }
 
-/** direct always; live needs INTENTS_MODE=live and a settlement account; simulated with live or simulated. */
+/** direct always; live needs INTENTS_MODE=live and a settlement account. */
 export function enabledModes(cfg: Config): Mode[] {
   const modes: Mode[] = ["direct"];
   if (cfg.INTENTS_MODE === "live" && cfg.SETTLEMENT_ACCOUNT_MAINNET) modes.push("live");
-  if (cfg.INTENTS_MODE === "live" || cfg.INTENTS_MODE === "simulated") modes.push("simulated");
   return modes;
 }
 
 const LABELS: Record<Mode, string | null> = {
   direct: null,
   live: "Paid on mainnet, fuel granted on testnet",
-  simulated: "simulated",
 };
 
 function view(o: OrderRow) {
@@ -86,7 +83,6 @@ function view(o: OrderRow) {
     pet_ref: o.pet_ref,
     mode: o.mode,
     label: LABELS[o.mode],
-    simulated: o.mode === "simulated",
     pack_id: o.pack_id,
     fuel: pack?.fuel ?? 0,
     feed_yocto: o.feed_yocto,
@@ -167,7 +163,6 @@ function announceFed(o: OrderRow, txHash: string) {
     order_id: o.id,
     celebrate_id: o.id,
     mode: o.mode,
-    simulated: o.mode === "simulated",
     pack_id: o.pack_id,
     fuel: pack?.fuel ?? 0,
     feed_yocto: o.feed_yocto,
@@ -203,7 +198,7 @@ interface FeedRetryCols {
   feed_nonce: string | null;
 }
 
-/** Feeds settled live / simulated orders. Single flight: a concurrent call joins the running one. */
+/** Feeds settled live orders. Single flight: a concurrent call joins the running one. */
 export function runFeeder(deps: Deps, io: OrdersIo): Promise<void> {
   const running = feederRuns.get(deps);
   if (running) return running;
@@ -216,7 +211,7 @@ async function feedOnce(deps: Deps, io: OrdersIo): Promise<void> {
   const { db } = deps;
   const rows = db
     .prepare(
-      `SELECT * FROM feed_order WHERE status = 'settled' AND mode IN ('live', 'simulated')
+      `SELECT * FROM feed_order WHERE status = 'settled' AND mode = 'live'
          AND (feed_retry_at IS NULL OR feed_retry_at <= ?) ORDER BY created_at LIMIT 20`,
     )
     .all(deps.now()) as (OrderRow & FeedRetryCols)[];
@@ -389,7 +384,7 @@ export async function pollLive(deps: Deps, io: OrdersIo): Promise<void> {
 const CreateBody = z.object({
   pet_ref: z.string(),
   pack_id: z.string(),
-  mode: z.enum(["direct", "live", "simulated"]).default("direct"),
+  mode: z.enum(["direct", "live"]).default("direct"),
   origin_asset: z.string().min(1).max(200).optional(),
   refund_to: z.string().min(1).max(200).optional(),
 });
@@ -540,24 +535,12 @@ export function orderRoutes(deps: Deps, over: Partial<OrdersIo> = {}) {
     return c.json(view(fed));
   });
 
-  app.post("/orders/:id/simulate-pay", (c) => {
-    if (!enabledModes(cfg).includes("simulated")) return err(c, 404, "not_found", "Simulated payments are off");
-    const id = c.req.param("id");
-    const o = getOrder(deps, id);
-    if (!o) return err(c, 404, "not_found", "No such order");
-    if (o.mode !== "simulated") return err(c, 409, "conflict", "Not a simulated order");
-    db.prepare("UPDATE feed_order SET status = 'settled', settle_ref = ?, updated_at = ? WHERE id = ? AND status = 'created'")
-      .run(`sim:${id}`, deps.now(), id);
-    void runFeeder(deps, ioFor(deps, over)).catch(() => undefined); // feed now instead of on the next tick
-    return c.json(view(getOrder(deps, id)!));
-  });
-
   return app;
 }
 
 export function startOrders(deps: Deps, over: Partial<OrdersIo> = {}): () => void {
   const io = ioFor(deps, over);
-  if (!io.feeder) log.warn("feeder not configured (FEEDER_ACCOUNT_ID, FEEDER_KEY); live and simulated orders wait in settled");
+  if (!io.feeder) log.warn("feeder not configured (FEEDER_ACCOUNT_ID, FEEDER_KEY); live orders wait in settled");
   const feed = setInterval(() => void runFeeder(deps, io).catch(() => undefined), 5_000);
   const poll = enabledModes(deps.cfg).includes("live")
     ? setInterval(() => void pollLive(deps, io).catch(() => undefined), 10_000)

@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { RoomQr } from "@/components/race/RoomQr";
 import { getOrder, toMs, type Order, type OrderStatus } from "@/components/wallet/brainApi";
-import { AppFrame, ErrorText, Panel, SimulatedPill, Spinner, TxLink } from "@/components/wallet/ui";
+import { AppFrame, ErrorText, Panel, Spinner, TxLink } from "@/components/wallet/ui";
 import { BrainRequestError } from "@/lib/brain";
 import { petFromRef } from "@/lib/chain";
 
@@ -68,17 +68,15 @@ export default function OrderPage() {
   const copy = COPY[order.status] ?? COPY.created;
   const pet = petFromRef(order.pet_ref);
   const feedHref = pet ? `/feed/${encodeURIComponent(pet.ref)}` : "/";
-  const simulated = order.mode === "simulated";
 
   return (
     <AppFrame title={copy.title} back={feedHref}>
       <Panel>
-        {simulated && <SimulatedPill />}
         {order.mode === "live" && <p className="text-sm text-warn">Paid on mainnet, fuel granted on testnet.</p>}
         <p>{copy.body}</p>
         {order.status === "fed" && (
           <p className="font-display text-2xl text-fuel">
-            +{order.fuel ?? "new"} thoughts{simulated ? " (simulated payment)" : ""}
+            +{order.fuel ?? "new"} thoughts
           </p>
         )}
         {order.feed_tx && (

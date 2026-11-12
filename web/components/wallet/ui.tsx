@@ -36,10 +36,6 @@ export function DemoSpeedPill() {
   return <span className="border-2 border-accent px-2 font-display text-sm text-accent">demo speed</span>;
 }
 
-export function SimulatedPill() {
-  return <span className="border-2 border-warn px-2 font-display text-sm text-warn">simulated</span>;
-}
-
 export function ErrorText({ children }: { children: React.ReactNode }) {
   if (!children) return null;
   return (

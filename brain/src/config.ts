@@ -24,11 +24,10 @@ const Env = z.object({
   NEARAI_API_KEY: z.string().optional(),
   // ---- fuel / orders / garden / wallet (AI-brain 04, 05 section 5) ----
   /**
-   * Feed the Brain payment modes. `direct` is always on. `simulated` adds the labelled
-   * "Pay (simulated)" button. `live` adds NEAR Intents 1Click and keeps simulated on as the
-   * demo fallback (needs SETTLEMENT_ACCOUNT_MAINNET).
+   * Feed the Brain payment modes. `direct` (testnet wallet) is always on. `live` adds NEAR
+   * Intents 1Click (needs SETTLEMENT_ACCOUNT_MAINNET).
    */
-  INTENTS_MODE: z.enum(["direct", "live", "simulated"]).default("direct"),
+  INTENTS_MODE: z.enum(["direct", "live"]).default("direct"),
   ONECLICK_BASE_URL: z.string().default("https://1click.chaindefuser.com"),
   ONECLICK_JWT: z.string().optional(),
   SETTLEMENT_ACCOUNT_MAINNET: z.string().optional(),

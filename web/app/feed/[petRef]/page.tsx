@@ -6,7 +6,6 @@ import {
   createOrder,
   getPacks,
   reportDirectTx,
-  simulatePay,
   type Pack,
   type PacksResponse,
   type PayMode,
@@ -15,7 +14,7 @@ import { PantryCard } from "@/components/garden/PantryCard";
 import { FaucetPanel } from "@/components/wallet/FaucetPanel";
 import { PetHeader } from "@/components/wallet/PetHeader";
 import { PetPage } from "@/components/wallet/PetPage";
-import { ErrorText, Panel, SimulatedPill, TxStatus } from "@/components/wallet/ui";
+import { ErrorText, Panel, TxStatus } from "@/components/wallet/ui";
 import type { PetData } from "@/components/wallet/usePet";
 import { useTx } from "@/components/wallet/useTx";
 import { BrainRequestError } from "@/lib/brain";
@@ -32,7 +31,6 @@ export default function FeedPage() {
 const MODE_LABEL: Record<PayMode, string> = {
   direct: "NEAR wallet",
   live: "Other chain",
-  simulated: "Simulated",
 };
 
 function Feed({ pet }: { pet: PetData }) {
@@ -65,7 +63,7 @@ function Feed({ pet }: { pet: PetData }) {
   if (!packs) return <p className="font-mono text-sm text-muted">Loading packs...</p>;
   if (packs.packs.length === 0) return <p className="text-sm text-muted">No feed packs are on sale right now.</p>;
   // live mode stays hidden unless the brain enables it (each live payment needs human approval)
-  const modes = packs.modes.filter((m) => m === "direct" || m === "live" || m === "simulated");
+  const modes = packs.modes.filter((m) => m === "direct" || m === "live");
   const activeMode = modes.includes(mode) ? mode : modes[0] ?? "direct";
   const pack: Pack = packs.packs.find((p) => p.id === packId) ?? packs.packs[0]!;
 
@@ -100,12 +98,11 @@ function Feed({ pet }: { pet: PetData }) {
     }
   }
 
-  async function payOther(m: "live" | "simulated") {
+  async function payOther(m: "live") {
     setBusy(true);
     setError(null);
     try {
       const order = await createOrder(pet.ref, pack.id, m);
-      if (m === "simulated") await simulatePay(order.id);
       router.push(`/order/${encodeURIComponent(order.id)}`);
     } catch (err) {
       setError(brainErrorCopy(err instanceof BrainRequestError ? err.code : "upstream", name));
@@ -149,7 +146,6 @@ function Feed({ pet }: { pet: PetData }) {
                 className={`border-2 px-3 py-2 font-display text-sm ${m === activeMode ? "border-accent text-accent" : "border-line"}`}
               >
                 {MODE_LABEL[m]}
-                {m === "simulated" && " (simulated)"}
               </button>
             ))}
           </div>
@@ -177,16 +173,6 @@ function Feed({ pet }: { pet: PetData }) {
           </>
         )}
 
-        {activeMode === "simulated" && (
-          <>
-            <p className="flex items-center gap-2 text-sm text-muted">
-              <SimulatedPill /> No money moves. The team's feeder account feeds {name} on testnet.
-            </p>
-            <button className="pixel-btn" disabled={busy} onClick={() => void payOther("simulated")}>
-              Pay (simulated)
-            </button>
-          </>
-        )}
         <ErrorText>{error}</ErrorText>
       </Panel>
 

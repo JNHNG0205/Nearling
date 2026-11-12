@@ -66,7 +66,7 @@ const noOneClick: OneClick = {
   },
 };
 
-function setup(opts: { mode?: "direct" | "live" | "simulated"; io?: Partial<OrdersIo>; cap?: number } = {}) {
+function setup(opts: { mode?: "direct" | "live"; io?: Partial<OrdersIo>; cap?: number } = {}) {
   const deps = testDeps();
   deps.cfg = {
     ...deps.cfg,
@@ -85,8 +85,19 @@ function setup(opts: { mode?: "direct" | "live" | "simulated"; io?: Partial<Orde
     expect(res.status).toBe(201);
     return (await res.json()) as { id: string; status: string };
   };
+  const PACK_YOCTO: Record<string, bigint> = { snack: SNACK, meal: NEAR / 2n, feast: NEAR };
+  /** A live order whose payment has settled (what pollLive produces), ready for the feeder. */
+  const settle = (pack_id = "snack") => {
+    const id = `live-${Math.random().toString(36).slice(2)}`;
+    const now = deps.now();
+    deps.db.prepare(
+      `INSERT INTO feed_order (id, pet_ref, mode, pack_id, status, feed_yocto, settle_ref, created_at, updated_at)
+       VALUES (?, ?, 'live', ?, 'settled', ?, ?, ?, ?)`,
+    ).run(id, REF, pack_id, PACK_YOCTO[pack_id]!.toString(), `intents:${id}`, now, now);
+    return { id };
+  };
   const row = (id: string) => deps.db.prepare("SELECT * FROM feed_order WHERE id = ?").get(id) as OrderRow;
-  return { deps, io, app, post, create, row, events, fuelAdded: () => events.filter((e) => e.type === "fuel_added") };
+  return { deps, io, app, post, create, settle, row, events, fuelAdded: () => events.filter((e) => e.type === "fuel_added") };
 }
 
 describe("GET /feed/packs", () => {
@@ -102,17 +113,17 @@ describe("GET /feed/packs", () => {
     expect(body.live_quotes).toBe("dry");
   });
 
-  it("live mode also enables simulated", async () => {
+  it("live mode adds live", async () => {
     const { app } = setup({ mode: "live" });
     const body = (await (await app.request("/feed/packs")).json()) as { modes: string[] };
-    expect(body.modes).toEqual(["direct", "live", "simulated"]);
+    expect(body.modes).toEqual(["direct", "live"]);
   });
 });
 
 describe("POST /orders", () => {
   it("rejects disabled modes, unknown packs, foreign contracts, missing pets", async () => {
     const { post } = setup();
-    expect((await post("/orders", { pet_ref: REF, pack_id: "snack", mode: "simulated" })).status).toBe(400);
+    expect((await post("/orders", { pet_ref: REF, pack_id: "snack", mode: "live" })).status).toBe(400);
     expect((await post("/orders", { pet_ref: REF, pack_id: "banquet" })).status).toBe(400);
     expect((await post("/orders", { pet_ref: "evil.testnet:1", pack_id: "snack" })).status).toBe(400);
     expect((await post("/orders", { pet_ref: `${C}:99`, pack_id: "snack" })).status).toBe(404);
@@ -186,10 +197,10 @@ describe("direct orders", () => {
   });
 
   it("rejects a malformed hash and non-direct orders", async () => {
-    const t = setup({ mode: "simulated" });
+    const t = setup({ mode: "live" });
     const o = await t.create();
     expect((await t.post(`/orders/${o.id}/direct-tx`, { tx_hash: "nope" })).status).toBe(400);
-    const s = await t.create("simulated");
+    const s = t.settle();
     expect((await t.post(`/orders/${s.id}/direct-tx`, { tx_hash: HASH })).status).toBe(409);
   });
 
@@ -210,44 +221,33 @@ describe("direct orders", () => {
   });
 });
 
-describe("simulated orders and the feeder", () => {
-  it("is off unless enabled", async () => {
-    const t = setup({ mode: "direct" });
-    const o = await t.create();
-    expect((await t.post(`/orders/${o.id}/simulate-pay`)).status).toBe(404);
-  });
-
-  it("settles, feeds once with the pack amount, labels simulated", async () => {
+describe("the feeder", () => {
+  it("feeds a settled order once with the pack amount", async () => {
     const feeder = fakeFeeder();
-    const t = setup({ mode: "simulated", io: { feeder } });
-    const o = await t.create("simulated", "meal");
-    const res = await t.post(`/orders/${o.id}/simulate-pay`);
-    expect(((await res.json()) as { label: string; simulated: boolean })).toMatchObject({ label: "simulated", simulated: true });
-    // duplicate settlement notifications and concurrent worker ticks
-    await t.post(`/orders/${o.id}/simulate-pay`);
+    const t = setup({ mode: "live", io: { feeder } });
+    const o = t.settle("meal");
+    // concurrent worker ticks
     await Promise.all([runFeeder(t.deps, t.io), runFeeder(t.deps, t.io)]);
     await runFeeder(t.deps, t.io);
     expect(feeder.calls).toEqual([{ contract: C, method: "feed", args: { pet_id: "1" }, deposit: NEAR / 2n, gas: 30 }]);
-    expect(t.row(o.id)).toMatchObject({ status: "fed", feed_tx: "feed-tx-1", settle_ref: `sim:${o.id}` });
+    expect(t.row(o.id)).toMatchObject({ status: "fed", feed_tx: "feed-tx-1", settle_ref: `intents:${o.id}` });
     expect(t.fuelAdded()).toHaveLength(1);
   });
 
   it("waits in settled without a feeder", async () => {
-    const t = setup({ mode: "simulated", io: { feeder: null } });
-    const o = await t.create("simulated");
-    await t.post(`/orders/${o.id}/simulate-pay`);
+    const t = setup({ mode: "live", io: { feeder: null } });
+    const o = t.settle();
     await runFeeder(t.deps, t.io);
     expect(t.row(o.id).status).toBe("settled");
   });
 
   it("enforces the daily cap", async () => {
     const feeder = fakeFeeder();
-    const t = setup({ mode: "simulated", cap: 1, io: { feeder } });
+    const t = setup({ mode: "live", cap: 1, io: { feeder } });
     const ids: string[] = [];
     for (let i = 0; i < 3; i++) {
-      const o = await t.create("simulated", "meal");
+      const o = t.settle("meal");
       ids.push(o.id);
-      t.deps.db.prepare("UPDATE feed_order SET status = 'settled', settle_ref = ? WHERE id = ?").run(`sim:${o.id}`, o.id);
     }
     const alert = vi.spyOn(log, "alert").mockImplementation(() => undefined);
     await runFeeder(t.deps, t.io);
@@ -264,10 +264,9 @@ describe("simulated orders and the feeder", () => {
 
   it("alerts on low balance and waits when the feeder cannot pay", async () => {
     const feeder = fakeFeeder();
-    const t = setup({ mode: "simulated", io: { feeder, rpc: fakeRpc({}, NEAR / 2n) } });
+    const t = setup({ mode: "live", io: { feeder, rpc: fakeRpc({}, NEAR / 2n) } });
     const alert = vi.spyOn(log, "alert").mockImplementation(() => undefined);
-    const o = await t.create("simulated", "feast");
-    await t.post(`/orders/${o.id}/simulate-pay`);
+    const o = t.settle("feast");
     await runFeeder(t.deps, t.io);
     expect(feeder.calls).toHaveLength(0);
     expect(t.row(o.id).status).toBe("settled");
@@ -294,16 +293,14 @@ describe("simulated orders and the feeder", () => {
       return { signer, calls };
     }
     async function settledOrder(t: ReturnType<typeof setup>) {
-      const o = await t.create("simulated");
-      t.deps.db.prepare("UPDATE feed_order SET status = 'settled', settle_ref = ? WHERE id = ?").run(`sim:${o.id}`, o.id);
-      return o;
+      return t.settle();
     }
 
     it("retries a failed tx (re-checked on chain) after 2 s and 10 s, then feeds once", async () => {
       let now = 1_800_000_000_000;
       const { signer, calls } = flakyFeeder(2, (i) => (i === 1 ? H1 : HASH2));
       const rpc = fakeRpc({ [H1]: feedTx({ hash: H1, success: false, fed: false }), [HASH2]: feedTx({ hash: HASH2, success: false, fed: false }) });
-      const t = setup({ mode: "simulated", io: { feeder: signer, rpc } });
+      const t = setup({ mode: "live", io: { feeder: signer, rpc } });
       t.deps.now = () => now;
       const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
       const o = await settledOrder(t);
@@ -327,7 +324,7 @@ describe("simulated orders and the feeder", () => {
       let now = 1_800_000_000_000;
       const { signer, calls } = flakyFeeder(1, () => H1);
       const rpc = fakeRpc({ [H1]: feedTx({ hash: H1, success: true, fed: true }) });
-      const t = setup({ mode: "simulated", io: { feeder: signer, rpc } });
+      const t = setup({ mode: "live", io: { feeder: signer, rpc } });
       t.deps.now = () => now;
       vi.spyOn(log, "warn").mockImplementation(() => undefined);
       const o = await settledOrder(t);
@@ -344,7 +341,7 @@ describe("simulated orders and the feeder", () => {
       let now = 1_800_000_000_000;
       let nonce = 7n;
       const a = flakyFeeder(1);
-      const t = setup({ mode: "simulated", io: { feeder: a.signer, feederNonce: async () => nonce } });
+      const t = setup({ mode: "live", io: { feeder: a.signer, feederNonce: async () => nonce } });
       t.deps.now = () => now;
       vi.spyOn(log, "warn").mockImplementation(() => undefined);
       const alert = vi.spyOn(log, "alert").mockImplementation(() => undefined);
@@ -376,7 +373,7 @@ describe("simulated orders and the feeder", () => {
         const h = `${i}z9Lq8rB7nVtJbT3oLz2YkWm5sXqFv1hCdEaPgR6uNi`;
         return [h, feedTx({ hash: h, success: false, fed: false })];
       }));
-      const t = setup({ mode: "simulated", io: { feeder: signer, rpc: fakeRpc(txs) } });
+      const t = setup({ mode: "live", io: { feeder: signer, rpc: fakeRpc(txs) } });
       t.deps.now = () => now;
       vi.spyOn(log, "warn").mockImplementation(() => undefined);
       const alert = vi.spyOn(log, "alert").mockImplementation(() => undefined);
@@ -397,10 +394,9 @@ describe("simulated orders and the feeder", () => {
 
   it("a failed feeder call with no tx hash and no nonce reader fails the order and is not retried", async () => {
     const feeder = fakeFeeder(true);
-    const t = setup({ mode: "simulated", io: { feeder } });
+    const t = setup({ mode: "live", io: { feeder } });
     const alert = vi.spyOn(log, "alert").mockImplementation(() => undefined);
-    const o = await t.create("simulated");
-    await t.post(`/orders/${o.id}/simulate-pay`);
+    const o = t.settle();
     await runFeeder(t.deps, t.io);
     await runFeeder(t.deps, t.io);
     expect(feeder.calls).toHaveLength(1);
