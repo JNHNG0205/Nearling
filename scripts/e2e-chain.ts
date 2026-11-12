@@ -23,8 +23,8 @@ import { createRpc } from "../brain/src/wallet/rpc";
 import { eventData, parseEvents, returnValue, type Outcome } from "../web/lib/chain";
 
 const RPC = process.env.E2E_RPC ?? "https://test.rpc.fastnear.com"; // rpc.testnet.near.org rate-limits (429)
-const DEMO = "pets-demo.nearling.testnet";
-const V8 = "pets-v8.nearling.testnet";
+const DEMO = "pets-demo-v9.nearling.testnet";
+const V8 = "pets-v9.nearling.testnet" // name kept; points at pets-v9;
 const SHIRTS = "shirts.nearling.testnet";
 const POOL = "mw-pool-1024.testnet";
 const NEAR = 10n ** 24n;

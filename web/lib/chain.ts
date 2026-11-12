@@ -7,8 +7,8 @@ import { formatPetRef, parsePetRef, type ContractAction, type PendingAction, typ
 
 export const NETWORK = "testnet" as const;
 export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL ?? "https://test.rpc.fastnear.com";
-export const PETS_CONTRACT = process.env.NEXT_PUBLIC_PETS_CONTRACT ?? "pets-v8.nearling.testnet";
-export const DEMO_PETS_CONTRACT = process.env.NEXT_PUBLIC_DEMO_PETS_CONTRACT ?? "pets-demo.nearling.testnet";
+export const PETS_CONTRACT = process.env.NEXT_PUBLIC_PETS_CONTRACT ?? "pets-v9.nearling.testnet";
+export const DEMO_PETS_CONTRACT = process.env.NEXT_PUBLIC_DEMO_PETS_CONTRACT ?? "pets-demo-v9.nearling.testnet";
 export const SHIRTS_CONTRACT = process.env.NEXT_PUBLIC_SHIRTS_CONTRACT ?? "shirts.nearling.testnet";
 export const EXPLORER_TX = "https://testnet.nearblocks.io/txns/";
 

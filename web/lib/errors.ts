@@ -4,6 +4,8 @@
 const CHAIN: Record<string, (name: string) => string> = {
   // money and amounts
   E_DEPOSIT: () => "The amount didn't match. Please try again.",
+  E_PANTRY: (n) => `${n}'s pantry doesn't have that much. Stock it first.`,
+  E_METADATA: () => "The pet's picture link was rejected. Please tell the Nearling team.",
   E_GAS: () => "Not enough gas attached. Please retry.",
   E_STORAGE: () => "The mint price no longer covers storage. Please tell the Nearling team.",
   // naming and Soul
