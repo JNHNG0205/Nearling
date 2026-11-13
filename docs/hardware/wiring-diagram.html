@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nearling wiring</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Bench schematic: cool board-grey paper, wires coloured by signal, every wire also labelled in text. */
+:root{
+--bg:#eef2f0;--card:#ffffff;--ink:#16201c;--muted:#56645e;--line:#cbd4d0;
+--w-pwr:#cf3b33;--w-gnd:#2c3532;--w-sda:#2a63b8;--w-scl:#0f8580;--w-i2s:#b46c06;--w-inp:#6d47c6;--w-spk:#7b8681;
+--esp:#e7e3f7;
+--f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+color-scheme:light;}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+--bg:#121816;--card:#1b2320;--ink:#e3ebe7;--muted:#9aa8a2;--line:#33403b;
+--w-pwr:#f26a5f;--w-gnd:#c3ccc8;--w-sda:#6fa4f0;--w-scl:#45c2bb;--w-i2s:#eaa53c;--w-inp:#a58af2;--w-spk:#8d9893;--esp:#2a2540;color-scheme:dark;}}
+:root[data-theme="dark"]{
+--bg:#121816;--card:#1b2320;--ink:#e3ebe7;--muted:#9aa8a2;--line:#33403b;
+--w-pwr:#f26a5f;--w-gnd:#c3ccc8;--w-sda:#6fa4f0;--w-scl:#45c2bb;--w-i2s:#eaa53c;--w-inp:#a58af2;--w-spk:#8d9893;--esp:#2a2540;color-scheme:dark;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--f-body)}
+main{max-width:1240px;margin:0 auto;padding:32px 20px 64px;display:grid;gap:28px}
+h1{font-size:34px;line-height:1.15;margin:0;font-weight:600;text-wrap:balance}
+h2{font-size:21px;margin:0 0 6px;font-weight:600;text-wrap:balance}
+h3{font-size:16px;margin:0;font-weight:600}
+p{margin:0;max-width:68ch}
+.lede{color:var(--muted);margin-top:8px}
+.small{font-size:13px;color:var(--muted)}
+.mono{font-family:var(--f-mono)}
+figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;overflow-x:auto}
+figure svg{display:block;width:100%;min-width:760px;height:auto}
+figcaption{font-size:14px;color:var(--muted);margin-top:10px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:14px}
+.legend span{display:inline-flex;align-items:center;gap:8px}
+.legend i{width:26px;height:4px;border-radius:2px;display:inline-block}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.step{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.step b{display:block;margin-bottom:4px}
+.step.warn{border-left:4px solid var(--w-pwr);border-radius:0 12px 12px 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:6px;align-content:start}
+table{border-collapse:collapse;width:100%;font-size:14px}
+td{padding:5px 0;border-top:1px solid var(--line);vertical-align:top}
+td:first-child{width:42%;padding-right:10px}
+tr.nc td{color:var(--muted)}
+/* svg */
+.box{stroke:var(--line);stroke-width:1}
+.box.mod{fill:var(--card)}
+.box.esp{fill:var(--esp)}
+svg text{fill:var(--ink);font-family:var(--f-body)}
+svg .title{font-size:15px;font-weight:600}
+svg .sub{font-size:12px;fill:var(--muted)}
+svg .pin{font-family:var(--f-mono);font-size:13px}
+svg .pin.nc{fill:var(--muted)}
+svg .dest{font-size:12px;fill:var(--muted)}
+svg .lab{font-size:12px;fill:var(--muted)}
+svg .buslab{font-family:var(--f-mono);font-size:12px;font-weight:500}
+.w{fill:none;stroke-width:2.2;stroke-linecap:round}
+.w.bus{stroke-width:3.2}
+.w.dash{stroke-dasharray:6 5}
+.w-pwr{stroke:var(--w-pwr)}.w-gnd{stroke:var(--w-gnd)}.w-sda{stroke:var(--w-sda)}.w-scl{stroke:var(--w-scl)}.w-i2s{stroke:var(--w-i2s)}.w-inp{stroke:var(--w-inp)}.w-spk{stroke:var(--w-spk)}
+.d-pwr{fill:var(--w-pwr)}.d-gnd{fill:var(--w-gnd)}.d-sda{fill:var(--w-sda)}.d-scl{fill:var(--w-scl)}.d-i2s{fill:var(--w-i2s)}.d-inp{fill:var(--w-inp)}.d-spk{fill:var(--w-spk)}
+.t-pwr{fill:var(--w-pwr)!important}.t-gnd{fill:var(--w-gnd)!important}.t-sda{fill:var(--w-sda)!important}.t-scl{fill:var(--w-scl)!important}
+</style></head><body><main>
+<header>
+<h1>Nearling wiring</h1>
+<p class="lede">Every connection between the ESP32-S3 and the parts we have. Power and I2C go through four shared lines on the breadboard; every other signal is one wire of its own.</p>
+</header>
+
+<div class="steps">
+<div class="step"><b>How it sits on the bench</b>The ESP32 stays off the breadboard. Each of its pins gets a female-to-male jumper: socket on the ESP32 pin, pin end in the breadboard.</div>
+<div class="step"><b>The four shared lines</b>3V3 is the red line, GND the blue line. SDA and SCL each get one empty breadboard column. Every part plugs into these instead of the ESP32 pin.</div>
+<div class="step"><b>Go by the printed labels</b>The pin order on this drawing is tidied up. On the real boards, find each pin by the name printed next to it.</div>
+<div class="step warn"><b>Unplug USB first</b>Add or move wires only with USB unplugged. A swapped VCC and GND is the one mistake that kills a part.</div>
+</div>
+
+<section>
+<h2>Signal wiring</h2>
+<div class="legend" aria-label="Wire colours">
+<span><i style="background:var(--w-pwr)"></i>3V3 power</span>
+<span><i style="background:var(--w-gnd)"></i>Ground</span>
+<span><i style="background:var(--w-sda)"></i>I2C data (SDA)</span>
+<span><i style="background:var(--w-scl)"></i>I2C clock (SCL)</span>
+<span><i style="background:var(--w-i2s)"></i>Audio (I2S)</span>
+<span><i style="background:var(--w-inp)"></i>Buttons and touch</span>
+</div>
+</section>
+<figure>
+<svg viewBox="0 0 1180 1374" role="img" aria-label="Wiring of every Nearling module to the ESP32-S3: power and I2C through four shared lines, every other signal on its own wire."><path class="w bus w-pwr" d="M330 96V1208"/><text class="buslab t-pwr" x="330" y="84" text-anchor="middle">3V3</text><path class="w bus w-gnd" d="M366 120V1188"/><text class="buslab t-gnd" x="366" y="84" text-anchor="middle">GND</text><path class="w bus w-sda" d="M402 144V604"/><text class="buslab t-sda" x="402" y="84" text-anchor="middle">SDA</text><path class="w bus w-scl" d="M438 168V584"/><text class="buslab t-scl" x="438" y="84" text-anchor="middle">SCL</text><path class="w w-pwr" d="M760 252H330"/><path class="w w-gnd" d="M760 272H366"/><path class="w w-scl" d="M760 292H438"/><path class="w w-sda" d="M760 312H402"/><path class="w w-pwr" d="M760 388H330"/><path class="w w-gnd" d="M760 408H366"/><path class="w w-sda" d="M760 428H402"/><path class="w w-scl" d="M760 448H438"/><path class="w w-pwr" d="M760 544H330"/><path class="w w-gnd" d="M760 564H366"/><path class="w w-scl" d="M760 584H438"/><path class="w w-sda" d="M760 604H402"/><path class="w w-pwr" d="M760 700H330"/><path class="w w-gnd" d="M760 720H366"/><path class="w w-inp" d="M250 740H760"/><path class="w w-inp" d="M250 816H760"/><path class="w w-gnd" d="M760 836H366"/><path class="w w-inp" d="M250 856H760"/><path class="w w-gnd" d="M760 876H366"/><path class="w w-inp" d="M250 896H760"/><path class="w w-gnd" d="M760 916H366"/><path class="w w-pwr" d="M760 992H330"/><path class="w w-gnd" d="M760 1012H366"/><path class="w w-gnd" d="M760 1032H366"/><path class="w w-i2s" d="M250 1052H760"/><path class="w w-i2s" d="M250 1072H760"/><path class="w w-i2s" d="M250 1092H760"/><path class="w w-pwr" d="M760 1168H330"/><path class="w w-gnd" d="M760 1188H366"/><path class="w w-pwr" d="M760 1208H330"/><path class="w w-i2s" d="M250 1228H760"/><path class="w w-i2s" d="M250 1248H760"/><path class="w w-i2s" d="M250 1268H760"/><path class="w w-spk" d="M1010 1308H1060"/><path class="w w-spk" d="M1010 1328H1060"/><rect class="box esp" x="40" y="40" width="210" height="1314" rx="8"/><text class="title" x="56" y="66">ESP32-S3</text><text class="pin" x="238" y="100" text-anchor="end">3V3</text><path class="w w-pwr" d="M250 96H330"/><text class="pin" x="238" y="124" text-anchor="end">GND</text><path class="w w-gnd" d="M250 120H366"/><text class="pin" x="238" y="148" text-anchor="end">GPIO 1</text><path class="w w-sda" d="M250 144H402"/><text class="pin" x="238" y="172" text-anchor="end">GPIO 2</text><path class="w w-scl" d="M250 168H438"/><rect class="box mod" x="760" y="212" width="250" height="118" rx="8"/><text class="title" x="774" y="232">OLED display</text><text class="sub" x="774" y="246">1.3 in, I2C, 0x3C</text><text class="pin" x="774" y="256">VCC</text><text class="dest" x="998" y="256" text-anchor="end">to 3V3 line</text><text class="pin" x="774" y="276">GND</text><text class="dest" x="998" y="276" text-anchor="end">to GND line</text><text class="pin" x="774" y="296">SCK</text><text class="dest" x="998" y="296" text-anchor="end">to SCL (GPIO 2)</text><text class="pin" x="774" y="316">SDA</text><text class="dest" x="998" y="316" text-anchor="end">to SDA (GPIO 1)</text><rect class="box mod" x="760" y="348" width="250" height="138" rx="8"/><text class="title" x="774" y="368">Light sensor</text><text class="sub" x="774" y="382">GY-30 / BH1750, 0x23</text><text class="pin" x="774" y="392">VCC</text><text class="dest" x="998" y="392" text-anchor="end">to 3V3 line</text><text class="pin" x="774" y="412">GND</text><text class="dest" x="998" y="412" text-anchor="end">to GND line</text><text class="pin" x="774" y="432">SDA</text><text class="dest" x="998" y="432" text-anchor="end">to SDA (GPIO 1)</text><text class="pin" x="774" y="452">SCL</text><text class="dest" x="998" y="452" text-anchor="end">to SCL (GPIO 2)</text><text class="pin nc" x="774" y="472">ADD</text><text class="dest" x="998" y="472" text-anchor="end">leave empty</text><rect class="box mod" x="760" y="504" width="250" height="138" rx="8"/><text class="title" x="774" y="524">Motion sensor</text><text class="sub" x="774" y="538">GY-521 / MPU6050, 0x68</text><text class="pin" x="774" y="548">VCC</text><text class="dest" x="998" y="548" text-anchor="end">to 3V3 line</text><text class="pin" x="774" y="568">GND</text><text class="dest" x="998" y="568" text-anchor="end">to GND line</text><text class="pin" x="774" y="588">SCL</text><text class="dest" x="998" y="588" text-anchor="end">to SCL (GPIO 2)</text><text class="pin" x="774" y="608">SDA</text><text class="dest" x="998" y="608" text-anchor="end">to SDA (GPIO 1)</text><text class="pin nc" x="774" y="628">XDA XCL AD0 INT</text><text class="dest" x="998" y="628" text-anchor="end">leave empty</text><rect class="box mod" x="760" y="660" width="250" height="98" rx="8"/><text class="title" x="774" y="680">Touch pad</text><text class="sub" x="774" y="694">TTP223</text><text class="pin" x="774" y="704">VCC</text><text class="dest" x="998" y="704" text-anchor="end">to 3V3 line</text><text class="pin" x="774" y="724">GND</text><text class="dest" x="998" y="724" text-anchor="end">to GND line</text><text class="pin" x="774" y="744">I/O</text><text class="dest" x="998" y="744" text-anchor="end">to GPIO 8</text><text class="pin" x="238" y="744" text-anchor="end">GPIO 8</text><rect class="box mod" x="760" y="776" width="250" height="158" rx="8"/><text class="title" x="774" y="796">Buttons</text><text class="sub" x="774" y="810">3 push buttons, 2 tabs each</text><text class="pin" x="774" y="820">A tab 1</text><text class="dest" x="998" y="820" text-anchor="end">to GPIO 41</text><text class="pin" x="238" y="820" text-anchor="end">GPIO 41</text><text class="pin" x="774" y="840">A tab 2</text><text class="dest" x="998" y="840" text-anchor="end">to GND line</text><text class="pin" x="774" y="860">B tab 1</text><text class="dest" x="998" y="860" text-anchor="end">to GPIO 42</text><text class="pin" x="238" y="860" text-anchor="end">GPIO 42</text><text class="pin" x="774" y="880">B tab 2</text><text class="dest" x="998" y="880" text-anchor="end">to GND line</text><text class="pin" x="774" y="900">C tab 1</text><text class="dest" x="998" y="900" text-anchor="end">to GPIO 47</text><text class="pin" x="238" y="900" text-anchor="end">GPIO 47</text><text class="pin" x="774" y="920">C tab 2</text><text class="dest" x="998" y="920" text-anchor="end">to GND line</text><rect class="box mod" x="760" y="952" width="250" height="158" rx="8"/><text class="title" x="774" y="972">Microphone</text><text class="sub" x="774" y="986">INMP441, I2S in</text><text class="pin" x="774" y="996">VDD</text><text class="dest" x="998" y="996" text-anchor="end">to 3V3 line</text><text class="pin" x="774" y="1016">GND</text><text class="dest" x="998" y="1016" text-anchor="end">to GND line</text><text class="pin" x="774" y="1036">L/R</text><text class="dest" x="998" y="1036" text-anchor="end">to GND line</text><text class="pin" x="774" y="1056">SCK</text><text class="dest" x="998" y="1056" text-anchor="end">to GPIO 4</text><text class="pin" x="238" y="1056" text-anchor="end">GPIO 4</text><text class="pin" x="774" y="1076">WS</text><text class="dest" x="998" y="1076" text-anchor="end">to GPIO 5</text><text class="pin" x="238" y="1076" text-anchor="end">GPIO 5</text><text class="pin" x="774" y="1096">SD</text><text class="dest" x="998" y="1096" text-anchor="end">to GPIO 6</text><text class="pin" x="238" y="1096" text-anchor="end">GPIO 6</text><rect class="box mod" x="760" y="1128" width="250" height="218" rx="8"/><text class="title" x="774" y="1148">Amplifier</text><text class="sub" x="774" y="1162">MAX98357, I2S out</text><text class="pin" x="774" y="1172">VIN</text><text class="dest" x="998" y="1172" text-anchor="end">to 3V3 line</text><text class="pin" x="774" y="1192">GND</text><text class="dest" x="998" y="1192" text-anchor="end">to GND line</text><text class="pin" x="774" y="1212">GAIN</text><text class="dest" x="998" y="1212" text-anchor="end">to 3V3 line</text><text class="pin" x="774" y="1232">BCLK</text><text class="dest" x="998" y="1232" text-anchor="end">to GPIO 15</text><text class="pin" x="238" y="1232" text-anchor="end">GPIO 15</text><text class="pin" x="774" y="1252">LRC</text><text class="dest" x="998" y="1252" text-anchor="end">to GPIO 16</text><text class="pin" x="238" y="1252" text-anchor="end">GPIO 16</text><text class="pin" x="774" y="1272">DIN</text><text class="dest" x="998" y="1272" text-anchor="end">to GPIO 7</text><text class="pin" x="238" y="1272" text-anchor="end">GPIO 7</text><text class="pin nc" x="774" y="1292">SD</text><text class="dest" x="998" y="1292" text-anchor="end">leave empty</text><text class="pin" x="774" y="1312">+</text><text class="dest" x="998" y="1312" text-anchor="end">to speaker</text><text class="pin" x="774" y="1332">−</text><text class="dest" x="998" y="1332" text-anchor="end">to speaker</text><rect class="box mod" x="1060" y="1282" width="100" height="72" rx="8"/><text class="title" x="1110" y="1323.0" text-anchor="middle">Speaker</text><circle class="d d-pwr" cx="330" cy="96" r="3.4"/><circle class="d d-gnd" cx="366" cy="120" r="3.4"/><circle class="d d-sda" cx="402" cy="144" r="3.4"/><circle class="d d-scl" cx="438" cy="168" r="3.4"/><circle class="d d-pwr" cx="330" cy="252" r="3.4"/><circle class="d d-pwr" cx="760" cy="252" r="3.4"/><circle class="d d-gnd" cx="366" cy="272" r="3.4"/><circle class="d d-gnd" cx="760" cy="272" r="3.4"/><circle class="d d-scl" cx="438" cy="292" r="3.4"/><circle class="d d-scl" cx="760" cy="292" r="3.4"/><circle class="d d-sda" cx="402" cy="312" r="3.4"/><circle class="d d-sda" cx="760" cy="312" r="3.4"/><circle class="d d-pwr" cx="330" cy="388" r="3.4"/><circle class="d d-pwr" cx="760" cy="388" r="3.4"/><circle class="d d-gnd" cx="366" cy="408" r="3.4"/><circle class="d d-gnd" cx="760" cy="408" r="3.4"/><circle class="d d-sda" cx="402" cy="428" r="3.4"/><circle class="d d-sda" cx="760" cy="428" r="3.4"/><circle class="d d-scl" cx="438" cy="448" r="3.4"/><circle class="d d-scl" cx="760" cy="448" r="3.4"/><circle class="d d-pwr" cx="330" cy="544" r="3.4"/><circle class="d d-pwr" cx="760" cy="544" r="3.4"/><circle class="d d-gnd" cx="366" cy="564" r="3.4"/><circle class="d d-gnd" cx="760" cy="564" r="3.4"/><circle class="d d-scl" cx="438" cy="584" r="3.4"/><circle class="d d-scl" cx="760" cy="584" r="3.4"/><circle class="d d-sda" cx="402" cy="604" r="3.4"/><circle class="d d-sda" cx="760" cy="604" r="3.4"/><circle class="d d-pwr" cx="330" cy="700" r="3.4"/><circle class="d d-pwr" cx="760" cy="700" r="3.4"/><circle class="d d-gnd" cx="366" cy="720" r="3.4"/><circle class="d d-gnd" cx="760" cy="720" r="3.4"/><circle class="d d-inp" cx="250" cy="740" r="3.4"/><circle class="d d-inp" cx="760" cy="740" r="3.4"/><circle class="d d-inp" cx="250" cy="816" r="3.4"/><circle class="d d-inp" cx="760" cy="816" r="3.4"/><circle class="d d-gnd" cx="366" cy="836" r="3.4"/><circle class="d d-gnd" cx="760" cy="836" r="3.4"/><circle class="d d-inp" cx="250" cy="856" r="3.4"/><circle class="d d-inp" cx="760" cy="856" r="3.4"/><circle class="d d-gnd" cx="366" cy="876" r="3.4"/><circle class="d d-gnd" cx="760" cy="876" r="3.4"/><circle class="d d-inp" cx="250" cy="896" r="3.4"/><circle class="d d-inp" cx="760" cy="896" r="3.4"/><circle class="d d-gnd" cx="366" cy="916" r="3.4"/><circle class="d d-gnd" cx="760" cy="916" r="3.4"/><circle class="d d-pwr" cx="330" cy="992" r="3.4"/><circle class="d d-pwr" cx="760" cy="992" r="3.4"/><circle class="d d-gnd" cx="366" cy="1012" r="3.4"/><circle class="d d-gnd" cx="760" cy="1012" r="3.4"/><circle class="d d-gnd" cx="366" cy="1032" r="3.4"/><circle class="d d-gnd" cx="760" cy="1032" r="3.4"/><circle class="d d-i2s" cx="250" cy="1052" r="3.4"/><circle class="d d-i2s" cx="760" cy="1052" r="3.4"/><circle class="d d-i2s" cx="250" cy="1072" r="3.4"/><circle class="d d-i2s" cx="760" cy="1072" r="3.4"/><circle class="d d-i2s" cx="250" cy="1092" r="3.4"/><circle class="d d-i2s" cx="760" cy="1092" r="3.4"/><circle class="d d-pwr" cx="330" cy="1168" r="3.4"/><circle class="d d-pwr" cx="760" cy="1168" r="3.4"/><circle class="d d-gnd" cx="366" cy="1188" r="3.4"/><circle class="d d-gnd" cx="760" cy="1188" r="3.4"/><circle class="d d-pwr" cx="330" cy="1208" r="3.4"/><circle class="d d-pwr" cx="760" cy="1208" r="3.4"/><circle class="d d-i2s" cx="250" cy="1228" r="3.4"/><circle class="d d-i2s" cx="760" cy="1228" r="3.4"/><circle class="d d-i2s" cx="250" cy="1248" r="3.4"/><circle class="d d-i2s" cx="760" cy="1248" r="3.4"/><circle class="d d-i2s" cx="250" cy="1268" r="3.4"/><circle class="d d-i2s" cx="760" cy="1268" r="3.4"/><circle class="d d-spk" cx="1010" cy="1308" r="3.4"/><circle class="d d-spk" cx="1060" cy="1308" r="3.4"/><circle class="d d-spk" cx="1010" cy="1328" r="3.4"/><circle class="d d-spk" cx="1060" cy="1328" r="3.4"/></svg>
+<figcaption>A dot marks a real join. Lines that cross without a dot are not connected. Pins marked "leave empty" get no wire.</figcaption>
+</figure>
+
+<section>
+<h2>Wire list by part</h2>
+<p class="small">The same connections as the drawing, one table per part, for ticking off as you go.</p>
+</section>
+<div class="cards"><section class=card><h3>OLED display</h3><p class=small>1.3 in, I2C, 0x3C</p><table><tbody><tr><td class=mono>VCC</td><td>Red line (3V3)</td></tr><tr><td class=mono>GND</td><td>Blue line (GND)</td></tr><tr><td class=mono>SCK</td><td>SCL column (ESP32 GPIO 2)</td></tr><tr><td class=mono>SDA</td><td>SDA column (ESP32 GPIO 1)</td></tr></tbody></table></section><section class=card><h3>Light sensor</h3><p class=small>GY-30 / BH1750, 0x23</p><table><tbody><tr><td class=mono>VCC</td><td>Red line (3V3)</td></tr><tr><td class=mono>GND</td><td>Blue line (GND)</td></tr><tr><td class=mono>SDA</td><td>SDA column (ESP32 GPIO 1)</td></tr><tr><td class=mono>SCL</td><td>SCL column (ESP32 GPIO 2)</td></tr><tr class=nc><td class=mono>ADD</td><td>Leave empty</td></tr></tbody></table></section><section class=card><h3>Motion sensor</h3><p class=small>GY-521 / MPU6050, 0x68</p><table><tbody><tr><td class=mono>VCC</td><td>Red line (3V3)</td></tr><tr><td class=mono>GND</td><td>Blue line (GND)</td></tr><tr><td class=mono>SCL</td><td>SCL column (ESP32 GPIO 2)</td></tr><tr><td class=mono>SDA</td><td>SDA column (ESP32 GPIO 1)</td></tr><tr class=nc><td class=mono>XDA XCL AD0 INT</td><td>Leave empty</td></tr></tbody></table></section><section class=card><h3>Touch pad</h3><p class=small>TTP223</p><table><tbody><tr><td class=mono>VCC</td><td>Red line (3V3)</td></tr><tr><td class=mono>GND</td><td>Blue line (GND)</td></tr><tr><td class=mono>I/O</td><td>ESP32 GPIO 8</td></tr></tbody></table></section><section class=card><h3>Buttons</h3><p class=small>3 push buttons, 2 tabs each</p><table><tbody><tr><td class=mono>A tab 1</td><td>ESP32 GPIO 41</td></tr><tr><td class=mono>A tab 2</td><td>Blue line (GND)</td></tr><tr><td class=mono>B tab 1</td><td>ESP32 GPIO 42</td></tr><tr><td class=mono>B tab 2</td><td>Blue line (GND)</td></tr><tr><td class=mono>C tab 1</td><td>ESP32 GPIO 47</td></tr><tr><td class=mono>C tab 2</td><td>Blue line (GND)</td></tr></tbody></table></section><section class=card><h3>Microphone</h3><p class=small>INMP441, I2S in</p><table><tbody><tr><td class=mono>VDD</td><td>Red line (3V3)</td></tr><tr><td class=mono>GND</td><td>Blue line (GND)</td></tr><tr><td class=mono>L/R</td><td>Blue line (GND)</td></tr><tr><td class=mono>SCK</td><td>ESP32 GPIO 4</td></tr><tr><td class=mono>WS</td><td>ESP32 GPIO 5</td></tr><tr><td class=mono>SD</td><td>ESP32 GPIO 6</td></tr></tbody></table></section><section class=card><h3>Amplifier</h3><p class=small>MAX98357, I2S out</p><table><tbody><tr><td class=mono>VIN</td><td>Red line (3V3)</td></tr><tr><td class=mono>GND</td><td>Blue line (GND)</td></tr><tr><td class=mono>GAIN</td><td>Red line (3V3)</td></tr><tr><td class=mono>BCLK</td><td>ESP32 GPIO 15</td></tr><tr><td class=mono>LRC</td><td>ESP32 GPIO 16</td></tr><tr><td class=mono>DIN</td><td>ESP32 GPIO 7</td></tr><tr class=nc><td class=mono>SD</td><td>Leave empty</td></tr><tr><td class=mono>+</td><td>Speaker wire</td></tr><tr><td class=mono>−</td><td>Speaker wire</td></tr></tbody></table></section></div>
+
+<section>
+<h2>Battery power, after the bench test</h2>
+<p class="small">Leave this off until every part works over USB.</p>
+</section>
+<figure>
+<svg viewBox="0 0 1180 150" role="img" aria-label="Battery power chain: LiPo cell to TP4056 charger, through the rocker switch to the MT3608 booster set to 5.0 volts, into the ESP32 5V and GND pins.">
+<g>
+<rect class="box mod" x="20" y="40" width="170" height="70" rx="8"/><text class="title" x="105" y="70" text-anchor="middle">LiPo 800 mAh</text><text class="sub" x="105" y="90" text-anchor="middle">3.7 V cell</text>
+<rect class="box mod" x="260" y="40" width="190" height="70" rx="8"/><text class="title" x="355" y="70" text-anchor="middle">TP4056 charger</text><text class="sub" x="355" y="90" text-anchor="middle">set to about 0.5 A</text>
+<rect class="box mod" x="520" y="40" width="160" height="70" rx="8"/><text class="title" x="600" y="70" text-anchor="middle">Rocker switch</text><text class="sub" x="600" y="90" text-anchor="middle">on the + wire only</text>
+<rect class="box mod" x="750" y="40" width="180" height="70" rx="8"/><text class="title" x="840" y="70" text-anchor="middle">MT3608 booster</text><text class="sub" x="840" y="90" text-anchor="middle">set 5.0 V first</text>
+<rect class="box esp" x="1000" y="40" width="160" height="70" rx="8"/><text class="title" x="1080" y="70" text-anchor="middle">ESP32-S3</text><text class="sub" x="1080" y="90" text-anchor="middle">5V and GND pins</text>
+<path class="w w-pwr" d="M190 75H260"/><text class="lab" x="225" y="66" text-anchor="middle">B+ B−</text>
+<path class="w w-pwr" d="M450 75H520"/><text class="lab" x="485" y="66" text-anchor="middle">OUT+</text>
+<path class="w w-pwr" d="M680 75H750"/><text class="lab" x="715" y="66" text-anchor="middle">VIN+</text>
+<path class="w w-pwr" d="M930 75H1000"/><text class="lab" x="965" y="66" text-anchor="middle">VOUT</text>
+<path class="w w-gnd dash" d="M355 110V132H840V110"/><text class="lab" x="597" y="128" text-anchor="middle">OUT− to VIN−</text>
+<path class="w w-gnd dash" d="M840 132H1080V110"/><text class="lab" x="960" y="128" text-anchor="middle">VOUT− to GND</text>
+</g></svg>
+<figcaption>Set the MT3608 to 5.0 V with a multimeter before it touches the board. Keep the rocker off while USB is plugged in, until you have checked that the board does not feed USB power back into the booster.</figcaption>
+</figure>
+
+<section class="steps">
+<div class="step"><b>Display</b>The part received is a 1.3 in black-and-white OLED (128 by 64, I2C), not the 240 by 240 colour ST7789 in the Build Spec.</div>
+<div class="step"><b>Pins not to use</b>GPIO 0, 3, 45, 46 (boot pins), 19 and 20 (USB), 35 to 37 (PSRAM), 38 to 40 (SD card), 43 and 44 (serial).</div>
+<div class="step"><b>Source of truth</b>Pins match <span class="mono">firmware/include/board_config.h</span> in the Nearling repo. Change both together.</div>
+</section>
+</main></body></html>
