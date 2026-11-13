@@ -49,16 +49,15 @@ export async function postTalk(
     init = {
       method: "POST",
       headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({ request_id: requestId, text: input.text, voice: false }),
+      body: JSON.stringify({ request_id: requestId, text: input.text, voice: true }),
       signal,
     };
   } else {
     const form = new FormData();
     form.set("request_id", requestId);
     form.set("audio", input.audio, "talk.webm");
-    // No synthesis from the web: ElevenLabs credits (about 130 replies) are kept for the device
-    // (AI-brain 03 section 6). Replies still show as text; "Play voice" appears only if the brain sent audio.
-    form.set("voice", "0");
+    // The brain voices every reply (AI-brain 03 section 6); if voice is off or out of credit the reply is text only.
+    form.set("voice", "1");
     init = { method: "POST", headers, body: form, signal };
   }
   return json<TalkResponse>(await fetch(`${pet(petRef)}/talk`, init));
