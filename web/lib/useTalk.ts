@@ -139,7 +139,7 @@ export function useTalk({ petRef, name, onSent, onReply, onError }: UseTalkOptio
         return r;
       });
       cb.current.onReply(local, res);
-      showReply(res, "audio" in input);
+      showReply(res, true); // the pet speaks every reply out loud, typed or held
     } catch (err) {
       const code = err instanceof BrainRequestError ? err.code : "upstream";
       if (err instanceof BrainRequestError && err.retryAfterS) {
