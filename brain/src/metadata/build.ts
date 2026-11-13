@@ -24,7 +24,7 @@ export interface PetMetadata {
 }
 
 const TRAIT_NAMES = ["playful", "curious", "calm", "sassy", "kind"] as const;
-const DEFAULT_DESCRIPTION = "A Nearling: an AI pet on NEAR that pays for its own private AI brain.";
+const DEFAULT_DESCRIPTION = "A Petto: an AI pet on NEAR that pays for its own private AI brain.";
 export const DESCRIPTION_MAX_BYTES = 200;
 /** 32 px sprite x 8 = 256 px image. */
 export const IMAGE_SCALE = 8;

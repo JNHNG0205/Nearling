@@ -5,15 +5,15 @@ const CHAIN: Record<string, (name: string) => string> = {
   // money and amounts
   E_DEPOSIT: () => "The amount didn't match. Please try again.",
   E_PANTRY: (n) => `${n}'s pantry doesn't have that much. Stock it first.`,
-  E_METADATA: () => "The pet's picture link was rejected. Please tell the Nearling team.",
+  E_METADATA: () => "The pet's picture link was rejected. Please tell the Petto team.",
   E_GAS: () => "Not enough gas attached. Please retry.",
-  E_STORAGE: () => "The mint price no longer covers storage. Please tell the Nearling team.",
+  E_STORAGE: () => "The mint price no longer covers storage. Please tell the Petto team.",
   // naming and Soul
   E_NAME: () => "Names need 1 to 32 characters.",
   E_SOUL_SIZE: () => "The Soul is too long (1 KB max).",
   // who may call
   E_NOT_OWNER: (n) => `Only ${n}'s owner can do that.`,
-  E_NOT_ADMIN: () => "Only the Nearling team can change this.",
+  E_NOT_ADMIN: () => "Only the Petto team can change this.",
   E_NOT_BRAIN: () => "Only the pet's brain can do that.",
   E_NOT_DEVICE: (n) => `This needs ${n}'s registered device.`,
   E_UNKNOWN_PET: () => "That pet doesn't exist on this contract.",
@@ -41,7 +41,7 @@ const CHAIN: Record<string, (name: string) => string> = {
   E_NO_ACTION: () => "That request is gone. It was approved, cancelled or expired.",
   E_TOO_MANY_ACTIONS: () => "Too many requests are waiting. Approve or cancel one first.",
   // shirts
-  E_CLAIMED: () => "You already have your Nearling shirt.",
+  E_CLAIMED: () => "You already have your Petto shirt.",
 };
 
 const BRAIN: Record<string, (name: string) => string> = {

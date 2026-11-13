@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ReceiptList } from "@/components/talk/ReceiptList";
 
-export const metadata: Metadata = { title: "Receipts . Nearling" };
+export const metadata: Metadata = { title: "Receipts . Petto" };
 
 export default async function ReceiptsPage({ params }: { params: Promise<{ petRef: string }> }) {
   const { petRef } = await params;

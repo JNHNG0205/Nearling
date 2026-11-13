@@ -21,12 +21,12 @@ import {
 } from "@/lib/startWizard";
 import { useSignIn } from "@/lib/wallet";
 
-// /start: guided setup. Connect the Nearling, connect the wallet, choose a pet, make it yours,
+// /start: guided setup. Connect the Petto, connect the wallet, choose a pet, make it yours,
 // then hand it to the device. Progress is kept in localStorage so a visitor resumes where they left.
 
 export default function StartPage() {
   return (
-    <Suspense fallback={<AppFrame title="Set up your Nearling" back="/"><Spinner /></AppFrame>}>
+    <Suspense fallback={<AppFrame title="Set up your Petto" back="/"><Spinner /></AppFrame>}>
       <Wizard />
     </Suspense>
   );
@@ -85,7 +85,7 @@ function Wizard() {
 
   if (!state || !wallet.ready) {
     return (
-      <AppFrame title="Set up your Nearling" back="/">
+      <AppFrame title="Set up your Petto" back="/">
         <Spinner />
       </AppFrame>
     );
@@ -96,7 +96,7 @@ function Wizard() {
   const done = progress(state, facts);
 
   return (
-    <AppFrame title="Set up your Nearling" back="/">
+    <AppFrame title="Set up your Petto" back="/">
       <div className="flex flex-col gap-2">
         <p className="font-display text-sm text-muted">Step {active} of {STEPS.length}</p>
         <div role="progressbar" aria-label="Setup progress" aria-valuemin={0} aria-valuemax={4} aria-valuenow={done}
@@ -153,7 +153,7 @@ function StepBody({ step, state, update, accountId, signedIn }: StepProps) {
       return (
         <div className="flex flex-col gap-3">
           <p className="text-sm text-muted">
-            Your wallet owns the pet and pays for its food. Nearling runs on NEAR testnet, where NEAR is free.
+            Your wallet owns the pet and pays for its food. Petto runs on NEAR testnet, where NEAR is free.
           </p>
           <ConnectButton />
           {signedIn && <FaucetPanel />}
@@ -183,14 +183,14 @@ function DeviceStep({ state, update }: { state: WizardState; update: (p: Partial
   return (
     <div className="flex flex-col gap-4">
       {state.device === "qr" && state.pairingToken && (
-        <p className="text-sm text-fuel">Your Nearling sent you here. You will pair it with your pet in step 5.</p>
+        <p className="text-sm text-fuel">Your Petto sent you here. You will pair it with your pet in step 5.</p>
       )}
       <DeviceOptions
         onBle={(token) => update({ device: "ble", pairingToken: token })}
       />
       <div className="flex flex-col gap-2 border-t-2 border-line pt-4">
         <h3 className="font-display">No device yet</h3>
-        <p className="text-sm text-muted">The browser Nearling has the same pet, chat and fuel. You can pair a device later.</p>
+        <p className="text-sm text-muted">The browser Petto has the same pet, chat and fuel. You can pair a device later.</p>
         <button className="pixel-btn pixel-btn--secondary self-start" onClick={() => update({ device: "browser" })}>
           Continue in the browser
         </button>
@@ -221,28 +221,28 @@ function DeviceOptions({ onBle }: { onBle: (token: string | null) => void }) {
     if (r.reason === "cancelled") return;
     setError(
       r.reason === "bad_url"
-        ? "Your Nearling answered, but not with a pairing link. Restart pairing on the device and try again."
-        : "Couldn't reach your Nearling over Bluetooth. Keep it close, check it shows its QR, and try again.",
+        ? "Your Petto answered, but not with a pairing link. Restart pairing on the device and try again."
+        : "Couldn't reach your Petto over Bluetooth. Keep it close, check it shows its QR, and try again.",
     );
   }
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <h3 className="font-display">Scan the QR on your Nearling</h3>
+        <h3 className="font-display">Scan the QR on your Petto</h3>
         <p className="text-sm text-muted">
-          Turn on your Nearling and join it to Wi-Fi. It shows a QR code. Scan it with your phone camera: it opens
+          Turn on your Petto and join it to Wi-Fi. It shows a QR code. Scan it with your phone camera: it opens
           this site&apos;s pairing page, where you pick or hatch the pet that lives on it.
         </p>
       </div>
       {bleSupported ? (
         <div className="flex flex-col gap-2">
-          <h3 className="font-display">Find my Nearling over Bluetooth</h3>
+          <h3 className="font-display">Find my Petto over Bluetooth</h3>
           <p className="text-sm text-muted">
-            Your browser lists Nearlings nearby. Pick yours and it opens the same pairing page.
+            Your browser lists Pettos nearby. Pick yours and it opens the same pairing page.
           </p>
           <button className="pixel-btn self-start" disabled={busy} onClick={() => void findOverBle()}>
-            {busy ? "Looking..." : "Find my Nearling"}
+            {busy ? "Looking..." : "Find my Petto"}
           </button>
           <ErrorText>{error}</ErrorText>
         </div>
@@ -393,7 +393,7 @@ function CustomiseStep({ petRef, onNext }: { petRef: string; onNext: () => void 
           <p className="text-sm text-muted">Give {name} a personality and a look. You can change both later.</p>
         </div>
       )}
-      {failed && <ErrorText>Couldn&apos;t reach Nearling&apos;s brain, so the Soul version and shirt are not shown.</ErrorText>}
+      {failed && <ErrorText>Couldn&apos;t reach Petto&apos;s brain, so the Soul version and shirt are not shown.</ErrorText>}
       <ul className="flex flex-col gap-2">
         {cards.map((c) => (
           <li key={c.href}>
@@ -428,11 +428,11 @@ function HandoffStep({ state, update }: { state: WizardState; update: (p: Partia
     return (
       <div className="flex flex-col gap-3">
         <p>
-          {name} lives on your Nearling now. From here on you pat, rock, feed and talk to it on the device, and
+          {name} lives on your Petto now. From here on you pat, rock, feed and talk to it on the device, and
           wallet actions wait for you to hold Approve on it.
         </p>
         <Link href={petPath(p.contract, p.tokenId, "/device")} className="pixel-btn self-start">
-          Give your Nearling its key
+          Give your Petto its key
         </Link>
         <p className="text-sm text-muted">The key lets the device sign care and approvals for {name}, within limits the contract sets.</p>
         {browserLink}
@@ -442,17 +442,17 @@ function HandoffStep({ state, update }: { state: WizardState; update: (p: Partia
 
   return (
     <div className="flex flex-col gap-4">
-      {failed && <ErrorText>Couldn&apos;t reach Nearling&apos;s brain to check for a paired device.</ErrorText>}
+      {failed && <ErrorText>Couldn&apos;t reach Petto&apos;s brain to check for a paired device.</ErrorText>}
       {state.pairingToken && state.device === "qr" ? (
         <div className="flex flex-col gap-2">
-          <p>Your Nearling is waiting. Pair it with {name} and press its button when it asks.</p>
+          <p>Your Petto is waiting. Pair it with {name} and press its button when it asks.</p>
           <Link href={`/hatch?t=${encodeURIComponent(state.pairingToken)}`} className="pixel-btn self-start">
-            Pair {name} with my Nearling
+            Pair {name} with my Petto
           </Link>
         </div>
       ) : (
         <>
-          <p className="text-sm text-muted">No Nearling is paired with {name} yet. Pair one to care, chat and approve on the device.</p>
+          <p className="text-sm text-muted">No Petto is paired with {name} yet. Pair one to care, chat and approve on the device.</p>
           <DeviceOptions onBle={(token) => update({ device: "ble", pairingToken: token })} />
         </>
       )}

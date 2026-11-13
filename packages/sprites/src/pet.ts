@@ -1,4 +1,4 @@
-// Draws one frame of a Nearling from a pose. Pure function: same pose, same pixels,
+// Draws one frame of a Petto from a pose. Pure function: same pose, same pixels,
 // so web, brain and the firmware export always agree.
 import { C, SHIRT, SIZE, blank, ellipse, get, outline, px, rect, stamp, type Bitmap } from "./raster";
 

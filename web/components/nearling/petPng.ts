@@ -3,7 +3,7 @@ import {
   SIZE, clip, paletteFor, stageFromChain, stateAnim, toRgba, type DisplayState,
 } from "@nearling/sprites";
 
-// Server-side render of a Nearling to PNG (for the OG image). Same frames as the canvas and device.
+// Server-side render of a Petto to PNG (for the OG image). Same frames as the canvas and device.
 
 const CRC_TABLE = (() => {
   const t = new Uint32Array(256);

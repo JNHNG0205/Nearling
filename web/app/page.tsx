@@ -37,11 +37,11 @@ export default async function Home() {
   return (
     <>
       <main>
-        <section aria-label="Nearling" className="flex min-h-[calc(100dvh-64px)] items-center py-12">
+        <section aria-label="Petto" className="flex min-h-[calc(100dvh-64px)] items-center py-12">
           <div className="mx-auto grid w-full max-w-[1200px] items-center gap-12 px-4 md:grid-cols-2 md:px-6">
             <div className="flex flex-col gap-6">
               <h1 className="font-display text-[32px] leading-9 font-semibold md:text-[40px] md:leading-[44px]">
-                Nearling, a pixel pet that pays for its own AI
+                Petto, a pixel pet that pays for its own AI
               </h1>
               <p className="max-w-xl text-lg">
                 Every reply costs $0.001 of private AI, paid from the pet&apos;s own NEAR budget on testnet.
@@ -51,7 +51,7 @@ export default async function Home() {
                 so you can watch its budget drop.
               </p>
               <div className="flex flex-wrap gap-4">
-                <Link href="/start" className="pixel-btn">Set up my Nearling</Link>
+                <Link href="/start" className="pixel-btn">Set up my Petto</Link>
                 <Link href={DEMO_HREF} className="pixel-btn pixel-btn--secondary">Watch the demo pet</Link>
               </div>
             </div>
@@ -84,18 +84,18 @@ export default async function Home() {
         <Screen id="body" label="The device">
           <div className="flex justify-center md:order-2">
             <figure className="flex flex-col items-center gap-3">
-              <NearlingFrame label="The desk Nearling">
+              <NearlingFrame label="The desk Petto">
                 <PetSprite traits={[5, 0, 2, 0, 0]} stageIndex={3} winged state="happy" play="rock" playKey="body"
-                  scale={6} label="A winged Nearling rocking" />
+                  scale={6} label="A winged Petto rocking" />
               </NearlingFrame>
               <figcaption className="text-sm text-muted">Pixel render of the device until photos of the printed body are ready.</figcaption>
             </figure>
           </div>
           <div className="flex flex-col gap-4">
-            <h2 className="font-display text-2xl md:text-[28px] md:leading-8">A desk Nearling you pat, rock and race</h2>
+            <h2 className="font-display text-2xl md:text-[28px] md:leading-8">A desk Petto you pat, rock and race</h2>
             <p className="max-w-prose">
               The same pet lives in a small ESP32 body with a 240 pixel screen, buttons, a touch pad and a speaker.
-              Pat it, rock it to sleep or race a friend&apos;s Nearling. Care works offline and costs no fuel.
+              Pat it, rock it to sleep or race a friend&apos;s Petto. Care works offline and costs no fuel.
               Wallet actions wait until you hold Approve on the device.
             </p>
           </div>
@@ -140,7 +140,7 @@ export default async function Home() {
         </Screen>
 
         <section aria-label="Hatch a pet" className="flex min-h-dvh flex-col items-center justify-center gap-8 border-t-2 border-line px-4 py-16 text-center">
-          <p className="font-display text-[64px] leading-[64px] font-bold md:text-[128px] md:leading-[128px]">Nearling</p>
+          <p className="font-display text-[64px] leading-[64px] font-bold md:text-[128px] md:leading-[128px]">Petto</p>
           <p className="max-w-md text-muted">Testnet only. NEAR here has no real value, and fuel is granted on testnet.</p>
           <Link href="/adopt" className="pixel-btn">Hatch a pet</Link>
         </section>

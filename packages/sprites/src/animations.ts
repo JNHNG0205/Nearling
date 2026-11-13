@@ -1,4 +1,4 @@
-// Every Nearling animation as a list of poses. Frame data is generated from these
+// Every Petto animation as a list of poses. Frame data is generated from these
 // (drawPet / drawEgg), so changing a pose here changes web and firmware together.
 import type { Personality } from "./personality";
 import { BASE_POSE, type EggPose, type Fx, type Pose } from "./pet";

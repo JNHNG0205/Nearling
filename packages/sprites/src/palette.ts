@@ -42,7 +42,7 @@ export interface PetPalette {
 }
 
 /**
- * Closet shirt colours (Build Spec 5). The shirts contract has one design ("Nearling Shirt"),
+ * Closet shirt colours (Build Spec 5). The shirts contract has one design ("Petto Shirt"),
  * so each token gets a colour from its id with `shirtColourIndex`. [cloth, shade, trim]
  */
 export const SHIRT_COLOURS: ReadonlyArray<{ name: string; colours: readonly [Rgb, Rgb, Rgb] }> = [

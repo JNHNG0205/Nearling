@@ -61,7 +61,7 @@ function Soul({ pet }: { pet: PetData }) {
           {soul.version === 0 ? "No Soul yet" : `Version ${soul.version}`}
         </h2>
         {soul.version === 0 ? (
-          <p className="text-sm text-muted">{name} uses the default Nearling personality until you write a Soul.</p>
+          <p className="text-sm text-muted">{name} uses the default Petto personality until you write a Soul.</p>
         ) : (
           <p className="whitespace-pre-wrap">{soul.prompt}</p>
         )}

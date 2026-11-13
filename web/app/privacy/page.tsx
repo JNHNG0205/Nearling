@@ -5,8 +5,8 @@ import { getAttestation, minutesAgo, shortHash, type AttestationSummary } from "
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: "Private replies . Nearling",
-  description: "How Nearling replies run on private NEAR AI models, what each receipt proves and what it does not.",
+  title: "Private replies . Petto",
+  description: "How Petto replies run on private NEAR AI models, what each receipt proves and what it does not.",
 };
 
 const VERIFIED = [
@@ -30,10 +30,10 @@ export default async function Privacy() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-[720px] flex-col gap-10 px-4 py-8 md:px-6">
       <header className="flex flex-col gap-3">
-        <Link href="/" className="font-display text-accent">Nearling</Link>
+        <Link href="/" className="font-display text-accent">Petto</Link>
         <h1 className="font-display text-[32px] leading-9 font-semibold md:text-[40px] md:leading-[44px]">Private replies</h1>
         <p className="text-muted">
-          Every Nearling reply runs on a private NEAR AI model and comes with a receipt. This page says what the
+          Every Petto reply runs on a private NEAR AI model and comes with a receipt. This page says what the
           receipt proves and what it does not.
         </p>
       </header>

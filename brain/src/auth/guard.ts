@@ -7,7 +7,7 @@ import type { Deps } from "../deps";
 /**
  * Who is calling (AI-brain architectual/08 "Auth"):
  *   owner  = phone/web with `Authorization: Bearer <session JWT>` (issued by POST /session)
- *   device = Nearling with `Authorization: Device <token>` (issued by pairing confirm)
+ *   device = Petto with `Authorization: Device <token>` (issued by pairing confirm)
  */
 export type Caller =
   | { kind: "owner"; account: string }

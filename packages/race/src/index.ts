@@ -1,4 +1,4 @@
-// Nearling Run rules, version 1. Shared by brain (result validation), web (browser racer)
+// Petto Run rules, version 1. Shared by brain (result validation), web (browser racer)
 // and firmware (C++ port). Integer maths only so Node and the ESP32 agree bit for bit.
 // Spec: "AI-brain architectual/06-race-arena.md". Changing anything here bumps RULES_VERSION.
 

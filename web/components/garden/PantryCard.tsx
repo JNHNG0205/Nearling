@@ -10,7 +10,7 @@ import { formatNear, getConfig, getPet, nearToThoughts, parseNear, tx, type Pets
 import { useWallet } from "@/lib/wallet";
 
 // Pantry (pets-v9, docs/CONTRACT_CHANGES_V9.md section 3): the owner stocks NEAR once from the
-// wallet, the paired Nearling moves it into food with its own key (capped per day).
+// wallet, the paired Petto moves it into food with its own key (capped per day).
 // Capability detection: on a contract whose `get_pet` has no `pantry_yocto` the card renders nothing.
 
 const PRESETS = ["0.1", "0.5", "1"] as const;
@@ -65,7 +65,7 @@ export function PantryCard({
       </h2>
       <p className="font-mono">{summary}</p>
       <p className="text-sm text-muted">
-        Stock the pantry once from your wallet. A paired Nearling feeds itself from it with its own key, {deviceCap}. The
+        Stock the pantry once from your wallet. A paired Petto feeds itself from it with its own key, {deviceCap}. The
         NEAR stays yours until it becomes food.
       </p>
       <PantryActions pet={pet} contract={contract} tokenId={tokenId} name={name} pantry={pantry} onDone={reload} />

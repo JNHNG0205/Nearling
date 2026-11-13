@@ -22,13 +22,13 @@ export interface PetSpriteProps {
 }
 
 /**
- * Draws a Nearling on a 32x32 canvas scaled by an integer factor. Looping clips run until
+ * Draws a Petto on a 32x32 canvas scaled by an integer factor. Looping clips run until
  * `play` changes; one-shot clips (pat, eat, celebrate, evolve, egg_hatch) end and fall back
  * to the state loop. Reduced motion: holds the first frame. Traits pick the colour, pattern and
  * personality variant; an equipped shirt is drawn as its own layer over the body.
  */
 export function PetSprite({
-  traits, stageIndex, winged, shirt = null, state, play = null, playKey, onDone, scale = 4, label = "Your Nearling",
+  traits, stageIndex, winged, shirt = null, state, play = null, playKey, onDone, scale = 4, label = "Your Petto",
 }: PetSpriteProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const doneRef = useRef(onDone);

@@ -75,7 +75,7 @@ function Closet({ pet }: { pet: PetData }) {
         <Panel>
           <h2 className="font-display text-lg">Claim your free shirt</h2>
           <p className="text-sm text-muted">
-            One Nearling shirt per account, as an NFT. You attach {formatNear(SHIRT_DEPOSIT)} NEAR for its storage.
+            One Petto shirt per account, as an NFT. You attach {formatNear(SHIRT_DEPOSIT)} NEAR for its storage.
           </p>
           <button className="pixel-btn" disabled={busy} onClick={() => void claim()}>
             {busy ? "Check your wallet..." : "Claim a shirt"}
@@ -89,7 +89,7 @@ function Closet({ pet }: { pet: PetData }) {
             return (
               <li key={s.token_id} className="pixel-panel flex items-center justify-between gap-3 p-4">
                 <span className="flex flex-col">
-                  <span className="font-display">{s.metadata?.title || "Nearling Shirt"}</span>
+                  <span className="font-display">{s.metadata?.title || "Petto Shirt"}</span>
                   <span className="font-mono text-sm text-muted">#{s.token_id}</span>
                 </span>
                 <button
@@ -104,7 +104,7 @@ function Closet({ pet }: { pet: PetData }) {
           })}
         </ul>
       )}
-      <p className="text-sm text-muted">Changing the shirt on your Nearling's buttons shows up here too.</p>
+      <p className="text-sm text-muted">Changing the shirt on your Petto's buttons shows up here too.</p>
       <ErrorText>{error}</ErrorText>
     </>
   );

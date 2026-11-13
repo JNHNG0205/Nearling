@@ -6,7 +6,7 @@ import { BRAIN_URL, DEMO_PET, DEMO_PET_PATH, distinctFrames, inkedPixels } from 
 test("landing draws the live demo pet and shows no sample data", async ({ page }) => {
   const live = (await (await fetch(`${BRAIN_URL}/pets/${DEMO_PET_PATH}/state`)).json()) as { name: string };
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Nearling");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Petto");
 
   // the hero egg hatches, then the live demo pet (DEMO_PET_REF) shows with its fuel meter
   const hero = page.getByRole("img", { name: new RegExp(`^${live.name}, `) });

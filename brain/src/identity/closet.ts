@@ -23,7 +23,7 @@ export function closetRoutes(deps: Deps) {
       from_index: "0",
       limit: 100,
     });
-    const shirts = tokens.map((t) => ({ token_id: t.token_id, title: t.metadata?.title ?? "Nearling Shirt" }));
+    const shirts = tokens.map((t) => ({ token_id: t.token_id, title: t.metadata?.title ?? "Petto Shirt" }));
     let equipped = ensureProfile(db, petRef, owner, now()).equipped_shirt;
     if (equipped !== null && !shirts.some((s) => s.token_id === equipped)) {
       db.prepare("UPDATE pet_profile SET equipped_shirt = NULL WHERE pet_ref = ?").run(petRef);

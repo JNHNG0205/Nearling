@@ -15,7 +15,7 @@ export default function SpriteGallery() {
 
   return (
     <main className="mx-auto max-w-[1200px] px-4 py-8">
-      <h1 className="font-display text-3xl">Nearling sprites</h1>
+      <h1 className="font-display text-3xl">Petto sprites</h1>
       <p className="mt-2 text-muted">Same frames as the device header in art/nearling_sprites.h.</p>
       <div className="mt-6 flex flex-wrap items-center gap-4">
         <label className="flex items-center gap-2">Colour

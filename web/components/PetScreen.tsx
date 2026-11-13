@@ -14,7 +14,7 @@ const CARE: { event: CareEvent; label: string }[] = [
 ];
 
 /**
- * Browser Nearling: the 240x240 device screen with the pet, and the care inputs the device
+ * Browser Petto: the 240x240 device screen with the pet, and the care inputs the device
  * has (touch pad, motion, light). The local animation always plays at once; `onCare` lets the
  * page sync the event to the brain. Care costs no fuel (Build Spec 4).
  *

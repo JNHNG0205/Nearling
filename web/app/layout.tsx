@@ -9,7 +9,7 @@ const figtree = Figtree({ subsets: ["latin"], weight: ["400", "500", "600"], var
 const dmMono = DM_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-dm-mono" });
 
 export const metadata: Metadata = {
-  title: "Nearling, a pixel pet that pays for its own AI",
+  title: "Petto, a pixel pet that pays for its own AI",
   description: "Every reply costs $0.001 of private AI, paid from the pet's own NEAR budget on testnet.",
 };
 

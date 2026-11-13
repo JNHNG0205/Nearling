@@ -11,7 +11,7 @@ import { postHatch } from "@/lib/brain";
 import { DEMO_PETS_CONTRACT, PETS_CONTRACT, petPath } from "@/lib/chain";
 import { authHeaders } from "@/lib/session";
 
-// /adopt (03 section 2): mint without a device, then go to the browser Nearling.
+// /adopt (03 section 2): mint without a device, then go to the browser Petto.
 export default function AdoptPage() {
   const router = useRouter();
   const [contract, setContract] = useState<string>(PETS_CONTRACT);

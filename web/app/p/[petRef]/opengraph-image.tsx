@@ -6,7 +6,7 @@ import { getPetState } from "@/lib/brain";
 export const revalidate = 30;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "A Nearling pixel pet";
+export const alt = "A Petto pixel pet";
 
 const BG = "#0c0a08";
 const INK = "#ffffff";
@@ -36,8 +36,8 @@ export default async function Image({ params }: { params: Promise<{ petRef: stri
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 20, color: INK, flex: 1 }}>
-          <div style={{ fontSize: 32, color: ACCENT }}>Nearling</div>
-          <div style={{ fontSize: 88, fontWeight: 700, lineHeight: 1 }}>{pet?.name ?? "A Nearling"}</div>
+          <div style={{ fontSize: 32, color: ACCENT }}>Petto</div>
+          <div style={{ fontSize: 88, fontWeight: 700, lineHeight: 1 }}>{pet?.name ?? "A Petto"}</div>
           <div style={{ fontSize: 40, color: MUTED }}>
             {pet ? `${pet.stage}${pet.form === "winged" ? " . winged" : ""}` : "pixel pet on NEAR"}
           </div>

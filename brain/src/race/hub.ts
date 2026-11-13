@@ -6,7 +6,7 @@ import { publish } from "../events";
 import { log } from "../log";
 import { parseReport, validate, type Verdict } from "./validate";
 
-// Nearling Run rooms ("AI-brain architectual/06-race-arena.md" sections 2 to 4). In memory: one brain
+// Petto Run rooms ("AI-brain architectual/06-race-arena.md" sections 2 to 4). In memory: one brain
 // instance, rooms live minutes. Only finished and interrupted matches are stored (migration 400).
 
 export const COUNTDOWN_MS = 3_000;
@@ -390,7 +390,7 @@ export class RaceHub {
   private newPlayer(slot: Slot, identity: string, kind: Player["kind"]): Player {
     return {
       slot, identity, kind, conn: null, helloed: false, ready: false,
-      name: kind === "device" ? "Nearling" : "Guest", petRef: null, traits: null, stage: null,
+      name: kind === "device" ? "Petto" : "Guest", petRef: null, traits: null, stage: null,
       offlineSince: this.deps.now(), offlineTimer: null, laneTicks: new Set(), reportedTick: null, verdict: null,
     };
   }

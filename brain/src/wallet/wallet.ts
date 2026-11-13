@@ -178,12 +178,12 @@ export function walletRoutes(deps: Deps, over: { rpc?: NearRpc } = {}) {
       caller = who;
     } else {
       if (kind !== "transfer_pet" || !body.data.pet_ref) {
-        return err(c, 403, "unauthorized", "Start send and stake on your Nearling");
+        return err(c, 403, "unauthorized", "Start send and stake on your Petto");
       }
       const dev = db
         .prepare("SELECT id FROM device WHERE pet_ref = ? AND owner_account = ? AND revoked_at IS NULL AND token_hash IS NOT NULL")
         .get(body.data.pet_ref, who.account) as { id: string } | undefined;
-      if (!dev) return err(c, 409, "conflict", "Pair a Nearling to approve transfers");
+      if (!dev) return err(c, 409, "conflict", "Pair a Petto to approve transfers");
       caller = { account: who.account, deviceId: dev.id, petRef: body.data.pet_ref };
     }
     const ref = parsePetRef(caller.petRef);

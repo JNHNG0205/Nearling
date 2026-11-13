@@ -3,9 +3,9 @@ import { notFound } from "next/navigation";
 import { PetHome } from "@/components/nearling/PetHome";
 import { BrainRequestError, getPetState } from "@/lib/brain";
 
-export const metadata: Metadata = { title: "Pet home . Nearling" };
+export const metadata: Metadata = { title: "Pet home . Petto" };
 
-// Pet home (03-pages-and-flows.md section 3, design.md 6.2): browser Nearling, fuel, talk, care.
+// Pet home (03-pages-and-flows.md section 3, design.md 6.2): browser Petto, fuel, talk, care.
 export default async function PetPage({ params }: { params: Promise<{ petRef: string }> }) {
   const { petRef } = await params;
   let pet;

@@ -102,7 +102,7 @@ export function onFed(deps: Deps, petRef: string, data: Record<string, unknown>)
 }
 
 /**
- * Nearling Run finished (`race_result` from the race hub): one canned, free line per match and
+ * Petto Run finished (`race_result` from the race hub): one canned, free line per match and
  * pet, not counted in the daily max (it answers the owner's own play).
  */
 export function onRaceResult(deps: Deps, petRef: string, data: Record<string, unknown>): void {

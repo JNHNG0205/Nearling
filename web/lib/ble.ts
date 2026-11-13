@@ -1,8 +1,8 @@
-// Nearling Bluetooth pairing (Web Bluetooth, one GATT read).
+// Petto Bluetooth pairing (Web Bluetooth, one GATT read).
 // The UUIDs come from `packages/device/src/ble.ts`, the single source shared with the firmware.
 import { BLE_PAIRING_URL_UUID, BLE_SERVICE_UUID } from "@nearling/device";
 
-/** GATT primary service the Nearling advertises while it shows its pairing QR. */
+/** GATT primary service the Petto advertises while it shows its pairing QR. */
 export const NEARLING_BLE_SERVICE_UUID = BLE_SERVICE_UUID;
 /** Read-only characteristic `pairing_url`: UTF-8 text, the same `/hatch?t=<token>` URL the QR encodes. */
 export const NEARLING_BLE_PAIRING_URL_UUID = BLE_PAIRING_URL_UUID;
@@ -53,7 +53,7 @@ export type BleResult =
   | { ok: true; path: string }
   | { ok: false; reason: "unsupported" | "cancelled" | "bad_url" | "failed" };
 
-/** Opens the browser's device chooser (Nearlings only), reads `pairing_url` and returns the local hatch path. */
+/** Opens the browser's device chooser (Pettos only), reads `pairing_url` and returns the local hatch path. */
 export async function readPairingUrlOverBle(): Promise<BleResult> {
   const bt = bluetooth();
   if (!bt) return { ok: false, reason: "unsupported" };

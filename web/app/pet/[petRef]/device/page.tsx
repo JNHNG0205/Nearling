@@ -16,11 +16,11 @@ import { useSession } from "@/lib/session";
 import { useStream } from "@/lib/useStream";
 import { useWallet } from "@/lib/wallet";
 
-// /pet/[petRef]/device (web-app architectual/03): pair, give the Nearling its limited key,
+// /pet/[petRef]/device (web-app architectual/03): pair, give the Petto its limited key,
 // approval mode, remove. Value actions are then proposed here and approved on the device (CLAUDE.md 7.3).
 export default function DevicePage() {
   return (
-    <PetPage title={(n) => `${n}'s Nearling`}>
+    <PetPage title={(n) => `${n}'s Petto`}>
       {(pet) => (
         <>
           <PetHeader pet={pet} />
@@ -72,7 +72,7 @@ function Device({ pet }: { pet: PetData }) {
   useStream(pet.ref, session?.token ?? null, { paired: () => void load() });
 
   if (!st) {
-    return loadError ? <ErrorText>{loadError}</ErrorText> : <p className="font-mono text-sm text-muted">Checking your Nearling...</p>;
+    return loadError ? <ErrorText>{loadError}</ErrorText> : <p className="font-mono text-sm text-muted">Checking your Petto...</p>;
   }
 
   const keyOnChain = !!st.device_pk && c.device_pk === st.device_pk;
@@ -80,21 +80,21 @@ function Device({ pet }: { pet: PetData }) {
 
   return (
     <>
-      <Step n="1" title="Pair your Nearling" done={st.paired}>
+      <Step n="1" title="Pair your Petto" done={st.paired}>
         {st.paired ? (
           <p className="text-sm text-muted">
             {st.last_seen_at ? `Last seen ${new Date(st.last_seen_at).toLocaleString()}.` : "Not seen online yet."}
           </p>
         ) : (
           <p className="text-sm text-muted">
-            Turn on your Nearling and scan the QR code on its screen with this phone (or pair over Bluetooth). Pick {name}{" "}
+            Turn on your Petto and scan the QR code on its screen with this phone (or pair over Bluetooth). Pick {name}{" "}
             when asked.
           </p>
         )}
       </Step>
 
       {st.paired && (
-        <Step n="2" title="Give your Nearling its key" done={keyReady}>
+        <Step n="2" title="Give your Petto its key" done={keyReady}>
           <GiveKey pet={pet} st={st} keyOnChain={keyOnChain} reload={load} wallet={wallet} />
         </Step>
       )}
@@ -134,7 +134,7 @@ function GiveKey({
   if (!st.device_pk) {
     return (
       <p className="text-sm text-muted">
-        Your Nearling hasn&apos;t shared its key yet. Restart it on Wi-Fi so it says hello to the brain, then refresh.
+        Your Petto hasn&apos;t shared its key yet. Restart it on Wi-Fi so it says hello to the brain, then refresh.
       </p>
     );
   }
@@ -187,15 +187,15 @@ function GiveKey({
   return (
     <>
       <p className="text-sm">
-        Your Nearling signs with its own key <span className="font-mono">{short(pk)}</span>. One wallet prompt adds it to your
+        Your Petto signs with its own key <span className="font-mono">{short(pk)}</span>. One wallet prompt adds it to your
         account as a limited key (only {c.name}&apos;s contract; play, plant food, approve
         {hasPantry(c) ? ", feed from the pantry" : ""}; 1 NEAR for gas) and tells {c.name} which device is its body.
       </p>
       {registerByProposal && (
-        <p className="text-sm text-muted">Approvals are on, so your current Nearling must approve the new key.</p>
+        <p className="text-sm text-muted">Approvals are on, so your current Petto must approve the new key.</p>
       )}
       <button className="pixel-btn self-start" disabled={busy || one.busy} onClick={() => void give()}>
-        {busy ? "Check your wallet..." : "Give your Nearling its key"}
+        {busy ? "Check your wallet..." : "Give your Petto its key"}
       </button>
       <ErrorText>{msg}</ErrorText>
       <TxStatus state={one.state} doneText="Request sent" />
@@ -220,11 +220,11 @@ function ApprovalMode({ pet }: { pet: PetData }) {
       {c.approval_mode ? (
         <p className="text-sm">
           On. Planting, unplanting, collecting and giving {c.name} away start here and only run after you hold Approve on
-          your Nearling.
+          your Petto.
         </p>
       ) : (
         <p className="text-sm">
-          Turn on to make your Nearling a second lock: value actions from this phone wait until you hold Approve on the
+          Turn on to make your Petto a second lock: value actions from this phone wait until you hold Approve on the
           device. A stolen phone wallet alone can&apos;t move {c.name}&apos;s NEAR.
         </p>
       )}
@@ -272,7 +272,7 @@ function Remove({ pet, st, reload }: { pet: PetData; st: DeviceStatus; reload: (
 
   return (
     <Panel>
-      <h2 className="font-display text-lg">Remove this Nearling</h2>
+      <h2 className="font-display text-lg">Remove this Petto</h2>
       {c.approval_mode ? (
         <p className="text-sm text-muted">Turn approvals off first: without its key the device could never approve again.</p>
       ) : (
@@ -291,7 +291,7 @@ function Remove({ pet, st, reload }: { pet: PetData; st: DeviceStatus; reload: (
             </div>
           ) : (
             <button className="pixel-btn pixel-btn--secondary self-start" onClick={() => setConfirm(true)}>
-              Remove this Nearling
+              Remove this Petto
             </button>
           )}
         </>

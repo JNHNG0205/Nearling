@@ -56,7 +56,7 @@ export default function ApprovePage() {
     return (
       <AppFrame title="Approve on your phone">
         <Panel>
-          <p>Connect the wallet your Nearling is linked to.</p>
+          <p>Connect the wallet your Petto is linked to.</p>
           <ConnectButton />
         </Panel>
       </AppFrame>
@@ -110,15 +110,15 @@ export default function ApprovePage() {
 
       {approval.status === "requested" && !expired && (
         <Panel>
-          <p className="font-display">Hold Approve on your Nearling first</p>
-          <Spinner label="Waiting for your Nearling..." />
+          <p className="font-display">Hold Approve on your Petto first</p>
+          <Spinner label="Waiting for your Petto..." />
         </Panel>
       )}
 
       {approval.status === "approved" && !expired && (
         <>
           {!request ? (
-            <ErrorText>This request can't be signed here. Start again on your Nearling.</ErrorText>
+            <ErrorText>This request can't be signed here. Start again on your Petto.</ErrorText>
           ) : wrongAccount ? (
             <ErrorText>Connect {approval.account_id} to sign this.</ErrorText>
           ) : (
@@ -136,9 +136,9 @@ export default function ApprovePage() {
           {approval.tx_hash && <TxLink hash={approval.tx_hash} />}
         </Panel>
       )}
-      {expired && approval.status !== "final" && <ErrorText>This request has expired. Start again on your Nearling.</ErrorText>}
-      {approval.status === "rejected" && <ErrorText>This request was rejected on your Nearling.</ErrorText>}
-      {approval.status === "failed" && <ErrorText>This request failed. Start again on your Nearling.</ErrorText>}
+      {expired && approval.status !== "final" && <ErrorText>This request has expired. Start again on your Petto.</ErrorText>}
+      {approval.status === "rejected" && <ErrorText>This request was rejected on your Petto.</ErrorText>}
+      {approval.status === "failed" && <ErrorText>This request failed. Start again on your Petto.</ErrorText>}
       <ErrorText>{error}</ErrorText>
     </AppFrame>
   );

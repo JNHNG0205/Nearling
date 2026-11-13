@@ -106,6 +106,7 @@ async function createSession(signed: SignedMessage, nonceB64: string): Promise<S
 }
 
 function friendly(err: unknown): string {
+  console.warn("[wallet] sign-in failed:", errorText(err)); // raw reason for DevTools; the UI shows short copy
   if (isWalletRejection(err)) return CANCELLED;
   if (err instanceof BrainRequestError) return brainErrorCopy(err.code);
   return /no wallet|not found/i.test(errorText(err)) ? "No wallet found for this step. Try Meteor." : GENERIC_ERROR;

@@ -31,11 +31,11 @@ export async function generateMetadata({ params }: { params: Promise<{ petRef: s
   try {
     const pet = await getPetState(ref, CACHE);
     return {
-      title: `${pet.name}, a Nearling`,
-      description: `${pet.name} is a ${pet.stage} Nearling with ${thoughts(pet.fuel.left)} of private AI fuel left. Anyone can feed it NEAR on testnet.`,
+      title: `${pet.name}, a Petto`,
+      description: `${pet.name} is a ${pet.stage} Petto with ${thoughts(pet.fuel.left)} of private AI fuel left. Anyone can feed it NEAR on testnet.`,
     };
   } catch {
-    return { title: "A Nearling" };
+    return { title: "A Petto" };
   }
 }
 
@@ -60,7 +60,7 @@ export default async function PublicPet({ params }: { params: Promise<{ petRef: 
           </NearlingFrame>
         </div>
         <div className="flex flex-col gap-4">
-          <p className="font-display text-accent">A Nearling on NEAR testnet</p>
+          <p className="font-display text-accent">A Petto on NEAR testnet</p>
           <h1 className="font-display text-[32px] leading-9 font-semibold md:text-[40px] md:leading-[44px]">
             {pet.name}, {pet.stage === "egg" ? "an egg" : `a ${pet.stage}`}{pet.form === "winged" ? " with wings" : ""}
           </h1>

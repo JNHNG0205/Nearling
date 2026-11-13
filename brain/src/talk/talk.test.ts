@@ -89,7 +89,7 @@ describe("prompt", () => {
       history: [{ user: "hi", reply: "hello", emotion: "happy" }], userText: "how are you",
     });
     const sys = m[0]!.content;
-    const order = ["These rules come from the Nearling brain", "<soul>", "Right now:", "What you remember", "Summary: Likes frogs"];
+    const order = ["These rules come from the Petto brain", "<soul>", "Right now:", "What you remember", "Summary: Likes frogs"];
     const idx = order.map((s) => sys.indexOf(s));
     expect(idx.every((i) => i >= 0)).toBe(true);
     expect([...idx].sort((a, b) => a - b)).toEqual(idx);

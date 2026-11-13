@@ -84,12 +84,12 @@ function Wallet() {
         ) : (
           !error && <Spinner />
         )}
-        <p className="text-sm text-muted">Send and stake start on your Nearling. You approve there, then sign here in Meteor.</p>
+        <p className="text-sm text-muted">Send and stake start on your Petto. You approve there, then sign here in Meteor.</p>
       </Panel>
 
       <Panel>
         <h2 className="font-display text-lg">Saved recipients</h2>
-        <p className="text-sm text-muted">Your Nearling picks from this list, so nobody types an address on the device.</p>
+        <p className="text-sm text-muted">Your Petto picks from this list, so nobody types an address on the device.</p>
         {recipients === null ? (
           <Spinner />
         ) : recipients.length === 0 ? (

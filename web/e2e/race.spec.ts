@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { TICKS_PER_SECOND, simulate } from "@nearling/race";
 import { distinctFrames } from "./helpers";
 
-// Nearling Run between two browser contexts over the brain's real WebSocket (LIMITATIONS W2).
+// Petto Run between two browser contexts over the brain's real WebSocket (LIMITATIONS W2).
 // The host dodges with the keyboard, the guest does nothing, so the host must win: that proves
 // key input reaches the RaceCanvas, the brain replays both runs and both pages get the result.
 
@@ -102,7 +102,7 @@ test("two browsers race to a result", async ({ browser }) => {
   expect(guestCrash).not.toBeNull();
   const switches = plan(seed, guestCrash! + MARGIN_TICKS);
 
-  const track = (p: Page) => p.getByRole("img", { name: /Nearling Run track/ });
+  const track = (p: Page) => p.getByRole("img", { name: /Petto Run track/ });
   await expect(track(host)).toBeVisible({ timeout: 20_000 });
   await expect(track(guest)).toBeVisible({ timeout: 20_000 });
   // countdown is drawn on the canvas, so frames change before the start

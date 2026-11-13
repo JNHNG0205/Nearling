@@ -42,12 +42,12 @@ export default function RacePage() {
     <main className="mx-auto flex min-h-dvh max-w-[480px] flex-col gap-6 px-4 py-6">
       <header className="flex items-center gap-3">
         <Link href="/" aria-label="Back home" className="font-display text-2xl text-muted hover:text-ink">&lt;</Link>
-        <h1 className="font-display text-2xl">Nearling Run</h1>
+        <h1 className="font-display text-2xl">Petto Run</h1>
       </header>
 
       <p>
         Two pets, one course, one button. Switch lanes to dodge the bars; the first pet to crash loses.
-        Race a desk Nearling or another browser tab. Free, off chain.
+        Race a desk Petto or another browser tab. Free, off chain.
       </p>
 
       <label className="flex flex-col gap-2">

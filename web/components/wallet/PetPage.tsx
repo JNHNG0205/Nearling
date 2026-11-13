@@ -21,7 +21,7 @@ export function PetPage({
   if ("invalid" in pet) {
     return (
       <AppFrame title="Pet not found" back="/">
-        <ErrorText>This link doesn't point to a Nearling pet.</ErrorText>
+        <ErrorText>This link doesn't point to a Petto pet.</ErrorText>
       </AppFrame>
     );
   }

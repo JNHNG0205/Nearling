@@ -198,7 +198,7 @@ export function RaceRoom({ code }: { code: string }) {
         <Link href="/race" aria-label="Back to races" className="font-display text-2xl text-muted hover:text-ink">
           &lt;
         </Link>
-        <h1 className="font-display text-2xl">Nearling Run</h1>
+        <h1 className="font-display text-2xl">Petto Run</h1>
         <span className="ml-auto font-mono text-sm text-muted">{connected ? "connected" : "connecting..."}</span>
       </header>
 
@@ -244,7 +244,7 @@ export function RaceRoom({ code }: { code: string }) {
             </p>
             {url && <RoomQr url={url} />}
             <p className="text-center text-sm text-muted">
-              Scan this on a second phone, open it in another tab, or type the code on a Nearling.
+              Scan this on a second phone, open it in another tab, or type the code on a Petto.
             </p>
           </div>
           <PlayerRows players={players} you={you} running={false} />
@@ -271,7 +271,7 @@ function PlayerRows({ players, you, running }: { players: (RacePlayer | null)[];
           <li key={s} className="flex items-center gap-3 px-4 py-3">
             <span className="font-display">{p ? p.name : "Open slot"}</span>
             {s === you && <span className="border-2 border-accent px-1 font-display text-sm text-accent">you</span>}
-            <span className="text-sm text-muted">{p ? (p.kind === "device" ? "Nearling" : "Browser") : "Waiting for a racer"}</span>
+            <span className="text-sm text-muted">{p ? (p.kind === "device" ? "Petto" : "Browser") : "Waiting for a racer"}</span>
             <span className="ml-auto font-mono text-sm">
               {!p ? "" : !p.connected ? <span className="text-warn">offline</span>
                 : running ? (p.crashed ? <span className="text-danger">crashed</span> : "running")

@@ -225,7 +225,7 @@ export function RaceCanvas(props: RaceCanvasProps) {
         width={W}
         height={W}
         role="img"
-        aria-label="Nearling Run track. Press space, the arrow keys or tap to switch lanes."
+        aria-label="Petto Run track. Press space, the arrow keys or tap to switch lanes."
         className="pixelated block touch-none select-none"
         style={{ width: W * scale, height: W * scale }}
         onPointerDown={(e) => {

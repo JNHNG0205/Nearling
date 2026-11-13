@@ -56,7 +56,7 @@ function Feed({ pet }: { pet: PetData }) {
   if (!packs && brainDown) {
     return (
       <p role="alert" className="text-sm text-danger">
-        {"Feed packs could not load from Nearling's brain. Check your connection and refresh the page."}
+        {"Feed packs could not load from Petto's brain. Check your connection and refresh the page."}
       </p>
     );
   }

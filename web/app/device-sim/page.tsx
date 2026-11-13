@@ -14,7 +14,7 @@ import { BRAIN_URL, getPetState } from "@/lib/brain";
 import { RPC_URL, formatNear, getPet, petFromRef, petPath, view } from "@/lib/chain";
 import { errorText, friendlyChainError } from "@/lib/errors";
 
-// /device-sim: a browser Nearling that behaves like the hardware (docs/hardware/DEVICE_PROTOCOL.md).
+// /device-sim: a browser Petto that behaves like the hardware (docs/hardware/DEVICE_PROTOCOL.md).
 // Real brain calls with a real device token, real testnet transactions signed in the browser by
 // a limited function-call key (packages/device). Nothing is mocked. Testnet only.
 
@@ -180,7 +180,7 @@ export default function DeviceSimPage() {
     <AppFrame title="Device simulator">
       <Panel>
         <p className="text-sm">
-          A Nearling in your browser. It does what the hardware does: pairs with the brain, shows your pet and signs
+          A Petto in your browser. It does what the hardware does: pairs with the brain, shows your pet and signs
           its own NEAR testnet transactions with a limited device key.
         </p>
         <p className="border-2 border-warn px-2 font-display text-sm text-warn">browser device, testnet only</p>

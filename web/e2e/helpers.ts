@@ -48,7 +48,7 @@ export interface E2EAccount {
 }
 
 export function e2eAccount(): E2EAccount | null {
-  const file = process.env.E2E_ACCOUNTS_FILE ?? "/home/zhijian/Nearling/brain/data/testnet-accounts.env";
+  const file = process.env.E2E_ACCOUNTS_FILE ?? "/home/zhijian/Petto/brain/data/testnet-accounts.env";
   const env: Record<string, string> = {};
   if (existsSync(file)) {
     for (const line of readFileSync(file, "utf8").split("\n")) {

@@ -34,7 +34,7 @@ export function ConnectButton({ label = "Connect Meteor", compact = false }: { l
   return (
     <div className="flex flex-col gap-2">
       <button className={`pixel-btn ${compact ? "px-3 text-sm" : ""}`} disabled={busy} onClick={() => void signIn()}>
-        {busy ? "Check your wallet..." : wallet.accountId ? "Sign in to Nearling" : label}
+        {busy ? "Check your wallet..." : wallet.accountId ? "Sign in to Petto" : label}
       </button>
       {!compact && !wallet.accountId && (
         <button

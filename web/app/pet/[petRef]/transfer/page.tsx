@@ -48,7 +48,7 @@ function Transfer({ pet }: { pet: PetData }) {
     return (
       <Panel>
         <p className="font-display text-lg">{name} now belongs to <span className="font-mono">{doneTo}</span>.</p>
-        <p>{name}&apos;s new owner can pair {name} with their Nearling.</p>
+        <p>{name}&apos;s new owner can pair {name} with their Petto.</p>
         <TxStatus state={state} doneText="Transferred" />
         <Link href="/my" className="pixel-btn self-start">See my pets</Link>
       </Panel>
@@ -100,7 +100,7 @@ function Transfer({ pet }: { pet: PetData }) {
         <h2 className="font-display text-lg">Who gets {name}</h2>
         <p className="text-sm">
           {name} keeps its Soul, stage, traits and on-chain fuel. Chats and memories stay with you: the new owner
-          starts fresh.{devicePaired ? ` Your Nearling device stops working with ${name}.` : ""} This can&apos;t be undone.
+          starts fresh.{devicePaired ? ` Your Petto device stops working with ${name}.` : ""} This can&apos;t be undone.
         </p>
         <label className="flex flex-col gap-2">
           <span className="font-display text-sm">Recipient account</span>
@@ -120,7 +120,7 @@ function Transfer({ pet }: { pet: PetData }) {
         <ErrorText>{inputError}</ErrorText>
         <button className={`pixel-btn ${devicePaired && !c.approval_mode ? "pixel-btn--secondary" : ""}`} disabled={!to || busy || checking}
           onClick={() => void transferNow()}>
-          {busy ? "Check your wallet..." : checking ? "Checking the account..." : c.approval_mode ? `Ask your Nearling to give ${name} away` : `Give ${name} away`}
+          {busy ? "Check your wallet..." : checking ? "Checking the account..." : c.approval_mode ? `Ask your Petto to give ${name} away` : `Give ${name} away`}
         </button>
         <TxStatus state={state} doneText={c.approval_mode ? "Request sent" : "Transferred"} />
         <PetApproval pet={pet} proposal={proposal} />
@@ -188,22 +188,22 @@ function DevicePath({
 
   return (
     <Panel>
-      <h2 className="font-display text-lg">Approve on your Nearling</h2>
+      <h2 className="font-display text-lg">Approve on your Petto</h2>
       <p className="text-sm">
-        For an extra check, your Nearling shows {name} and the recipient. Hold Approve on the device, then sign in
+        For an extra check, your Petto shows {name} and the recipient. Hold Approve on the device, then sign in
         Meteor.
       </p>
       {!session ? (
-        <p className="text-sm text-muted">Sign in to Nearling to use the device check.</p>
+        <p className="text-sm text-muted">Sign in to Petto to use the device check.</p>
       ) : s.step === "idle" || s.step === "error" ? (
-        <button className="pixel-btn" disabled={!to} onClick={() => void start()}>Send to my Nearling</button>
+        <button className="pixel-btn" disabled={!to} onClick={() => void start()}>Send to my Petto</button>
       ) : s.step === "saving" ? (
         <p className="font-mono text-sm text-muted">Saving the recipient...</p>
       ) : s.step === "waiting" ? (
         <p className="font-mono text-sm text-muted">
           {s.startedOnPhone
-            ? `Hold Approve on your Nearling. Waiting for the device...`
-            : `${to} is saved on your Nearling. On the device, open Wallet, choose Transfer ${name}, pick ${to} and hold Approve. Waiting for the device...`}
+            ? `Hold Approve on your Petto. Waiting for the device...`
+            : `${to} is saved on your Petto. On the device, open Wallet, choose Transfer ${name}, pick ${to} and hold Approve. Waiting for the device...`}
         </p>
       ) : (
         <Link href={`/approve/${encodeURIComponent(s.approvalId)}`} className="pixel-btn self-start">Sign in Meteor</Link>

@@ -13,7 +13,7 @@ const POLL_MS = 5_000;
 const EGG_TRAITS = [2, 0, 1, 0, 0];
 
 /**
- * Landing key art: the live demo pet from `pets-demo` in a Nearling frame. The egg cracks once
+ * Landing key art: the live demo pet from `pets-demo` in a Petto frame. The egg cracks once
  * on load (the hero entrance), then the real pet shows and its fuel drops in real time.
  */
 export function DemoPet() {
@@ -49,7 +49,7 @@ export function DemoPet() {
         ) : (
           <PetSprite traits={EGG_TRAITS} stageIndex={0} winged={false} state="happy"
             play={hatched ? null : "egg_hatch"} playKey="hero" onDone={() => setHatched(true)} scale={6}
-            label="A Nearling egg" />
+            label="A Petto egg" />
         )}
       </NearlingFrame>
       <figcaption className="flex w-full max-w-[280px] flex-col gap-2">

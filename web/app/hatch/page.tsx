@@ -18,7 +18,7 @@ import { useSignIn } from "@/lib/wallet";
 
 const DEFAULT_SOUL =
   "A small, curious desk pet who loves learning about its owner's day, tells gentle jokes and gets sleepy at night.";
-const EXPIRED = "This code has expired. Restart pairing on your Nearling.";
+const EXPIRED = "This code has expired. Restart pairing on your Petto.";
 const claimKey = (t: string) => `nearling.pairing.${t}`;
 
 type Phase =
@@ -54,7 +54,7 @@ function Hatch() {
   // 1. check the token
   useEffect(() => {
     if (!token) {
-      setPhase({ k: "invalid", message: "Scan the QR code on your Nearling to start." });
+      setPhase({ k: "invalid", message: "Scan the QR code on your Petto to start." });
       return;
     }
     getPairing(token)
@@ -68,7 +68,7 @@ function Hatch() {
       .catch((err) =>
         setPhase({
           k: "invalid",
-          message: err instanceof BrainRequestError && err.status === 404 ? EXPIRED : brainErrorCopy("upstream", "Your Nearling"),
+          message: err instanceof BrainRequestError && err.status === 404 ? EXPIRED : brainErrorCopy("upstream", "Your Petto"),
         }),
       );
   }, [token]);
@@ -113,7 +113,7 @@ function Hatch() {
     case "checking":
       return (
         <AppFrame title="Hatch & Pair">
-          <Spinner label="Looking for your Nearling..." />
+          <Spinner label="Looking for your Petto..." />
         </AppFrame>
       );
     case "invalid":
@@ -137,9 +137,9 @@ function Hatch() {
       return (
         <AppFrame title="Almost there">
           <Panel>
-            <p className="font-display text-lg">Press the button on your Nearling</p>
-            <p className="text-sm text-muted">Your Nearling asks to pair. Press its button to say yes.</p>
-            <Spinner label="Waiting for your Nearling..." />
+            <p className="font-display text-lg">Press the button on your Petto</p>
+            <p className="text-sm text-muted">Your Petto asks to pair. Press its button to say yes.</p>
+            <Spinner label="Waiting for your Petto..." />
           </Panel>
         </AppFrame>
       );
@@ -150,7 +150,7 @@ function Hatch() {
           {p ? (
             <HatchAnimation contract={p.contract} tokenId={p.tokenId} onDone={() => router.push(petPath(p.contract, p.tokenId))} />
           ) : (
-            <p>Your Nearling is paired.</p>
+            <p>Your Petto is paired.</p>
           )}
         </AppFrame>
       );
@@ -172,7 +172,7 @@ function Hatch() {
       );
     case "ready":
       return (
-        <AppFrame title="Nearling found">
+        <AppFrame title="Petto found">
           <Panel>
             <p>Connect your wallet to hatch a pet or pair one you already have.</p>
             <ConnectButton />

@@ -1,6 +1,6 @@
 import { BRAIN_URL, BrainRequestError } from "./brain";
 
-// Nearling Run client side: brain routes (AI-brain 08, Race) and the WebSocket protocol (06 section 3).
+// Petto Run client side: brain routes (AI-brain 08, Race) and the WebSocket protocol (06 section 3).
 
 export type Slot = 0 | 1;
 

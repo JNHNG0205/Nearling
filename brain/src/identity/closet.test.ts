@@ -13,7 +13,7 @@ function setup() {
   const calls: unknown[][] = [];
   deps.chain.view = (async (contract: string, method: string, args: unknown) => {
     calls.push([contract, method, args]);
-    return owned.map((token_id) => ({ token_id, owner_id: "alice.testnet", metadata: { title: "Nearling Shirt" } }));
+    return owned.map((token_id) => ({ token_id, owner_id: "alice.testnet", metadata: { title: "Petto Shirt" } }));
   }) as Chain["view"];
   const app = createApp(deps);
   const req = async (path: string, body?: unknown) =>
@@ -29,7 +29,7 @@ describe("Closet", () => {
   it("lists the owner's shirts from the shirts contract", async () => {
     const { req, calls } = setup();
     const res = await req(`/pets/${PET}/closet`);
-    expect(await res.json()).toEqual({ shirts: [{ token_id: "0", title: "Nearling Shirt" }], equipped: null });
+    expect(await res.json()).toEqual({ shirts: [{ token_id: "0", title: "Petto Shirt" }], equipped: null });
     expect(calls[0]).toEqual(["shirts.nearling.testnet", "nft_tokens_for_owner", { account_id: "alice.testnet", from_index: "0", limit: 100 }]);
   });
 

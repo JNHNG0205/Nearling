@@ -5,11 +5,11 @@ export const WIZARD_KEY = "nearling.start";
 
 export type StepId = 1 | 2 | 3 | 4 | 5;
 export const STEPS: { id: StepId; title: string }[] = [
-  { id: 1, title: "Connect your Nearling" },
+  { id: 1, title: "Connect your Petto" },
   { id: 2, title: "Connect your wallet" },
   { id: 3, title: "Choose your pet" },
   { id: 4, title: "Make it yours" },
-  { id: 5, title: "Hand it to your Nearling" },
+  { id: 5, title: "Hand it to your Petto" },
 ];
 
 /** How step 1 ended: the QR link, Bluetooth, or skipped to play in the browser. */
@@ -64,7 +64,7 @@ export interface WizardFacts {
   account: string | null;
   /** Wallet connected and the brain session signed for it. */
   signedIn: boolean;
-  /** `t` from `/start?t=<token>`: the user arrived from the Nearling's QR. */
+  /** `t` from `/start?t=<token>`: the user arrived from the Petto's QR. */
   urlToken: string | null;
 }
 

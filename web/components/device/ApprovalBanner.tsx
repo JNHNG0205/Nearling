@@ -49,7 +49,7 @@ type Phase = "waiting" | "approved" | "expired" | "cancelled";
 const POLL_MS = 3_000;
 
 /**
- * "Approve on your Nearling": polls `get_pending_actions` every 3 s until the action is gone
+ * "Approve on your Petto": polls `get_pending_actions` every 3 s until the action is gone
  * (approved on the device) or expired. Cancel calls `cancel_action` from the wallet (refunds any deposit).
  */
 export function ApprovalBanner({
@@ -121,10 +121,10 @@ export function ApprovalBanner({
     <Panel>
       {phase === "waiting" && (
         <>
-          <h2 className="font-display text-lg">Approve on your Nearling</h2>
+          <h2 className="font-display text-lg">Approve on your Petto</h2>
           <p className="font-mono">{summary}</p>
           <p className="text-sm text-muted">
-            Your Nearling shows this request. Hold Approve on the device for 2 seconds.
+            Your Petto shows this request. Hold Approve on the device for 2 seconds.
             {left !== null ? ` It expires in about ${left} min.` : ""}
           </p>
           <p className="font-mono text-sm text-muted" aria-live="polite">Waiting for the device...</p>
@@ -133,7 +133,7 @@ export function ApprovalBanner({
           </button>
         </>
       )}
-      {phase === "approved" && <p className="font-display text-fuel">Approved on your Nearling: {summary}.</p>}
+      {phase === "approved" && <p className="font-display text-fuel">Approved on your Petto: {summary}.</p>}
       {phase === "expired" && (
         <>
           <p className="text-sm">The request expired before the device approved it. Cancel it to get any NEAR it held back.</p>

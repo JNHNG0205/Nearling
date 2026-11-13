@@ -284,5 +284,5 @@ export interface BrainError {
 }
 
 // NEP-413 sign-in constants (brain and web must match).
-export const NEP413_MESSAGE = "Sign in to Nearling";
+export const NEP413_MESSAGE = "Sign in to Petto";
 export const NEP413_RECIPIENT = "nearling";
