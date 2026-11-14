@@ -6,7 +6,7 @@ export const WIZARD_KEY = "nearling.start";
 export type StepId = 1 | 2 | 3 | 4;
 export const STEPS: { id: StepId; title: string }[] = [
   { id: 1, title: "Connect your wallet" },
-  { id: 2, title: "Choose your pet" },
+  { id: 2, title: "Hatch your pet" },
   { id: 3, title: "Make it yours" },
   { id: 4, title: "Connect your Petto or play in the browser" },
 ];

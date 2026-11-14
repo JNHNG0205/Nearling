@@ -160,7 +160,7 @@ function StepBody({ step, state, update, accountId, signedIn }: StepProps) {
           {signedIn && <FaucetPanel />}
           {signedIn && (
             <button className="pixel-btn self-start" onClick={() => update({ walletConfirmed: true })}>
-              Choose a pet
+              Hatch a pet
             </button>
           )}
         </div>
@@ -239,7 +239,8 @@ function DeviceOptions({ onBle }: { onBle: (token: string | null) => void }) {
 function PetStep({ accountId, onChosen }: { accountId: string; onChosen: (petRef: string) => void }) {
   const [pets, setPets] = useState<MyPet[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [minting, setMinting] = useState(false);
+  // setup is mainly for hatching a new pet; picking an existing one is the secondary path
+  const [minting, setMinting] = useState(true);
   const [mintContract, setMintContract] = useState<string>(PETS_CONTRACT);
   const [hatching, setHatching] = useState<string | null>(null);
   const [busyRef, setBusyRef] = useState<string | null>(null);
@@ -283,7 +284,7 @@ function PetStep({ accountId, onChosen }: { accountId: string; onChosen: (petRef
         <SpeedPicker contract={mintContract} onChange={setMintContract} />
         <MintForm key={mintContract} contract={mintContract} onMinted={(id) => setHatching(formatPetRef(mintContract, id))} />
         <button className="self-start text-sm text-muted underline" onClick={() => setMinting(false)}>
-          Pick a pet I have instead
+          Or pick a pet I already have
         </button>
       </div>
     );
@@ -292,7 +293,7 @@ function PetStep({ accountId, onChosen }: { accountId: string; onChosen: (petRef
   return (
     <div className="flex flex-col gap-3">
       <button className="pixel-btn self-start" onClick={() => setMinting(true)}>
-        Hatch a new pet
+        Hatch a new pet instead
       </button>
       {error ? (
         <ErrorText>{error}</ErrorText>
