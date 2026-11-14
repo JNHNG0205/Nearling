@@ -373,7 +373,7 @@ function PetStep({ accountId, preferPick, onChosen }: {
               >
                 {p.state && (
                   <PetSprite traits={p.state.traits} stageIndex={p.state.stage_index} winged={p.state.form === "winged"}
-                    shirt={p.state.equipped_shirt} state={p.state.display_state} scale={2} label={p.name} />
+                    shirt={p.state.equipped_shirt} costume={p.state.equipped_costume} state={p.state.display_state} scale={2} label={p.name} />
                 )}
                 <span className="flex flex-1 flex-col gap-1">
                   <span className="font-display">{busyRef === p.ref ? `Choosing ${p.name}...` : `Choose ${p.name}`}</span>
@@ -424,7 +424,7 @@ function CustomiseStep({ petRef, onNext }: { petRef: string; onNext: () => void 
       {b && (
         <div className="flex items-center gap-3">
           <PetSprite traits={b.traits} stageIndex={b.stage_index} winged={b.form === "winged"}
-            shirt={b.equipped_shirt} state={b.display_state} scale={3} label={name} />
+            shirt={b.equipped_shirt} costume={b.equipped_costume} state={b.display_state} scale={3} label={name} />
           <p className="text-sm text-muted">Give {name} a personality and a look. You can change both later.</p>
         </div>
       )}

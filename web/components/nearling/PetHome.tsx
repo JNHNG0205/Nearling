@@ -195,6 +195,7 @@ export function PetHome({ initial }: { initial: PetState }) {
         stageIndex={pet.stage_index}
         winged={pet.form === "winged"}
         shirt={pet.equipped_shirt}
+        costume={pet.equipped_costume}
         state={pet.display_state}
         name={pet.name}
         talk={talkAnim(talk.phase, talk.emotion)}

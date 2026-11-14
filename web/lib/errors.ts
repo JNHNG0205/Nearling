@@ -43,6 +43,7 @@ const CHAIN: Record<string, (name: string) => string> = {
   E_TOO_MANY_ACTIONS: () => "Too many requests are waiting. Approve or cancel one first.",
   // shirts
   E_CLAIMED: () => "You already have your Petto shirt.",
+  E_COSTUME: () => "That costume isn't in the shop.",
 };
 
 const BRAIN: Record<string, (name: string) => string> = {

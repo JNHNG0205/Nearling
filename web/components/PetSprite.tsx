@@ -12,6 +12,8 @@ export interface PetSpriteProps {
   winged: boolean;
   /** Equipped Closet shirt token id (`PetState.equipped_shirt`), or null for none. */
   shirt?: string | null;
+  /** Equipped costume key (`PetState.equipped_costume`); drawn instead of the plain shirt. */
+  costume?: string | null;
   state: DisplayState; // the loop when nothing else plays
   /** One-shot or override animation. Change `playKey` to replay the same animation. */
   play?: AnyAnim | null;
@@ -25,12 +27,13 @@ export interface PetSpriteProps {
  * Draws a Petto on a 32x32 canvas scaled by an integer factor. Looping clips run until
  * `play` changes; one-shot clips (pat, eat, celebrate, evolve, egg_hatch) end and fall back
  * to the state loop. Reduced motion: holds the first frame. Traits pick the colour, pattern and
- * personality variant; an equipped shirt is drawn as its own layer over the body.
+ * personality variant; an equipped shirt or costume is drawn as its own layer.
  */
 export function PetSprite({
-  traits, stageIndex, winged, shirt = null, state, play = null, playKey, onDone, scale = 4, label = "Your Petto",
+  traits, stageIndex, winged, shirt: shirtToken = null, costume = null, state, play = null, playKey, onDone, scale = 4, label = "Your Petto",
 }: PetSpriteProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const shirt = costume ? null : shirtToken;
   const doneRef = useRef(onDone);
   doneRef.current = onDone;
   const traitsKey = traits.join(",");
@@ -42,7 +45,7 @@ export function PetSprite({
 
     const stage = stageFromChain(stageIndex);
     const t = traitsKey.split(",").map(Number);
-    const look = { stage, winged, shirt, personality: personalityFromTraits(t) };
+    const look = { stage, winged, shirt, costume, personality: personalityFromTraits(t) };
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const image = ctx.createImageData(SIZE, SIZE);
 
@@ -55,7 +58,7 @@ export function PetSprite({
     const draw = (i: number) => {
       const frame = current.frames[i];
       if (!frame) return;
-      image.data.set(toRgba(frame, palette, current.shirt?.[i]));
+      image.data.set(toRgba(frame, palette, current.shirt?.[i], current.costume?.[i]));
       ctx.clearRect(0, 0, SIZE, SIZE);
       ctx.putImageData(image, 0, 0);
     };
@@ -89,7 +92,7 @@ export function PetSprite({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [traitsKey, stageIndex, winged, shirt, state, play, playKey]);
+  }, [traitsKey, stageIndex, winged, shirt, costume, state, play, playKey]);
 
   const px = SIZE * Math.max(1, Math.round(scale));
   return (

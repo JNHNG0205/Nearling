@@ -145,7 +145,7 @@ function PetCard({ pet, unread }: { pet: MyPet; unread: number }) {
     <article className="pixel-panel flex h-full flex-col gap-3 p-3">
       <Link href={home} className="flex items-center gap-4">
         {s && (
-          <PetSprite traits={s.traits} stageIndex={s.stage_index} winged={s.form === "winged"} shirt={s.equipped_shirt}
+          <PetSprite traits={s.traits} stageIndex={s.stage_index} winged={s.form === "winged"} shirt={s.equipped_shirt} costume={s.equipped_costume}
             state={s.display_state} scale={2} label={s.name} />
         )}
         <span className="flex min-w-0 flex-1 flex-col gap-2">
