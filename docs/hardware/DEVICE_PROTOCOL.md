@@ -150,14 +150,9 @@ While the pairing screen is up, the device advertises a BLE peripheral so a phon
 - The web keeps only the token and navigates on its own origin, so the host part of the URL is not trusted.
 - NimBLE-Arduino (or ESP-IDF NimBLE) fits: one service, two characteristics, no bonding needed.
 
-## 10. Race WebSocket
+## 10. Battles (Race was removed)
 
-`GET wss://<brain>/race/ws?code=ABC123` with `Authorization: Device <token>`. Create a room with `POST /race/rooms` (device token) returning `{ code }`; show the code / QR for the opponent (`PUBLIC_WEB_URL/race/<code>`).
-
-- Send `hello { rules_version, name?, pet_ref? }` first, then `ready`, `ping { t_client }` (keep the median offset of 5 pongs), `lane { tick, lane: 0|1 }` on each button press, `crash { tick | null, inputs }` when you crash or when asked by `request_inputs`.
-- Receive `room`, `start { seed, start_at, rules_version, match_id }`, `opp_lane`, `opp_crash`, `request_inputs`, `result`, `interrupted`, `pong`, `error`.
-- Close codes: 4001 rules mismatch (update firmware), 4004 gone, 4009 replaced, 4010 room closed. Reconnect to the same slot by re-sending `hello`.
-- Game rules and the deterministic simulation: `packages/race` (port `simulate(seed, inputs, ticks)` to C++ exactly). Details: `AI-brain architectual/06-race-arena.md` and section "Race WebSocket as built" in `08-api-reference.md`.
+Petto Run is gone; the device has no game for now. See `docs/hardware/BATTLE.md` for the turn-based battle and how the device can join later.
 
 ## 11. Sprites: `art/nearling_sprites.h`
 

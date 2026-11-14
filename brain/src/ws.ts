@@ -11,7 +11,7 @@ const nodeWs = createNodeWebSocket({
 
 export const upgradeWebSocket = nodeWs.upgradeWebSocket;
 
-/** Called once by server.ts with the Node server: enables `GET /race/ws`. */
+/** Called once by server.ts with the Node server: enables `GET /battle/ws`. */
 export function attachWebSockets(server: Parameters<typeof nodeWs.injectWebSocket>[0], appInstance: Hono): void {
   app = appInstance;
   nodeWs.injectWebSocket(server);

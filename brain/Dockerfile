@@ -14,7 +14,7 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY brain/package.json brain/
 COPY packages/shared/package.json packages/shared/
-COPY packages/race/package.json packages/race/
+COPY packages/battle/package.json packages/battle/
 COPY packages/sprites/package.json packages/sprites/
 # The brain and its workspace deps only. Dev deps stay: the brain runs TypeScript through tsx.
 # The second line fails the build if the native SQLite module did not install.
@@ -30,8 +30,8 @@ WORKDIR /app
 COPY --from=deps /app /app
 COPY packages/shared/src packages/shared/src
 COPY packages/shared/tsconfig.json packages/shared/
-COPY packages/race/src packages/race/src
-COPY packages/race/tsconfig.json packages/race/
+COPY packages/battle/src packages/battle/src
+COPY packages/battle/tsconfig.json packages/battle/
 # costume checks and the NFT image renderer (metadata/build.ts)
 COPY packages/sprites/src packages/sprites/src
 COPY packages/sprites/tsconfig.json packages/sprites/

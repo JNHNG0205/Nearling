@@ -18,7 +18,7 @@ const publicEnv = Object.fromEntries(
 const config: NextConfig = {
   env: publicEnv,
   // Workspace packages ship TypeScript source.
-  transpilePackages: ["@petto/shared", "@petto/battle", "@petto/race", "@petto/sprites", "@petto/device"],
+  transpilePackages: ["@petto/shared", "@petto/battle", "@petto/sprites", "@petto/device"],
 };
 
 export default config;

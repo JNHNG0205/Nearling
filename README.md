@@ -112,7 +112,7 @@ Editable source: [`docs/architecture.drawio`](docs/architecture.drawio) (open in
 |---|---|---|
 | **Feed the Brain** | Snack / Meal / Feast packs; anyone can feed any pet | `feed(pet)` from your wallet; NEAR Intents (pay from another chain) when enabled, dry quotes by default |
 | **Closet and Shop** | Claim a free shirt; tap any of 38 costumes to try it on your pet, buy it for 0.05 NEAR | Shirts contract `shirts.petto.testnet`: `claim()` (free shirt) and `buy(costume)` (0.05 NEAR); each item is a NEP-171 NFT you own and can gift |
-| **Petto Run** | Two-lane race against a friend, browser or device | Deterministic rules shared by web and firmware (golden vectors); the brain replays inputs to pick the winner |
+| **Battle** | Turn-based battle against a friend's pet: Fight (Attack or a skill) or Run, HP and MP, critical hits | Both players pick blind and the brain referees with shared, deterministic rules; battle level and XP are stored on chain (`record_battle`), and levels raise HP and MP and unlock skills shaped by the pet's traits |
 | **Care and evolution** | Pat, rock and lights off; the pet grows wings | Device sensors (touch, motion, light) or web buttons; care is local, no transaction |
 | **Public pet page** | `/p/<pet>`: timeline, receipts, "Feed this pet" | No wallet needed: the link to share |
 
@@ -141,7 +141,7 @@ Open the hosted app: it is the pet's console, and it also plays the pet in the b
 6. **Shop** (navbar) → tap a costume card to try it on your pet → press its **0.05 NEAR** button. **See:** the pet wearing it everywhere (and talking about it), and the NFT in your wallet.
 7. **Brain Garden** → plant at least 1 NEAR. **See:** credit ticking up every second and **Self-sustaining** once daily credit covers daily burn (2 NEAR is enough).
 8. **Soul** → edit and save. **See:** the version go up; the next receipt shows the new version.
-9. **Race** → start a race, join from a second tab. **See:** a countdown and a two-lane race; the brain declares the winner.
+9. **Battle** → pick a pet, start a battle, and join it from a second browser signed in with another account (pets on the same contract). **See:** Fight or Run each turn, HP and MP bars, then the battle XP and a NEAR transaction for the result; the pet page shows its battle level.
 10. **Share** `/p/<pet>`. **See:** the public timeline (fed, Soul versions, stage-ups) with a **Feed this pet** button.
 
 ### On chain (NEAR CLI, views need no account)
@@ -177,7 +177,7 @@ Evidence that the pet pays for its thoughts: a brain `charge` on the current con
 
 ## The device: the Tamagotchi on your desk
 
-The pet's own body: ESP32-S3 with a small screen, three buttons, a touch pad, motion and light sensors, a mic and a speaker, in a 3D-printed case. Hold a button to talk; pat, rock or darken the room to care for it offline; race in Petto Run; hold Approve before a wallet action. Wiring and pins: [`docs/hardware/`](docs/hardware/); device API: [`AI-brain architectual/08-api-reference.md`](AI-brain%20architectual/08-api-reference.md).
+The pet's own body: ESP32-S3 with a small screen, three buttons, a touch pad, motion and light sensors, a mic and a speaker, in a 3D-printed case. Hold a button to talk; pat, rock or darken the room to care for it offline; hold Approve before a wallet action. Wiring and pins: [`docs/hardware/`](docs/hardware/); device API: [`AI-brain architectual/08-api-reference.md`](AI-brain%20architectual/08-api-reference.md).
 
 _Photos, video and build steps: to be added by the hardware team._
 
@@ -187,7 +187,7 @@ _Photos, video and build steps: to be added by the hardware team._
 
 | Track | What we use |
 |---|---|
-| `games` | A care loop with needs, memory and a pet that reaches out first; Petto Run. The chain stays out of play: chat never opens a wallet, small actions are gas-free, email login works |
+| `games` | A care loop with needs, memory and a pet that reaches out first; turn-based pet battles. The chain stays out of play: chat never opens a wallet, small actions are gas-free, email login works |
 | `nfts` | Each pet is a **NEP-171 NFT that owns money**: fuel, stake and spending history live in the token's on-chain state; NEP-177 metadata points at the pet's live image on IPFS. Shirts and costumes are a second collection |
 | `agents` | The pet pays for its own compute: one on-chain `charge` per reply, funded by feeding or by its own staking yield (NEARON → CREDIT → NEAR AI org) |
 | `privacy` | Private (TEE) models on NEAR AI Cloud with per-reply receipts (attestation with a fresh nonce, signed hashes); memories encrypted at rest; logs never hold content |
@@ -208,7 +208,7 @@ _Photos, video and build steps: to be added by the hardware team._
 - **Transfer is blocked while a pet has stake, a pending unstake or a stake in flight**; it clears device access, pending approvals and refunds the pantry to the old owner.
 - **Every NEARON call is locked before and restored on failure**, so a failed pool call never loses or double-counts stake.
 - **The device key can never attach NEAR:** it can feed from a pantry the owner stocked (1 NEAR a day), stake the pet's own food (capped) and approve actions the wallet proposed.
-- **Tests:** 657 in total, all passing (pets contract 192, shirts 10, brain 267, web 140, sprites 23, device 10, race 8, shared 7), plus each flow run on testnet.
+- **Tests:** 681 in total, all passing (pets contract 200, shirts 10, brain 268, web 150, sprites 23, device 10, battle 13, shared 7), plus each flow run on testnet.
 
 ---
 
@@ -222,7 +222,7 @@ _Photos, video and build steps: to be added by the hardware team._
 - **Voice leaves the TEE** when spoken replies are on; receipts say so.
 - **NEAR Intents has no testnet:** live cross-chain payments would be mainnet, so the brain requests dry quotes only unless a human enables it.
 - **Minting, feeding, staking and buying need testnet NEAR**; only no-deposit calls are gas-sponsored.
-- **One brain instance:** rate limits and race rooms reset on restart; data is in SQLite.
+- **One brain instance:** rate limits and battle rooms reset on restart (a battle in progress ends); data is in SQLite.
 - **Costume NFTs have no image yet** in wallets; the app draws them.
 
 ---
@@ -254,7 +254,7 @@ Our edge, in order: the game loop (needs, memory, the pet reaching out first), t
 | `brain/` | Brain service (Node 22, Hono, SQLite) |
 | `web/` | Next.js app |
 | `firmware/` | ESP32-S3 device (PlatformIO) |
-| `packages/` | `shared` types, `race` rules, `sprites` (procedural pets and costumes), `device` |
+| `packages/` | `shared` types, `battle` rules, `sprites` (procedural pets and costumes), `device` |
 | `scripts/` | Testnet deploy, seed and admin scripts |
 | `docs/` | Contract interface, architecture, hardware, milestones, limitations, Build Spec |
 | `AI-brain architectual/`, `web-app architectual/` | Design docs for brain and web |

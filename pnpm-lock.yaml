@@ -19,9 +19,6 @@ importers:
       '@petto/battle':
         specifier: workspace:*
         version: link:../packages/battle
-      '@petto/race':
-        specifier: workspace:*
-        version: link:../packages/race
       '@petto/shared':
         specifier: workspace:*
         version: link:../packages/shared
@@ -103,15 +100,6 @@ importers:
         specifier: 3.2.4
         version: 3.2.4(@types/node@22.19.1)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.15)
 
-  packages/race:
-    devDependencies:
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-      vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/node@22.19.1)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.15)
-
   packages/shared:
     devDependencies:
       typescript:
@@ -147,9 +135,6 @@ importers:
       '@petto/device':
         specifier: workspace:*
         version: link:../packages/device
-      '@petto/race':
-        specifier: workspace:*
-        version: link:../packages/race
       '@petto/shared':
         specifier: workspace:*
         version: link:../packages/shared
