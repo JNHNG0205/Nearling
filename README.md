@@ -13,6 +13,7 @@
   <img src="docs/readme-banner.png" alt="One Petto in each of the 38 Closet costumes, drawn by the app's own sprite code" width="800" />
   <p>
     <a href="https://mypetto.xyz">Live app</a> &middot;
+    <a href="https://x.com/pettoxyz/status/2121681244614205758">Demo video</a> &middot;
     <a href="#try-it-do-x-see-y">Try it</a> &middot;
     <a href="#architecture">Architecture</a> &middot;
     <a href="docs/CONTRACT_INTERFACE.md">Contract interface</a> &middot;
@@ -20,7 +21,7 @@
     <a href="https://testnet.nearblocks.io/txns/CndDMwrmsz5B8xjg36UdSy4dZjzPy8HibRpwdtgZawoy">A thought, paid on chain</a> &middot;
     <a href="#limitations">Limitations</a>
   </p>
-  <p><sub>NEAR testnet only, test NEAR only. Built for NEAR HACKATHON 2026. Live at <a href="https://mypetto.xyz">mypetto.xyz</a>; demo video: link added at submission.</sub></p>
+  <p><sub>NEAR testnet only, test NEAR only. Built for NEAR HACKATHON 2026. Live at <a href="https://mypetto.xyz">mypetto.xyz</a>; <a href="https://x.com/pettoxyz/status/2121681244614205758">demo video</a>.</sub></p>
 </div>
 
 ---
@@ -317,4 +318,9 @@ Our edge, in order: the game loop (needs, memory, the pet reaching out first), t
 
 ## Team
 
-_To be filled: names, roles, and any other projects by team members (hackathon rule Q-015)._
+| Name | Role | X |
+|---|---|---|
+| Teh Jun Heng | Software dev | [JNHNG4](https://x.com/JNHNG4) |
+| Chiw Jie Ren | Software dev | [chiwbacca888](https://x.com/chiwbacca888) |
+| Ng Jian Ming | Hardware dev | [jmingg06](https://x.com/jmingg06) |
+| Sam Zhi Jian | Hardware dev | [zhjiandv](https://x.com/zhjiandv) |
