@@ -19,7 +19,10 @@ import {
   applyFacts, canOpen, currentStep, EMPTY_WIZARD, parseWizard, progress, stepDone, STEPS, WIZARD_KEY,
   type StepId, type WizardFacts, type WizardState,
 } from "@/lib/startWizard";
-import { FROM_SETUP } from "@/lib/fromSetup";
+import { Closet } from "@/components/customise/ClosetPicker";
+import { ProfileForm } from "@/components/customise/ProfileForm";
+import { Soul } from "@/components/customise/SoulEditor";
+import { usePet } from "@/components/wallet/usePet";
 import { useSignIn } from "@/lib/wallet";
 
 // /start: guided setup. Connect the Petto, connect the wallet, choose a pet, make it yours,
@@ -348,47 +351,34 @@ function usePetState(petRef: string): { pet: PetState | null; failed: boolean } 
 }
 
 function CustomiseStep({ petRef, onNext }: { petRef: string; onNext: () => void }) {
-  const { pet, failed } = usePetState(petRef);
-  const p = petFromRef(petRef);
-  if (!p) return null;
-  const name = pet?.name ?? "your pet";
-  const cards = [
-    {
-      href: petPath(p.contract, p.tokenId, "/soul") + FROM_SETUP,
-      title: "Write its Soul",
-      body: pet ? (pet.soul_version > 0 ? `Soul version ${pet.soul_version}, public on NEAR.` : "No Soul yet. It uses the default voice.") : null,
-    },
-    {
-      href: petPath(p.contract, p.tokenId, "/closet") + FROM_SETUP,
-      title: "Pick a shirt",
-      body: pet ? (pet.equipped_shirt ? `Wearing shirt #${pet.equipped_shirt}.` : "No shirt yet. Claim one free shirt.") : null,
-    },
-    {
-      href: petPath(p.contract, p.tokenId, "/settings") + FROM_SETUP,
-      title: "Set nickname and time zone",
-      body: "What it calls you, and when it says good morning.",
-    },
+  // Everything is edited right here, so customising never leaves setup.
+  const data = usePet(petRef);
+  if ("invalid" in data) return null;
+  if (data.loading) return <Spinner />;
+  if (!data.chain) return <ErrorText>{data.error}</ErrorText>;
+  const pet = data;
+  const name = pet.chain!.name;
+  const b = pet.brain;
+  const sections: { title: string; body: React.ReactNode }[] = [
+    { title: "Write its Soul", body: <Soul pet={pet} /> },
+    { title: "Pick a shirt", body: <Closet pet={pet} /> },
+    { title: "Nickname and time zone", body: <ProfileForm pet={pet} /> },
   ];
   return (
     <div className="flex flex-col gap-3">
-      {pet && (
+      {b && (
         <div className="flex items-center gap-3">
-          <PetSprite traits={pet.traits} stageIndex={pet.stage_index} winged={pet.form === "winged"}
-            shirt={pet.equipped_shirt} state={pet.display_state} scale={3} label={pet.name} />
+          <PetSprite traits={b.traits} stageIndex={b.stage_index} winged={b.form === "winged"}
+            shirt={b.equipped_shirt} state={b.display_state} scale={3} label={name} />
           <p className="text-sm text-muted">Give {name} a personality and a look. You can change both later.</p>
         </div>
       )}
-      {failed && <ErrorText>Couldn&apos;t reach Petto&apos;s brain, so the Soul version and shirt are not shown.</ErrorText>}
-      <ul className="flex flex-col gap-2">
-        {cards.map((c) => (
-          <li key={c.href}>
-            <Link href={c.href} className="pixel-panel flex flex-col gap-1 p-3 hover:border-accent">
-              <span className="font-display text-accent">{c.title}</span>
-              {c.body && <span className="text-sm text-muted">{c.body}</span>}
-            </Link>
-          </li>
-        ))}
-      </ul>
+      {sections.map((s) => (
+        <details key={s.title} className="pixel-panel p-3">
+          <summary className="cursor-pointer font-display text-accent">{s.title}</summary>
+          <div className="mt-3 flex flex-col gap-3">{s.body}</div>
+        </details>
+      ))}
       <button className="pixel-btn self-start" onClick={onNext}>
         Next: device or browser
       </button>

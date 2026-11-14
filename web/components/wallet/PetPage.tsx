@@ -2,8 +2,6 @@
 
 import { useParams } from "next/navigation";
 import { petPath } from "@/lib/chain";
-import Link from "next/link";
-import { useFromSetup } from "@/lib/fromSetup";
 import { AppFrame, ErrorText, Spinner } from "./ui";
 import { usePet, type PetData } from "./usePet";
 
@@ -21,7 +19,6 @@ export function PetPage({
 }) {
   const params = useParams<{ petRef: string }>();
   const pet = usePet(params.petRef ?? "");
-  const fromSetup = useFromSetup();
 
   if ("invalid" in pet) {
     return (
@@ -33,11 +30,8 @@ export function PetPage({
   const name = pet.chain?.name ?? "your pet";
   const home = back === "home" ? petPath(pet.contract, pet.tokenId) : undefined;
   return (
-    <AppFrame title={title(name)} back={fromSetup ? "/start" : home} demo={pet.demo} wide={wide}>
+    <AppFrame title={title(name)} back={home} demo={pet.demo} wide={wide}>
       {pet.loading ? <Spinner /> : pet.chain ? children(pet) : <ErrorText>{pet.error}</ErrorText>}
-      {fromSetup && (
-        <Link href="/start" className="pixel-btn self-start">Back to setup</Link>
-      )}
     </AppFrame>
   );
 }
