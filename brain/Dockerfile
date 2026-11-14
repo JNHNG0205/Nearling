@@ -1,4 +1,4 @@
-# Nearling brain: Node 22 + Hono, SQLite on a volume at /data.
+# Petto brain: Node 22 + Hono, SQLite on a volume at /data.
 # Build from the repo root (pnpm workspace):
 #   docker build -f brain/Dockerfile -t nearling-brain .
 # Run locally:
@@ -32,6 +32,9 @@ COPY packages/shared/src packages/shared/src
 COPY packages/shared/tsconfig.json packages/shared/
 COPY packages/race/src packages/race/src
 COPY packages/race/tsconfig.json packages/race/
+# costume checks and the NFT image renderer (metadata/build.ts)
+COPY packages/sprites/src packages/sprites/src
+COPY packages/sprites/tsconfig.json packages/sprites/
 COPY brain/src brain/src
 COPY brain/tsconfig.json brain/
 COPY brain/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
