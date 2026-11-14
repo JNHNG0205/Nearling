@@ -19,6 +19,7 @@ import { metadataModule } from "./metadata";
 import { opsModule } from "./ops/ops";
 import { relayModule } from "./relay/relay";
 import { namesModule } from "./identity/names";
+import { mcpModule } from "./mcp/routes";
 import { dueFollowUps } from "./talk/memory";
 import { generateProactive, talkModule } from "./talk/talk";
 import { voiceModule } from "./talk/voice-route";
@@ -47,4 +48,5 @@ export const MODULES: Module[] = [
   metadataModule(),
   relayModule,
   namesModule,
+  mcpModule,
 ];

@@ -136,7 +136,7 @@ export function petRoutes(deps: Deps) {
     log.info("profile updated", { pet_ref: petRef, nickname_set: row.nickname_enc !== null, tz_set: row.owner_tz !== null });
     return c.json({
       pet_ref: petRef,
-      nickname: row.nickname_enc ? sealer.open(petRef, row.nickname_enc) : null,
+      nickname: row.nickname_enc ? sealer.tryOpen(petRef, row.nickname_enc) : null,
       owner_tz: row.owner_tz,
     });
   });

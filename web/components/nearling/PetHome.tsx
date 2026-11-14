@@ -7,13 +7,14 @@ import type { AnyAnim, CareEvent } from "@petto/sprites";
 import { FuelMeter } from "@/components/FuelMeter";
 import { PetScreen } from "@/components/PetScreen";
 import { PantryCard } from "@/components/garden/PantryCard";
-import { ChatLog, type ChatEntry } from "@/components/talk/ChatLog";
+import { ChatLog, type ChatEntry, type TaskHandler } from "@/components/talk/ChatLog";
 import { TalkBar } from "@/components/talk/TalkBar";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
 import {
-  ackInbox, errorCopy, getInbox, getPetState, getTurns, normalizeInbox, normalizeTurn, postCare,
+  ackInbox, brainUrl, errorCopy, getInbox, getPetState, getTurns, normalizeInbox, normalizeTurn, postCare,
   type InboxItem, type Turn,
 } from "@/lib/brain";
+import { decideTask, McpRequestError } from "@/lib/mcp";
 import { authHeaders, useSession } from "@/lib/session";
 import { useStream } from "@/lib/useStream";
 import { useTalk } from "@/lib/useTalk";
@@ -82,6 +83,24 @@ export function PetHome({ initial }: { initial: PetState }) {
 
   const patchTurn = (turnId: string, patch: (t: Turn) => Turn) =>
     setEntries((list) => list.map((e) => (e.turn?.turn_id === turnId ? { ...e, turn: patch(e.turn) } : e)));
+
+  // MCP task card (web /mcp): approve runs the tool on the brain, then the pet reports back
+  const [taskError, setTaskError] = useState<string | null>(null);
+  const onTask: TaskHandler = async (turnId, task, decision) => {
+    setTaskError(null);
+    try {
+      const r = await decideTask(authHeaders(), petRef, task.id, decision);
+      patchTurn(turnId, (t) => ({ ...t, tasks: t.tasks.map((x) => (x.id === r.task.id ? r.task : x)) }));
+      const follow = r.turn ? normalizeTurn({ ...r.turn, at: Date.now(), user_text: `Approved: ${task.tool}`, verification: "pending" }) : null;
+      if (follow) {
+        setEntries((list) => [...list, { key: follow.turn_id, user: follow.user_text, turn: follow, error: null }]);
+        if (follow.audio_url) void new Audio(brainUrl(follow.audio_url)).play().catch(() => undefined);
+        void refresh();
+      }
+    } catch (err) {
+      setTaskError(err instanceof McpRequestError ? err.message : "That task could not run. Try again.");
+    }
+  };
 
   useStream(petRef, isOwner && session ? session.token : null, {
     state: (d) => {
@@ -297,7 +316,8 @@ export function PetHome({ initial }: { initial: PetState }) {
       </div>
 
       <div ref={chatRef} className="chat-scroll max-h-[60dvh] overflow-y-auto pr-2 lg:max-h-none lg:min-h-0 lg:flex-1 lg:pr-3">
-        <ChatLog entries={chat} name={pet.name} readOnly={!isOwner} petRef={petRef} />
+        <ChatLog entries={chat} name={pet.name} readOnly={!isOwner} petRef={petRef} onTask={onTask} />
+        {taskError && <p className="text-sm text-warn" role="status">{taskError}</p>}
       </div>
       </div>
 

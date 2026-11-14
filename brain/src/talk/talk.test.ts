@@ -414,3 +414,20 @@ describe("proactive turns", () => {
     expect(dueFollowUps(s.deps, PET, "bob.testnet", "2027-01-15")).toEqual([]);
   });
 });
+
+describe("chats sealed with another key", () => {
+  it("old turns that can't be decrypted are skipped in memory and shown as unreadable, and chat still works", async () => {
+    const { deps, talk, auth, send } = await setup();
+    expect((await send({ request_id: "req-old-0001", text: SECRET_USER })).json.status).toBe("done");
+    // pretend the turn was saved by an earlier run with a different master key
+    deps.db.prepare("UPDATE turn SET user_text_enc = ?, reply_text_enc = ?").run(Buffer.alloc(40, 1), Buffer.alloc(40, 2));
+    t += 10_000;
+    const next = await send({ request_id: "req-new-0002", text: "hello again" });
+    expect(next.status).toBe(200);
+    expect(next.json.status).toBe("done");
+    const list = await talk.app.request(`/pets/${PET}/turns`, { headers: auth });
+    expect(list.status).toBe(200);
+    const turns = (await list.json()) as { user_text: string | null; reply: string | null }[];
+    expect(turns.some((x) => x.reply?.includes("can't be read"))).toBe(true);
+  });
+});

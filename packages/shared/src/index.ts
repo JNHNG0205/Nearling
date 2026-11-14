@@ -197,6 +197,22 @@ export interface TalkResponse {
   receipt_url: string | null;
   soul_version?: number;
   feed_url?: string;
+  /** MCP tool calls the pet proposed in this turn; each waits for the owner to approve or decline */
+  tasks?: McpTaskCard[];
+}
+
+/** A proposed MCP tool call (web /mcp). Nothing runs until the owner approves it. */
+export interface McpTaskCard {
+  id: string;
+  /** name the owner gave the MCP server */
+  server: string;
+  tool: string;
+  args: Record<string, unknown>;
+  status: "pending" | "approved" | "done" | "failed" | "declined";
+  /** the pet's reply about the result, once done */
+  follow_turn_id: string | null;
+  /** failed tasks: what the tool said went wrong */
+  error?: string;
 }
 
 /** `GET /pets/:petRef/inbox` item (AI-brain architectual/08). */

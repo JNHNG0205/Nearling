@@ -22,7 +22,7 @@ function toItem(deps: Deps, r: InboxRow): InboxItem {
     id: r.id,
     trigger: r.trigger.replace(/:canned$/, ""),
     canned: r.turn_id === null,
-    text: deps.sealer.open(r.pet_ref, r.text_enc),
+    text: deps.sealer.tryOpen(r.pet_ref, r.text_enc) ?? "(an older message that can no longer be read)",
     turn_id: r.turn_id,
     created_at: r.created_at,
     delivered_device_at: r.delivered_device_at,

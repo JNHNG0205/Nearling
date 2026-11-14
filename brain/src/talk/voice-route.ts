@@ -48,7 +48,9 @@ export function createVoiceRoutes(deps: Deps, overrides: { tts?: TtsProvider | n
     key && db.prepare("SELECT 1 FROM audio_blob WHERE key = ? AND expires_at > ?").get(key, now()) ? key : null;
 
   async function synth(turnId: string, petRef: string, enc: Buffer): Promise<string | null> {
-    const text = clipForVoice(sealer.open(petRef, enc));
+    const plain = sealer.tryOpen(petRef, enc);
+    if (plain === null) return null; // sealed with another key (an earlier dev run): no voice, not a crash
+    const text = clipForVoice(plain);
     const t0 = now();
     try {
       const out = await tts!.synth(text, voiceId);
