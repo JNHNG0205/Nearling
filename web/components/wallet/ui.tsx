@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { EXPLORER_TX } from "@/lib/chain";
+import { SIGN_IN_BLOCKS, signInProgress, type SignInStep } from "@/lib/signInProgress";
 import { TX_BLOCKS, txProgress } from "@/lib/txProgress";
 import type { TxState } from "./useTx";
 
@@ -89,6 +90,36 @@ export function Panel({ children, className = "" }: { children: React.ReactNode;
 
 export function Spinner({ label = "Loading..." }: { label?: string }) {
   return <p className="font-mono text-sm text-muted">{label}</p>;
+}
+
+/** Sign-in: the same pixel bar, one quarter per step (lib/signInProgress.ts), with "Step n of 4". */
+export function SignInProgress({ step }: { step: SignInStep }) {
+  const [since, setSince] = useState({ step, at: Date.now() });
+  if (since.step !== step) setSince({ step, at: Date.now() });
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(t);
+  }, []);
+  const p = signInProgress(step, Math.max(0, now - since.at));
+  return (
+    <div role="status" aria-live="polite" className="flex w-full flex-col gap-2">
+      <div className="flex items-center gap-1" aria-hidden="true">
+        {Array.from({ length: SIGN_IN_BLOCKS }, (_, i) => (
+          <span
+            key={i}
+            className={`h-3 flex-1 border-2 ${
+              i < p.filled ? `border-accent bg-accent ${i === p.filled - 1 ? "motion-safe:animate-pulse" : ""}` : "border-line"
+            }`}
+          />
+        ))}
+      </div>
+      <p className="flex justify-between gap-3 font-mono text-sm text-muted">
+        <span>{p.label}</span>
+        <span>Step {p.step} of 4</span>
+      </p>
+    </div>
+  );
 }
 
 /** Pending transaction: a pixel bar that keeps moving and a stage line, so it never looks stuck. */

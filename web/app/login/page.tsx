@@ -3,7 +3,7 @@
 import type Privy from "@privy-io/js-sdk-core";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { AppFrame, ErrorText, Panel, Spinner } from "@/components/wallet/ui";
+import { AppFrame, ErrorText, Panel, SignInProgress } from "@/components/wallet/ui";
 import {
   ensureNearWallet,
   getPrivy,
@@ -28,7 +28,7 @@ import { useSignIn } from "@/lib/wallet";
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<AppFrame title="Sign in" back="/"><Spinner /></AppFrame>}>
+    <Suspense fallback={<AppFrame title="Sign in" back="/"><SignInProgress step="open" /></AppFrame>}>
       <Login />
     </Suspense>
   );
@@ -55,6 +55,8 @@ function Login() {
   const [working, setWorking] = useState(false);
   const [autoTried, setAutoTried] = useState(false);
   const [implicit, setImplicit] = useState<string | null>(null);
+  /** back from Google, or a code being checked: the progress bar's step 2 */
+  const [checking, setChecking] = useState(false);
 
   const afterLogin = useCallback(async (p: Privy) => {
     const hex = (await ensureNearWallet(p)).address;
@@ -73,6 +75,7 @@ function Login() {
         setPrivy(p);
         const back = oauthReturn(window.location.search);
         if (back) {
+          setChecking(true);
           await p.auth.oauth.loginWithCode(back.code, back.state, back.provider);
           window.history.replaceState(null, "", `/login?next=${encodeURIComponent(next)}`);
         }
@@ -126,8 +129,13 @@ function Login() {
     });
   const enterCode = () =>
     step(async () => {
-      await privy!.auth.email.loginWithCode(email.trim(), code.trim());
-      await afterLogin(privy!);
+      setChecking(true);
+      try {
+        await privy!.auth.email.loginWithCode(email.trim(), code.trim());
+        await afterLogin(privy!);
+      } finally {
+        setChecking(false);
+      }
     });
   /** Logged in to Privy as someone else: end that login (and the Petto sign-in if it is that account). */
   const switchAccount = () =>
@@ -155,7 +163,7 @@ function Login() {
 
   return (
     <AppFrame title="Sign in with email or Google" back="/">
-      {phase === "loading" && <Spinner />}
+      {phase === "loading" && <SignInProgress step={checking ? "check" : "open"} />}
 
       {(phase === "signed-out" || phase === "code-sent") && (
         <Panel>
@@ -197,6 +205,7 @@ function Login() {
               <button className="pixel-btn" disabled={working || code.trim().length < 6} onClick={() => void enterCode()}>
                 {working ? "Checking..." : "Sign in"}
               </button>
+              {checking && <SignInProgress step="check" />}
             </>
           )}
         </Panel>
@@ -216,7 +225,7 @@ function Login() {
       {phase === "wallet" && account && (
         <Panel>
           {!signInError ? (
-            <Spinner label={`Signing you in as ${account.slice(0, 8)}...`} />
+            <SignInProgress step="sign" />
           ) : (
             <>
               <ErrorText>{signInError}</ErrorText>

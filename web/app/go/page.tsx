@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AppFrame, ErrorText, Spinner } from "@/components/wallet/ui";
+import { AppFrame, ErrorText, SignInProgress } from "@/components/wallet/ui";
 import { homeRoute } from "@/lib/flow";
 import { loadMyPets } from "@/lib/myPets";
 import { authHeaders } from "@/lib/session";
@@ -29,7 +29,7 @@ export default function GoPage() {
 
   return (
     <AppFrame title="Welcome back">
-      {error ? <ErrorText>{error}</ErrorText> : <Spinner label="Finding your pets..." />}
+      {error ? <ErrorText>{error}</ErrorText> : <SignInProgress step="pets" />}
     </AppFrame>
   );
 }

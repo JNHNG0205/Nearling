@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { accountBalance, formatNear } from "@/lib/chain";
 import { useSignIn } from "@/lib/wallet";
-import { ErrorText } from "./ui";
+import { ErrorText, SignInProgress } from "./ui";
 
 /**
  * Connect + NEP-413 sign-in in one popup when the wallet supports it, then POST /session.
@@ -41,6 +41,7 @@ export function ConnectButton({ label = "Connect wallet", compact = false }: { l
       <button className={`pixel-btn ${compact ? "px-3 text-sm" : ""}`} disabled={busy} onClick={() => void signIn()}>
         {busy ? "Check your wallet..." : wallet.accountId ? "Sign in to Petto" : label}
       </button>
+      {busy && !compact && <SignInProgress step="sign" />}
       {!compact && wallet.accountId && (
         <button className="self-start text-sm text-muted underline" onClick={() => void signOut()}>
           Disconnect {wallet.accountId}
