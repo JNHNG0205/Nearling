@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { PetSprite } from "@/components/PetSprite";
+import { CostumeGrid } from "@/components/customise/CostumeGrid";
 import { equipShirt } from "@/components/wallet/brainApi";
 import { ErrorText, Panel, Spinner, TxStatus } from "@/components/wallet/ui";
 import type { PetData } from "@/components/wallet/usePet";
@@ -82,6 +84,9 @@ export function Closet({ pet }: { pet: PetData }) {
   const caption = trying ? `Trying on: ${costumeLabel(trying)}` : worn ? `Wearing: ${worn.title}` : "Nothing on";
   const hasShirt = items.some((i) => i.costume === null);
   const shop = shopCostumes(items);
+  const model = {
+    name, traits: pet.chain!.traits, stageIndex: pet.brain?.stage_index ?? pet.chain!.stage, winged: pet.brain?.form === "winged",
+  };
 
   return (
     <>
@@ -134,23 +139,14 @@ export function Closet({ pet }: { pet: PetData }) {
         <section aria-labelledby="shop-title" className="flex flex-col gap-3">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 id="shop-title" className="font-display text-lg">Costume shop</h2>
-            <span className="text-sm text-muted">{formatNear(COSTUME_PRICE)} NEAR each, yours as an NFT</span>
+            <span className="text-sm text-muted">
+              {formatNear(COSTUME_PRICE)} NEAR each, yours as an NFT ·{" "}
+              <Link href={`/shop?pet=${encodeURIComponent(pet.ref)}`} className="underline">Open the Shop</Link>
+            </span>
           </div>
           <TxStatus state={buyTx.state} doneText="Bought" />
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-            {shop.map((key) => (
-              <li key={key} className={`pixel-panel flex flex-col items-center gap-2 p-3 ${trying === key ? "border-accent" : ""}`}>
-                <button className="flex flex-col items-center gap-1" onClick={() => setTrying(key)}
-                  aria-label={`Try on ${costumeLabel(key)}`}>
-                  {sprite({ tokenId: null, costume: key }, 2, `${name} in ${costumeLabel(key)}`)}
-                  <span className="font-display text-sm">{costumeLabel(key)}</span>
-                </button>
-                <button className="pixel-btn w-full text-sm" disabled={buyTx.busy || saving} onClick={() => void buy(key)}>
-                  {buying === key ? "Check your wallet..." : "Buy"}
-                </button>
-              </li>
-            ))}
-          </ul>
+          <CostumeGrid model={model} keys={shop} trying={trying} busyKey={buying} disabled={buyTx.busy || saving}
+            onTry={setTrying} onBuy={(key) => void buy(key)} />
         </section>
       )}
       <p className="text-sm text-muted">Changing the shirt on your Petto's buttons shows up here too.</p>

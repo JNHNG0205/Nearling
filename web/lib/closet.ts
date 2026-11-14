@@ -36,3 +36,10 @@ export function shopCostumes(items: ClosetItem[]): CostumeKey[] {
   const owned = new Set(items.map((i) => i.costume));
   return COSTUME_KEYS.filter((k) => !owned.has(k));
 }
+
+/** Costume key -> the token to wear for it (the first one bought). */
+export function ownedCostumes(items: ClosetItem[]): Map<CostumeKey, string> {
+  const owned = new Map<CostumeKey, string>();
+  for (const i of items) if (i.costume && !owned.has(i.costume)) owned.set(i.costume, i.tokenId);
+  return owned;
+}

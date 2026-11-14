@@ -9,7 +9,7 @@ import { loadMyPets } from "@/lib/myPets";
 import { authHeaders, useSession } from "@/lib/session";
 
 /**
- * App header (W10): wordmark, My pets, Race, wallet. The landing page gets a light, static one
+ * App header (W10): wordmark, Home, Shop, Race, wallet. The landing page gets a light, static one
  * (same for everyone): wordmark and "Open app" to /start, which routes by what the account owns.
  */
 export function SiteHeader() {
@@ -32,6 +32,7 @@ export function SiteHeader() {
         <Link href="/" className="font-display text-xl leading-8 font-bold md:text-[32px]">Petto</Link>
         <nav aria-label="Main" className="flex flex-1 gap-3 font-display text-sm md:gap-6">
           <Link href="/my" className="hover:text-accent">Home</Link>
+          <Link href="/shop" className="hover:text-accent">Shop</Link>
           <Link href="/race" className="hover:text-accent">Race</Link>
         </nav>
         <ConnectButton compact label="Connect wallet" />

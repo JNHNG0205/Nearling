@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { closetItems, costumeLabel, shopCostumes } from "./closet";
+import { closetItems, costumeLabel, ownedCostumes, shopCostumes } from "./closet";
 
 const shirt = { token_id: "0", owner_id: "a.testnet", metadata: { title: "Petto Shirt" } };
 const hat = { token_id: "4", owner_id: "a.testnet", metadata: { title: "Petto costume: wizard_hat", extra: '{"costume":"wizard_hat"}' } };
@@ -24,5 +24,10 @@ describe("closet", () => {
   it("labels keys for people", () => {
     expect(costumeLabel("ice_cube")).toBe("Ice cube");
     expect(costumeLabel("cap")).toBe("Cap");
+  });
+
+  it("maps each owned costume to one of its tokens (the first one bought)", () => {
+    const again = { ...hat, token_id: "9" };
+    expect(ownedCostumes(closetItems([shirt, hat, again]))).toEqual(new Map([["wizard_hat", "4"]]));
   });
 });
