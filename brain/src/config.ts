@@ -16,6 +16,13 @@ const Env = z.object({
   MEMORY_MASTER_KEY: z.string().optional(),
   WEB_ORIGIN: z.string().default("http://localhost:3000"),
   PUBLIC_WEB_URL: z.string().default("http://localhost:3000"), // Hatch & Pair QR: `${PUBLIC_WEB_URL}/hatch?t=<token>`
+  /** Where browsers reach this brain; MCP sign-in providers redirect to `${BRAIN_PUBLIC_URL}/mcp/oauth/callback`. */
+  BRAIN_PUBLIC_URL: z.string().default("http://localhost:8787"),
+  /** MCP sign-in apps the team registers (docs/MCP_SETUP.md). Unset = those catalog tools show "not set up". */
+  GOOGLE_OAUTH_CLIENT_ID: z.string().optional(),
+  GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
+  SLACK_OAUTH_CLIENT_ID: z.string().optional(),
+  SLACK_OAUTH_CLIENT_SECRET: z.string().optional(),
   SHIRTS_CONTRACT: z.string().default("shirts.petto.testnet"),
   /** HS256 secret for owner sessions, base64. Required outside tests. */
   SESSION_JWT_SECRET: z.string().default("dev-only-insecure-session-secret-change-me"),
@@ -92,6 +99,11 @@ const Env = z.object({
   PINATA_JWT: z.string().optional(),
   /** Dedicated gateway host, e.g. "example.mypinata.cloud". Unset = https://ipfs.io. */
   PINATA_GATEWAY: z.string().optional(),
+  /** MCP tools: allow http and private addresses (tests and a local MCP server only). Off = https public hosts only. */
+  MCP_ALLOW_PRIVATE: z
+    .enum(["0", "1"])
+    .default("0")
+    .transform((v) => v === "1"),
   /** Tests only (CLAUDE.md rule 5): canned fake inference, never in the demo path. */
   MOCK_AI: z
     .string()

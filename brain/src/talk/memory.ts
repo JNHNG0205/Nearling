@@ -45,11 +45,12 @@ function recentTurns(deps: Deps, petRef: string, owner: string, limit: number): 
        ORDER BY created_at DESC, rowid DESC LIMIT ?`,
     )
     .all(petRef, owner, limit) as { user_text_enc: Buffer; reply_text_enc: Buffer; emotion: Emotion | null }[];
-  return rows.reverse().map((r) => ({
-    user: deps.sealer.open(petRef, r.user_text_enc),
-    reply: deps.sealer.open(petRef, r.reply_text_enc),
-    emotion: r.emotion ?? "happy",
-  }));
+  // turns sealed with another key (an earlier dev run) are skipped, never fatal
+  return rows.reverse().flatMap((r) => {
+    const user = deps.sealer.tryOpen(petRef, r.user_text_enc);
+    const reply = deps.sealer.tryOpen(petRef, r.reply_text_enc);
+    return user !== null && reply !== null ? [{ user, reply, emotion: r.emotion ?? "happy" }] : [];
+  });
 }
 
 export function loadMemory(deps: Deps, petRef: string, owner: string): MemoryContext {
@@ -63,7 +64,7 @@ export function loadMemory(deps: Deps, petRef: string, owner: string): MemoryCon
     }
   }
   return {
-    summary: mem?.summary_enc ? deps.sealer.open(petRef, mem.summary_enc) : null,
+    summary: mem?.summary_enc ? deps.sealer.tryOpen(petRef, mem.summary_enc) : null,
     facts,
     history: recentTurns(deps, petRef, owner, HISTORY_TURNS),
   };

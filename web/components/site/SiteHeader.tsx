@@ -41,6 +41,7 @@ export function SiteHeader() {
             <Link href="/my" className="hover:text-accent">Home</Link>
             <Link href="/shop" className="hover:text-accent">Shop</Link>
             <Link href="/race" className="hover:text-accent">Race</Link>
+            <Link href="/mcp" className="hover:text-accent">MCP</Link>
           </nav>
         )}
         <ConnectButton compact label="Connect wallet" />
