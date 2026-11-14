@@ -1,4 +1,5 @@
 import type { BrainErrorCode, Emotion, McpTaskCard, PetState, TalkResponse } from "@petto/shared";
+import { clearSession } from "./session";
 
 export const BRAIN_URL = process.env.NEXT_PUBLIC_BRAIN_URL ?? "http://localhost:8787";
 /** The live demo pet on `pets-demo` (demo speed) shown on the landing page. */
@@ -24,6 +25,9 @@ async function json<T>(res: Response): Promise<T> {
     const body = (await res.json().catch(() => null)) as
       | { error?: { code?: string; retry_after_s?: number } }
       | null;
+    // the brain no longer accepts this sign-in (expired, or signed by another brain run): forget it so the
+    // page asks to sign in again instead of failing with "Sign in first"
+    if (res.status === 401) clearSession();
     throw new BrainRequestError(res.status, body?.error?.code ?? "upstream", body?.error?.retry_after_s);
   }
   return (await res.json()) as T;

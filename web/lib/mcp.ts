@@ -1,6 +1,7 @@
 // Brain calls for web /mcp (connect MCP servers) and for approving the pet's proposed tool calls.
 import type { McpTaskCard, TalkResponse } from "@petto/shared";
 import { BRAIN_URL } from "./brain";
+import { clearSession } from "./session";
 
 export interface McpServerView {
   id: number;
@@ -21,6 +22,10 @@ async function call<T>(path: string, headers: Record<string, string>, init: { me
     ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
   });
   const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+  if (res.status === 401) {
+    clearSession(); // stale sign-in: the page falls back to "Sign in to Petto"
+    throw new McpRequestError("Your sign-in expired. Sign in again to manage tools.");
+  }
   if (!res.ok) throw new McpRequestError(body?.error?.message ?? "Petto's brain could not do that. Try again.");
   return body as T;
 }
