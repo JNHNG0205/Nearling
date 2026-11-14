@@ -12,7 +12,8 @@ export function PetHeader({ pet, extra }: { pet: PetData; extra?: React.ReactNod
     <div className="flex items-center gap-4">
       <PetSprite
         traits={c.traits}
-        stageIndex={c.stage}
+        stageIndex={pet.brain?.stage_index ?? c.stage}
+        shirt={pet.brain?.equipped_shirt ?? null}
         winged={pet.brain?.form === "winged"}
         state={pet.brain?.display_state ?? "happy"}
         scale={2}

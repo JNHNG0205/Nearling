@@ -25,7 +25,7 @@ import { useWallet } from "@/lib/wallet";
 
 // /feed/[petRef] Feed the Brain (03 section 4, Build Spec 3). Anyone can feed.
 export default function FeedPage() {
-  return <PetPage title={(n) => `Feed ${n}`}>{(pet) => <Feed pet={pet} />}</PetPage>;
+  return <PetPage wide title={(n) => `Feed ${n}`}>{(pet) => <Feed pet={pet} />}</PetPage>;
 }
 
 const MODE_LABEL: Record<PayMode, string> = {
@@ -114,6 +114,9 @@ function Feed({ pet }: { pet: PetData }) {
   return (
     <>
       <PetHeader pet={pet} />
+      {/* phone: one column. desktop: buy a pack on the left, the device pantry on the right */}
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-8">
+      <div className="flex flex-col gap-6">
       {activeMode === "direct" && <FaucetPanel need={withGas(pack.feed_yocto)} />}
       <Panel>
         <h2 className="font-display text-lg">Pick a pack</h2>
@@ -176,13 +179,15 @@ function Feed({ pet }: { pet: PetData }) {
         <ErrorText>{error}</ErrorText>
       </Panel>
 
-      <PantryCard contract={pet.contract} tokenId={pet.tokenId} name={name} />
       {fedHere !== null && (
         <Panel>
           <p className="font-display text-lg text-fuel">+{fedHere} thoughts</p>
           <p className="text-sm">{name} is eating. Fuel shows up in a few seconds.</p>
         </Panel>
       )}
+      </div>
+      <PantryCard contract={pet.contract} tokenId={pet.tokenId} name={name} />
+      </div>
     </>
   );
 }
