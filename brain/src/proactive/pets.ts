@@ -1,4 +1,4 @@
-import { formatPetRef, parsePetRef } from "@nearling/shared";
+import { formatPetRef, parsePetRef } from "@petto/shared";
 import type { Deps } from "../deps";
 import { log } from "../log";
 

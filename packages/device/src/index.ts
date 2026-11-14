@@ -122,7 +122,7 @@ async function rpc<T>(rpcUrl: string, method: string, params: unknown): Promise<
   const res = await fetch(rpcUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: "nearling-device", method, params }),
+    body: JSON.stringify({ jsonrpc: "2.0", id: "petto-device", method, params }),
   });
   const body = (await res.json().catch(() => null)) as { result?: T; error?: { message?: string; data?: unknown; cause?: unknown } } | null;
   if (!body) throw new RpcError(`RPC HTTP ${res.status}`);

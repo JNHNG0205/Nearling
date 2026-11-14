@@ -1,4 +1,4 @@
-import type { PetState } from "@nearling/shared";
+import type { PetState } from "@petto/shared";
 import { describe, expect, it } from "vitest";
 import { createApp } from "../app";
 import { issueSession } from "../auth/guard";

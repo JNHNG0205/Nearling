@@ -6,7 +6,7 @@ import {
   fuelLeft,
   parsePetRef,
   type PetState,
-} from "@nearling/shared";
+} from "@petto/shared";
 import { type AuthEnv, requireCaller, requirePetAccess } from "../auth/guard";
 import type { Deps, Module } from "../deps";
 import { decay } from "../identity/care";

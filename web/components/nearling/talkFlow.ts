@@ -1,5 +1,5 @@
-import type { Emotion, TalkResponse } from "@nearling/shared";
-import { emotionAnim, type AnyAnim } from "@nearling/sprites";
+import type { Emotion, TalkResponse } from "@petto/shared";
+import { emotionAnim, type AnyAnim } from "@petto/sprites";
 import { normalizeTurn, type Turn } from "@/lib/brain";
 import type { LocalTalk, TalkPhase } from "@/lib/useTalk";
 

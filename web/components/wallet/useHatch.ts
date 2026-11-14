@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { formatPetRef, type PetState } from "@nearling/shared";
+import { formatPetRef, type PetState } from "@petto/shared";
 import { postHatch } from "@/lib/brain";
 import { getPet, outcomeFailure, tx } from "@/lib/chain";
 import { authHeaders } from "@/lib/session";

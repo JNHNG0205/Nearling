@@ -5,7 +5,7 @@ use near_sdk::serde_json::{json, Value};
 
 pub fn emit(event: &str, data: Value) {
     let log = json!({
-        "standard": "nearling",
+        "standard": "petto",
         "version": "1.0.0",
         "event": event,
         "data": [data],

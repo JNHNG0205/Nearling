@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { JsonRpcProvider, KeyType, PublicKey, baseDecode, type Provider } from "near-api-js";
 import { verifyMessage } from "near-api-js/nep413";
 import { z } from "zod";
-import { NEP413_MESSAGE, NEP413_RECIPIENT } from "@nearling/shared";
+import { NEP413_MESSAGE, NEP413_RECIPIENT } from "@petto/shared";
 import { issueSession } from "../auth/guard";
 import type { Deps, Module } from "../deps";
 import { log } from "../log";

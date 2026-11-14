@@ -1,4 +1,4 @@
-// Writes vectors/*.json (pnpm --filter @nearling/device vectors). Tests fail if the files drift.
+// Writes vectors/*.json (pnpm --filter @petto/device vectors). Tests fail if the files drift.
 import { writeFileSync } from "node:fs";
 import { VECTOR_INPUTS, makeVector } from "../src/vectors";
 

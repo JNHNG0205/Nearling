@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Emotion, TalkResponse } from "@nearling/shared";
+import type { Emotion, TalkResponse } from "@petto/shared";
 import { BrainRequestError, brainUrl, errorCopy, postTalk, type TalkInput } from "./brain";
 import { authHeaders } from "./session";
 

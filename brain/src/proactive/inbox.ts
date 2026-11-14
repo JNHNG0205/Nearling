@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { InboxItem } from "@nearling/shared";
+import type { InboxItem } from "@petto/shared";
 import { requirePetAccess, type AuthEnv } from "../auth/guard";
 import type { Deps, Module } from "../deps";
 import { publish } from "../events";

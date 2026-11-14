@@ -1,4 +1,4 @@
-import type { PetState } from "@nearling/shared";
+import type { PetState } from "@petto/shared";
 
 const SEGMENTS = 10;
 

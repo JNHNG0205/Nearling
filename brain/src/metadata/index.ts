@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { parsePetRef } from "@nearling/shared";
+import { parsePetRef } from "@petto/shared";
 import type { Deps, Module } from "../deps";
 import { subscribeAll } from "../events";
 import { fail, servedPet, servedPetRef } from "../identity/common";

@@ -1,6 +1,6 @@
 # Contract interface (pets-v9, 2026-11-11)
 
-Quick reference for the brain, web and device. Full rules: `CLAUDE.md` 6 and 7. Scope: hybrid, `CLAUDE.md` 1.1. Machine-readable ABIs (method names, argument and return types): [`docs/abi/nearling_pets_abi.json`](abi/nearling_pets_abi.json), [`docs/abi/nearling_shirts_abi.json`](abi/nearling_shirts_abi.json).
+Quick reference for the brain, web and device. Full rules: `CLAUDE.md` 6 and 7. Scope: hybrid, `CLAUDE.md` 1.1. Machine-readable ABIs (method names, argument and return types): [`docs/abi/petto_pets_abi.json`](abi/petto_pets_abi.json), [`docs/abi/petto_shirts_abi.json`](abi/petto_shirts_abi.json).
 
 **Live on testnet:** `pets-v9.nearling.testnet` (current, `PETS_CONTRACT`), `pets-demo-v9.nearling.testnet` (same code, about 100× speed, `config.demo_speed = true`, label it "demo speed", `DEMO_PETS_CONTRACT`), `shirts.nearling.testnet` (`SHIRTS_CONTRACT`). Seeded by `scripts/seed-demo.sh`: `pets-v9` #1 Happy, #2 Hungry, #3 Starving, #4 Happy and self-sustaining (owner `nearling-seed.testnet`; #0 is the v9 smoke-test pet); `pets-demo-v9` #0 Blink (starving about 14 min after the seed, dormant about 43 min later). `pets-v8` and `pets-demo` still run the older code until clients switch; do not use them for new pets.
 

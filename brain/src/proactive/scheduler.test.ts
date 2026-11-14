@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PetView } from "@nearling/shared";
+import type { PetView } from "@petto/shared";
 import { ensureProfile } from "../profiles";
 import { TEST_PET, testDeps } from "../test/deps";
 import { pushInbox } from "./inbox";

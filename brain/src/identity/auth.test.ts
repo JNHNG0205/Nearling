@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { KeyPair, KeyPairSigner, baseEncode, type Provider } from "near-api-js";
-import { NEP413_MESSAGE, NEP413_RECIPIENT } from "@nearling/shared";
+import { NEP413_MESSAGE, NEP413_RECIPIENT } from "@petto/shared";
 import { createApp } from "../app";
 import { testDeps } from "../test/deps";
 import { authRoutes, decodeSignature, nep413Verifier, type Nep413Verifier } from "./auth";

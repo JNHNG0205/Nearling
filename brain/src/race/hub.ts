@@ -1,6 +1,6 @@
 import { randomBytes, randomInt, randomUUID } from "node:crypto";
-import { MAX_TICKS, RULES_VERSION, TICKS_PER_SECOND, decide } from "@nearling/race";
-import { parsePetRef } from "@nearling/shared";
+import { MAX_TICKS, RULES_VERSION, TICKS_PER_SECOND, decide } from "@petto/race";
+import { parsePetRef } from "@petto/shared";
 import type { Deps } from "../deps";
 import { publish } from "../events";
 import { log } from "../log";

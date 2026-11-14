@@ -1,4 +1,4 @@
-import type { DisplayState } from "@nearling/shared";
+import type { DisplayState } from "@petto/shared";
 
 /** Shown on every page of a `pets-demo` pet (CLAUDE.md rule 5). */
 export function DemoSpeedPill() {

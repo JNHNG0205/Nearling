@@ -1,4 +1,4 @@
-import { parsePetRef } from "@nearling/shared";
+import { isOurEvent, parsePetRef } from "@petto/shared";
 import type { BrainSigners, CallResult } from "../chain/signer";
 import type { Deps, Module } from "../deps";
 import { publish } from "../events";
@@ -31,7 +31,7 @@ export const backoff = (attempts: number) => BACKOFF_MS[attempts - 1] ?? LATER_M
 /** The `thought` event for this usage_ref, if the tx emitted one. */
 export function findThought(res: CallResult, usageRef: string): { cost_micro: number; source: string } | null {
   for (const e of res.events) {
-    if (e.standard !== "nearling" || e.event !== "thought") continue;
+    if (!isOurEvent(e.standard) || e.event !== "thought") continue;
     const items = Array.isArray(e.data) ? e.data : [e.data];
     for (const d of items as { usage_ref?: string; cost_micro?: unknown; source?: unknown }[]) {
       if (d && (d.usage_ref === undefined || d.usage_ref === usageRef)) {

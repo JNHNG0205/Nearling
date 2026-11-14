@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { parsePetRef } from "@nearling/shared";
+import { parsePetRef } from "@petto/shared";
 import type { Db } from "../db/db";
 import type { Deps } from "../deps";
 import { log } from "../log";

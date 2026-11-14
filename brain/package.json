@@ -12,9 +12,9 @@
   "dependencies": {
     "@hono/node-server": "2.1.6",
     "@hono/node-ws": "1.3.1",
-    "@nearling/race": "workspace:*",
-    "@nearling/shared": "workspace:*",
-    "@nearling/sprites": "workspace:*",
+    "@petto/race": "workspace:*",
+    "@petto/shared": "workspace:*",
+    "@petto/sprites": "workspace:*",
     "better-sqlite3": "12.4.1",
     "borsh": "2.0.0",
     "ethers": "6.15.0",

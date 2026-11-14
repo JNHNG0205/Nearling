@@ -1,6 +1,6 @@
 // Petto Bluetooth pairing (Web Bluetooth, one GATT read).
 // The UUIDs come from `packages/device/src/ble.ts`, the single source shared with the firmware.
-import { BLE_PAIRING_URL_UUID, BLE_SERVICE_UUID } from "@nearling/device";
+import { BLE_PAIRING_URL_UUID, BLE_SERVICE_UUID } from "@petto/device";
 
 /** GATT primary service the Petto advertises while it shows its pairing QR. */
 export const NEARLING_BLE_SERVICE_UUID = BLE_SERVICE_UUID;

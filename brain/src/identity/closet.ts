@@ -1,4 +1,4 @@
-import { isCostume } from "@nearling/sprites";
+import { isCostume } from "@petto/sprites";
 import { Hono } from "hono";
 import { requirePetAccess, type AuthEnv } from "../auth/guard";
 import type { Deps, Module } from "../deps";

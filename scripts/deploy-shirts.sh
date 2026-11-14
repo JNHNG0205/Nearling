@@ -11,7 +11,7 @@ FUND="${FUND:-2.3 NEAR}"   # wasm ~195 KB locks ~2 NEAR of storage
 
 echo "Building..."
 (cd "$ROOT/shirts" && cargo near build non-reproducible-wasm)
-WASM="$ROOT/shirts/target/near/nearling_shirts.wasm"
+WASM="$ROOT/shirts/target/near/petto_shirts.wasm"
 
 echo "Creating $CONTRACT (funded $FUND by $NEAR_PARENT_ACCOUNT)..."
 near account create-account fund-myself "$CONTRACT" "$FUND" \

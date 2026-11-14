@@ -1,7 +1,7 @@
 // /start guided setup: pure step logic (resume, skip, completion). The page keeps the
 // state in localStorage under WIZARD_KEY and passes live facts (wallet, URL) in.
 
-export const WIZARD_KEY = "nearling.start";
+export const WIZARD_KEY = "petto.start";
 
 export type StepId = 1 | 2 | 3;
 export const STEPS: { id: StepId; title: string }[] = [

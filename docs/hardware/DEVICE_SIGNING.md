@@ -181,11 +181,11 @@ Owner setup (web, once per device and per contract): `AddKey` on the owner's acc
 
 **The test seed is a public, throwaway, test-only value.** It is registered on no account. Never use it on a real device and never add its public key to any NEAR account.
 
-A unit test on the device (or a host build of the same C file) can embed the hex strings and compare. Regenerate the vectors after changing inputs: `pnpm --filter @nearling/device vectors`; `pnpm --filter @nearling/device test` fails if the files drift from the reference code, and also checks the reference against near-api-js's own signer and a hand-written Borsh encoder that follows section 2.
+A unit test on the device (or a host build of the same C file) can embed the hex strings and compare. Regenerate the vectors after changing inputs: `pnpm --filter @petto/device vectors`; `pnpm --filter @petto/device test` fails if the files drift from the reference code, and also checks the reference against near-api-js's own signer and a hand-written Borsh encoder that follows section 2.
 
 ## 7. Live proof (2026-11-11, `pets-v8.nearling.testnet`, pet #5)
 
-`pnpm --filter @nearling/device live <accounts.env> <key file>` generated a device key, added it to the pet owner's account as a function-call key (receiver `pets-v8`, methods `play, stake_from_food, approve_action`, allowance 0.25 NEAR), registered it with `register_device`, then signed `play("5", "pet")` with the device key through the exact flow above:
+`pnpm --filter @petto/device live <accounts.env> <key file>` generated a device key, added it to the pet owner's account as a function-call key (receiver `pets-v8`, methods `play, stake_from_food, approve_action`, allowance 0.25 NEAR), registered it with `register_device`, then signed `play("5", "pet")` with the device key through the exact flow above:
 
 | Step | Tx |
 |---|---|

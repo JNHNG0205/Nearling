@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { PetState } from "@nearling/shared";
+import type { PetState } from "@petto/shared";
 import { setVerifyIo } from "../ai/attestation";
 import { settleVerifications } from "../ai/verify";
 import type { ChatMessage, NearAi } from "../ai/nearai";

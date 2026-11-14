@@ -53,7 +53,7 @@ export function InboxToast({ item, name, onClose }: { item: InboxItem; name: str
 export function notifyInBackground(name: string, text: string): void {
   if (typeof Notification === "undefined" || Notification.permission !== "granted" || !document.hidden) return;
   try {
-    new Notification(name, { body: text, tag: "nearling-inbox" });
+    new Notification(name, { body: text, tag: "petto-inbox" });
   } catch {
     // some mobile browsers only allow notifications from a service worker
   }

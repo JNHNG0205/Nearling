@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { actionSummary, type ContractAction } from "@nearling/shared";
+import { actionSummary, type ContractAction } from "@petto/shared";
 import { Panel, TxStatus } from "@/components/wallet/ui";
 import type { PetData } from "@/components/wallet/usePet";
 import { useTx, type TxResult } from "@/components/wallet/useTx";

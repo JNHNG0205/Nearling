@@ -46,3 +46,13 @@ describe("displayState", () => {
     expect(displayState("Happy", 80, true)).toBe("sleepy");
   });
 });
+
+describe("our event standard", () => {
+  it("is petto on new contracts and nearling in the old history; nothing else", async () => {
+    const { isOurEvent } = await import("./index");
+    expect(isOurEvent("petto")).toBe(true);
+    expect(isOurEvent("nearling")).toBe(true);
+    expect(isOurEvent("nep171")).toBe(false);
+    expect(isOurEvent(undefined)).toBe(false);
+  });
+});

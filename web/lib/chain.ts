@@ -1,7 +1,7 @@
 // Chain access for the web: contract ids, view helpers, transaction builders and outcome parsing.
 // Deposits and gas follow docs/CONTRACT_INTERFACE.md. Pure module (no React), safe on the server.
 import { JsonRpcProvider, nearToYocto, yoctoToNear } from "near-api-js";
-import { formatPetRef, parsePetRef, type ContractAction, type PendingAction, type PetView, type SoulView } from "@nearling/shared";
+import { formatPetRef, parsePetRef, type ContractAction, type PendingAction, type PetView, type SoulView } from "@petto/shared";
 
 // ---------- ids ----------
 

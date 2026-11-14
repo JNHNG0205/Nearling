@@ -1,4 +1,4 @@
-// @nearling/sprites: procedural pixel pets. Look comes from on-chain traits,
+// @petto/sprites: procedural pixel pets. Look comes from on-chain traits,
 // motion from the animation table. Spec: "web-app architectual/07-pet-animation.md".
 import { EGG_ANIMS, PERSONALITY_ANIMS, PET_ANIMS, type AnimDef, type EggAnim, type PetAnim } from "./animations";
 import { COSTUME_RGB, drawCostume, isCostume, type CostumeLayers } from "./costumes";

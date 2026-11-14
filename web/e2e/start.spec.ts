@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 
 test("start wizard renders its three steps and asks for a wallet first", async ({ page }) => {
   await page.goto("/start");
-  await page.evaluate(() => window.localStorage.removeItem("nearling.start"));
+  await page.evaluate(() => window.localStorage.removeItem("petto.start"));
   await page.reload();
 
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Set up your Petto");

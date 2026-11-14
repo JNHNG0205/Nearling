@@ -1,4 +1,4 @@
-import type { DisplayState, Emotion } from "@nearling/shared";
+import type { DisplayState, Emotion } from "@petto/shared";
 import type { ChatMessage } from "../ai/nearai";
 
 /**

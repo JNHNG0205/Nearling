@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, type ReactNode } from "react";
-import { careAnim, type AnyAnim, type CareEvent, type DisplayState } from "@nearling/sprites";
+import { careAnim, type AnyAnim, type CareEvent, type DisplayState } from "@petto/sprites";
 import { PetSprite } from "./PetSprite";
 import { createStroke } from "@/lib/stroke";
 import { NearlingFrame } from "./nearling/NearlingFrame";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BODY_PALETTES, COSTUME_KEYS, EGG_ANIMS, PATTERNS, PET_ANIMS, type AnyAnim } from "@nearling/sprites";
+import { BODY_PALETTES, COSTUME_KEYS, EGG_ANIMS, PATTERNS, PET_ANIMS, type AnyAnim } from "@petto/sprites";
 import { PetSprite } from "@/components/PetSprite";
 
 // Team review page: every animation for any traits, stage and form. Not linked from the app.

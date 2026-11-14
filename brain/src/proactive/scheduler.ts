@@ -1,4 +1,4 @@
-import { fuelLeft } from "@nearling/shared";
+import { fuelLeft } from "@petto/shared";
 import type { Deps, Module } from "../deps";
 import { subscribeAll } from "../events";
 import { decay } from "../identity/care";

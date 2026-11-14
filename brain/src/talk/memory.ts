@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { Emotion } from "@nearling/shared";
+import type { Emotion } from "@petto/shared";
 import { costNano, type NearAi } from "../ai/nearai";
 import type { Db } from "../db/db";
 import type { FollowUp } from "../proactive/rules";

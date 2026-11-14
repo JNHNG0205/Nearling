@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { formatPetRef } from "@nearling/shared";
+import { formatPetRef } from "@petto/shared";
 import { claimPairing, getPairing } from "@/components/wallet/brainApi";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
 import { HatchAnimation } from "@/components/wallet/HatchAnimation";
@@ -19,7 +19,7 @@ import { useSignIn } from "@/lib/wallet";
 const DEFAULT_SOUL =
   "A small, curious desk pet who loves learning about its owner's day, tells gentle jokes and gets sleepy at night.";
 const EXPIRED = "This code has expired. Restart pairing on your Petto.";
-const claimKey = (t: string) => `nearling.pairing.${t}`;
+const claimKey = (t: string) => `petto.pairing.${t}`;
 
 type Phase =
   | { k: "checking" }

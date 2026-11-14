@@ -1,6 +1,6 @@
 "use client";
 
-import type { CostumeKey } from "@nearling/sprites";
+import type { CostumeKey } from "@petto/sprites";
 import { PetSprite } from "@/components/PetSprite";
 import { costumeLabel } from "@/lib/closet";
 

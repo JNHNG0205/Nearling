@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PetState } from "@nearling/shared";
+import type { PetState } from "@petto/shared";
 import { createApp } from "./app";
 import { TEST_CONFIG, TEST_PET, testDeps } from "./test/deps";
 

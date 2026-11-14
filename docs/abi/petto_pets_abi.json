@@ -1,7 +1,7 @@
 {
   "schema_version": "0.4.0",
   "metadata": {
-    "name": "nearling-pets",
+    "name": "petto-pets",
     "version": "0.1.0",
     "build": {
       "compiler": "rustc 1.99.1",

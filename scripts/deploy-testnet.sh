@@ -26,7 +26,7 @@ fi
 
 echo "Building..."
 (cd "$ROOT/contract" && cargo near build non-reproducible-wasm)
-WASM="$ROOT/contract/target/near/nearling_pets.wasm"
+WASM="$ROOT/contract/target/near/petto_pets.wasm"
 
 echo "Creating $CONTRACT (funded $FUND by $NEAR_PARENT_ACCOUNT)..."
 near account create-account fund-myself "$CONTRACT" "$FUND" \

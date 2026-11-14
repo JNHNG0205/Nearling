@@ -1,7 +1,7 @@
 import { serve } from "@hono/node-server";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { RULES_VERSION } from "@nearling/race";
+import { RULES_VERSION } from "@petto/race";
 import { createApp } from "../app";
 import { sha256 } from "../auth/guard";
 import { testDeps } from "../test/deps";

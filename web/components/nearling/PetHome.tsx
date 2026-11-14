@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { PetState } from "@nearling/shared";
-import type { AnyAnim, CareEvent } from "@nearling/sprites";
+import type { PetState } from "@petto/shared";
+import type { AnyAnim, CareEvent } from "@petto/sprites";
 import { FuelMeter } from "@/components/FuelMeter";
 import { PetScreen } from "@/components/PetScreen";
 import { PantryCard } from "@/components/garden/PantryCard";

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { PetState } from "@nearling/shared";
+import type { PetState } from "@petto/shared";
 import { FuelMeter, thoughts } from "@/components/FuelMeter";
 import { PetSprite } from "@/components/PetSprite";
 import { IpfsLinks } from "@/components/nearling/IpfsLinks";

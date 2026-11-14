@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Hono, type Context } from "hono";
 import { z } from "zod";
-import { parsePetRef } from "@nearling/shared";
+import { parsePetRef } from "@petto/shared";
 import { requireCaller, type AuthEnv } from "../auth/guard";
 import type { Deps, Module } from "../deps";
 import { publish } from "../events";

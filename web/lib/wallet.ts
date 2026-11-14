@@ -4,7 +4,7 @@
 // The provider lives in components/wallet/WalletProvider.tsx; pages use `useWallet` and `useSignIn`.
 import { createContext, useCallback, useContext, useState } from "react";
 import type { NearConnector, SignedMessage } from "@hot-labs/near-connect";
-import { NEP413_MESSAGE, NEP413_RECIPIENT } from "@nearling/shared";
+import { NEP413_MESSAGE, NEP413_RECIPIENT } from "@petto/shared";
 import { BRAIN_URL, BrainRequestError } from "./brain";
 import type { Outcome, TxRequest } from "./chain";
 import { brainErrorCopy, CANCELLED, errorText, GENERIC_ERROR, isWalletRejection } from "./errors";

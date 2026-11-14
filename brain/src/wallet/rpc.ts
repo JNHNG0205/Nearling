@@ -53,7 +53,7 @@ export function createRpc(urls: string[], fetchImpl: Fetch = fetch as unknown as
         const res = await fetchImpl(url, {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ jsonrpc: "2.0", id: "nearling", method, params }),
+          body: JSON.stringify({ jsonrpc: "2.0", id: "petto", method, params }),
         });
         if (!res.ok) throw new Error(`rpc http ${res.status}`);
         return (await res.json()) as RpcReply;

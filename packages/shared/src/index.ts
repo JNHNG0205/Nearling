@@ -1,4 +1,4 @@
-// Types shared by brain and web. Chain shapes mirror docs/abi/nearling_pets_abi.json
+// Types shared by brain and web. Chain shapes mirror docs/abi/petto_pets_abi.json
 // (frozen interface, docs/CONTRACT_INTERFACE.md). Brain shapes mirror
 // "AI-brain architectual/08-api-reference.md".
 
@@ -177,7 +177,7 @@ export interface PetState {
   };
   soul_version: number;
   equipped_shirt: string | null;
-  /** costume key (`@nearling/sprites` COSTUME_KEYS) when the equipped Closet token is a costume */
+  /** costume key (`@petto/sprites` COSTUME_KEYS) when the equipped Closet token is a costume */
   equipped_costume: string | null;
   care: { mood: number; milestones: { pat: boolean; rock: boolean; sleep: boolean } };
   device: { paired: boolean; last_seen_at: number | null };
@@ -293,4 +293,13 @@ export interface BrainError {
 
 // NEP-413 sign-in constants (brain and web must match).
 export const NEP413_MESSAGE = "Sign in to Petto";
-export const NEP413_RECIPIENT = "nearling";
+export const NEP413_RECIPIENT = "petto";
+
+/**
+ * NEP-297 standard of our contract events: `petto` on the petto.testnet contracts, `nearling` in the
+ * history of the earlier *.nearling.testnet ones (CLAUDE.md, naming).
+ */
+export const EVENT_STANDARD = "petto";
+export function isOurEvent(standard: string | undefined): boolean {
+  return standard === EVENT_STANDARD || standard === "nearling";
+}

@@ -1,6 +1,6 @@
 // Where people go, decided by what they own on chain (not by setup progress in this browser):
 // no pets = new user (setup), otherwise Home (/my). Pure, so it is tested.
-import { formatPetRef } from "@nearling/shared";
+import { formatPetRef } from "@petto/shared";
 import { petPath } from "./chain";
 
 export interface FlowPet {

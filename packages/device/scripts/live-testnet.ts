@@ -1,5 +1,5 @@
 // One live testnet run of device signing (testnet only, CLAUDE.md rule 2). Prints tx hashes, never keys.
-//   pnpm --filter @nearling/device live <accounts.env> <device-key-file> [contract] [pet_id]
+//   pnpm --filter @petto/device live <accounts.env> <device-key-file> [contract] [pet_id]
 // accounts.env needs E2E_PLAYER_ID and E2E_PLAYER_KEY (the pet's owner). The device key file is created
 // (mode 600) if missing; keep it outside the repo. Steps: AddKey (function call, 0.25 NEAR allowance),
 // register_device from the wallet key, then play(pet, "pet") signed by the device key through sendDeviceTx.

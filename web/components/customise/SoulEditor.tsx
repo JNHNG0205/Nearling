@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { SoulView } from "@nearling/shared";
+import type { SoulView } from "@petto/shared";
 import { getTimeline, toMs, type TimelineItem } from "@/components/wallet/brainApi";
 import { IpfsLinks } from "@/components/nearling/IpfsLinks";
 import { SoulField } from "@/components/wallet/MintForm";

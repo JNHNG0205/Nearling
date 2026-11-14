@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import {
   SIZE, clip, paletteFor, personalityFromTraits, stageFromChain, stateAnim, toRgba,
   type AnyAnim, type DisplayState,
-} from "@nearling/sprites";
+} from "@petto/sprites";
 
 export interface PetSpriteProps {
   traits: readonly number[];

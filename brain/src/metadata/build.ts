@@ -1,5 +1,5 @@
-import { renderPetPng } from "@nearling/sprites/render";
-import { STAGES, parsePetRef } from "@nearling/shared";
+import { renderPetPng } from "@petto/sprites/render";
+import { STAGES, parsePetRef } from "@petto/shared";
 import type { Deps } from "../deps";
 import { buildPetState } from "../routes/pets";
 

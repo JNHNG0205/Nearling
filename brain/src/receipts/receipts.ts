@@ -1,5 +1,5 @@
 import { type Context, Hono } from "hono";
-import { parsePetRef, type Receipt } from "@nearling/shared";
+import { parsePetRef, type Receipt } from "@petto/shared";
 import { type AttestationRow, ATTESTATION_TTL_MS, knownModels, refreshAttestation } from "../ai/attestation";
 import { type AuthEnv, requireCaller } from "../auth/guard";
 import type { Db } from "../db/db";

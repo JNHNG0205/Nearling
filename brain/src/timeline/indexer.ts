@@ -1,4 +1,4 @@
-import { formatPetRef } from "@nearling/shared";
+import { formatPetRef, isOurEvent } from "@petto/shared";
 
 /**
  * Reads the pets contracts' EVENT_JSON logs from the FastNEAR transactions API (testnet, keyless).
@@ -154,7 +154,7 @@ export function parseTx(tx: RawTx, contract: string): ParsedEvent[] {
       }
       const items = Array.isArray(ev.data) ? (ev.data as Record<string, unknown>[]) : [];
       const base = { txHash: tx.transaction.hash, receiptId, logIndex, blockTs };
-      if (ev.standard === "nearling" && ev.event && NEARLING_KINDS.has(ev.event)) {
+      if (isOurEvent(ev.standard) && ev.event && NEARLING_KINDS.has(ev.event)) {
         for (const d of items) {
           const petId = str(d.pet_id);
           const petRef = ev.event === "credit_swept" ? contract : petId ? formatPetRef(contract, petId) : null;

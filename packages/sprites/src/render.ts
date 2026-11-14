@@ -1,5 +1,5 @@
 // Node-side pet image: the idle frame as PNG bytes (NFT media on IPFS). Same frames as web and device.
-// Node only (uses node:zlib); import from "@nearling/sprites/render", never from the browser bundle.
+// Node only (uses node:zlib); import from "@petto/sprites/render", never from the browser bundle.
 import { SIZE, clip, paletteFor, stageFromChain, toRgba } from "./index";
 import { encodePng } from "./png";
 

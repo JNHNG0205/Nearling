@@ -1,4 +1,4 @@
-import type { TimelineItem } from "@nearling/shared";
+import type { TimelineItem } from "@petto/shared";
 import { describe, expect, it } from "vitest";
 import { createApp } from "../app";
 import { ensureProfile } from "../profiles";

@@ -1,4 +1,4 @@
-import type { BrainErrorCode, Emotion, PetState, TalkResponse } from "@nearling/shared";
+import type { BrainErrorCode, Emotion, PetState, TalkResponse } from "@petto/shared";
 
 export const BRAIN_URL = process.env.NEXT_PUBLIC_BRAIN_URL ?? "http://localhost:8787";
 /** The live demo pet on `pets-demo` (demo speed) shown on the landing page. */

@@ -1,6 +1,6 @@
 // Closet items from shirts-contract tokens: a plain shirt, or a costume bought with `buy(costume)`
-// (its key in `metadata.extra`, drawn by @nearling/sprites). Pure helpers, tested.
-import { COSTUME_KEYS, isCostume, type CostumeKey } from "@nearling/sprites";
+// (its key in `metadata.extra`, drawn by @petto/sprites). Pure helpers, tested.
+import { COSTUME_KEYS, isCostume, type CostumeKey } from "@petto/sprites";
 import type { NftToken } from "./chain";
 
 export interface ClosetItem {

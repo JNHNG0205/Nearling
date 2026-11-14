@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { formatPetRef, type PetState } from "@nearling/shared";
+import { formatPetRef, type PetState } from "@petto/shared";
 import { PetSprite } from "@/components/PetSprite";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
 import { FaucetPanel } from "@/components/wallet/FaucetPanel";

@@ -41,7 +41,7 @@ export function SiteHeader() {
   );
 }
 
-const TZ_KEY = "nearling.tz-sent.";
+const TZ_KEY = "petto.tz-sent.";
 let syncing: string | null = null;
 
 /**

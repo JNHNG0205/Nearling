@@ -3,7 +3,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { Hono, type Context } from "hono";
 import { baseDecode } from "near-api-js";
 import { z } from "zod";
-import { actionSummary, type PendingAction } from "@nearling/shared";
+import { actionSummary, type PendingAction } from "@petto/shared";
 import { requireCaller, requirePetAccess, sha256, type AuthEnv } from "../auth/guard";
 import type { Db } from "../db/db";
 import type { Deps, Module } from "../deps";

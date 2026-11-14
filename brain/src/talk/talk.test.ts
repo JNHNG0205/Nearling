@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { TalkResponse } from "@nearling/shared";
+import type { TalkResponse } from "@petto/shared";
 import { setVerifyIo } from "../ai/attestation";
 import { settleVerifications } from "../ai/verify";
 import { NearAiError, type ChatMessage, type NearAi } from "../ai/nearai";

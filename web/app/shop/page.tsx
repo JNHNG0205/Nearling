@@ -1,6 +1,6 @@
 "use client";
 
-import { COSTUME_KEYS, type CostumeKey } from "@nearling/sprites";
+import { COSTUME_KEYS, type CostumeKey } from "@petto/sprites";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { PetSprite } from "@/components/PetSprite";

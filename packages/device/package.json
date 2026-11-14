@@ -1,5 +1,5 @@
 {
-  "name": "@nearling/device",
+  "name": "@petto/device",
   "version": "0.0.0",
   "private": true,
   "type": "module",
