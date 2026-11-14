@@ -58,7 +58,8 @@ function toolAi() {
     async chat(messages, o = {}) {
       seen.push({ tools: o.tools, messages });
       const fn = o.tools?.[0]?.function.name;
-      const text = fn ? "" : "[happy] All done, it is on your calendar!";
+      const proposed = messages.at(-1)!.content.includes("waits for my approval");
+      const text = fn ? "" : proposed ? "[excited] I will book that, please approve it below!" : "[happy] All done, it is on your calendar!";
       return {
         text, model: "Qwen/Qwen3.6-35B-A3B-FP8", chatId: `c${seen.length}`, inferenceId: null,
         rawRequest: "{}", rawResponse: "{}", usage: { prompt_tokens: 10, completion_tokens: 5 }, ms: 5,
@@ -116,7 +117,8 @@ describe("MCP servers and tasks", () => {
     // chat: the model is offered the tool; only the connected tool becomes a task, nothing runs yet
     const r = await post(talk.app, "/pets/pets.petto.testnet:1/talk", { request_id: "req-mcp-0001", text: "Book my dentist on Tuesday at 3pm" });
     const body = (await r.json()) as TalkResponse;
-    expect(seen[0]!.tools?.map((x) => x.function.name)).toEqual([`s${srv.id}_book_event`]);
+    expect(seen[0]!.tools?.map((x) => x.function.name)).toEqual([`s${srv.id}_book_event`, "just_chat"]); // decide step
+    expect(seen[1]!.tools).toBeUndefined(); // the reply itself is plain words
     expect(seen[0]!.messages[0]!.content).toContain("approves every tool call");
     expect(body.reply).toMatch(/approve/i);
     expect(body.tasks).toHaveLength(1);
@@ -133,8 +135,8 @@ describe("MCP servers and tasks", () => {
     expect(out.task.status).toBe("done");
     expect(out.turn.reply).toContain("calendar");
     expect(out.task.follow_turn_id).toBe(out.turn.turn_id);
-    expect(seen[1]!.tools).toBeUndefined();
-    expect(seen[1]!.messages.at(-1)!.content).toContain('Booked "Dentist"');
+    expect(seen.at(-1)!.tools).toBeUndefined();
+    expect(seen.at(-1)!.messages.at(-1)!.content).toContain('Booked "Dentist"');
 
     // a second approve (double click, second device) is refused and never runs the tool again
     expect((await post(talk.app, `/pets/pets.petto.testnet:1/tasks/${task.id}/approve`)).status).toBe(409);

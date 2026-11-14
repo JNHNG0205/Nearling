@@ -55,7 +55,7 @@ export interface ChatTool {
 }
 
 export interface NearAi {
-  chat(messages: ChatMessage[], opts?: { model?: string; maxTokens?: number; temperature?: number; tools?: ChatTool[] }): Promise<ChatResult>;
+  chat(messages: ChatMessage[], opts?: { model?: string; maxTokens?: number; temperature?: number; tools?: ChatTool[]; toolChoice?: "auto" | "required" }): Promise<ChatResult>;
   transcribe(audio: Uint8Array, mime: string): Promise<{ text: string; ms: number }>;
   modelPrices(): Promise<Map<string, ModelPrice>>;
   /** Price of the model, or null if unknown. Throws `not_verifiable` if the list marks it not verifiable. */
@@ -171,7 +171,7 @@ export function createNearAi(
         // a tool call needs room for its JSON arguments
         max_tokens: o.maxTokens ?? (o.tools?.length ? 500 : 160),
         temperature: o.temperature ?? 0.8,
-        ...(o.tools?.length ? { tools: o.tools } : {}),
+        ...(o.tools?.length ? { tools: o.tools, ...(o.toolChoice ? { tool_choice: o.toolChoice } : {}) } : {}),
         // Qwen3 thinks before answering unless told not to; a pet reply needs no reasoning, and
         // thinking made replies about 10x slower and could use the whole token budget (empty reply).
         ...(/^qwen\/qwen3/i.test(model) ? { chat_template_kwargs: { enable_thinking: false } } : {}),
