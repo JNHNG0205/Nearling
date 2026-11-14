@@ -105,6 +105,18 @@ export async function privyLoggedIn(privy: Privy): Promise<boolean> {
   }
 }
 
+/** Ends the Privy login in this browser, so the next "Email or Google" asks who you are again. */
+export async function privyLogout(): Promise<void> {
+  if (!privyEnabled()) return;
+  try {
+    const privy = await getPrivy();
+    const user = await privy.user.get().then((r) => r.user, () => null);
+    if (user) await privy.auth.logout({ userId: user.id });
+  } catch {
+    // already logged out or Privy unreachable: nothing to end
+  }
+}
+
 /** The user's NEAR wallet, created on first login (user-owned, signs through Privy). */
 export async function ensureNearWallet(privy: Privy): Promise<{ id: string; address: string }> {
   const { user } = await privy.user.get();

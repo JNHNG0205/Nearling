@@ -12,6 +12,7 @@ import {
   oauthReturn,
   privyEnabled,
   privyLoggedIn,
+  privyLogout,
   PRIVY_WALLET_ID,
 } from "@/lib/privy";
 import { useSignIn } from "@/lib/wallet";
@@ -37,7 +38,7 @@ type Phase = "loading" | "signed-out" | "code-sent" | "wallet" | "error";
 function Login() {
   const params = useSearchParams();
   const next = safeNext(params.get("next"));
-  const { wallet, session, busy, error: signInError, signIn } = useSignIn();
+  const { wallet, session, busy, error: signInError, signIn, signOut } = useSignIn();
   const [privy, setPrivy] = useState<Privy | null>(null);
   const [phase, setPhase] = useState<Phase>("loading");
   const [email, setEmail] = useState("");
@@ -99,6 +100,15 @@ function Login() {
     step(async () => {
       await privy!.auth.email.loginWithCode(email.trim(), code.trim());
       await afterLogin(privy!);
+    });
+  /** Logged in to Privy as someone else: end that login (and the Petto sign-in if it is that account). */
+  const switchAccount = () =>
+    step(async () => {
+      if (wallet.accountId === account) await signOut();
+      await privyLogout();
+      setAccount(null);
+      setCode("");
+      setPhase("signed-out");
     });
   const google = () =>
     step(async () => {
@@ -180,6 +190,9 @@ function Login() {
             </button>
           )}
           <ErrorText>{signInError}</ErrorText>
+          <button className="self-start text-sm text-muted underline" disabled={working || busy} onClick={() => void switchAccount()}>
+            Use a different account
+          </button>
         </Panel>
       )}
 

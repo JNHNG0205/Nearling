@@ -6,7 +6,7 @@ import type Privy from "@privy-io/js-sdk-core";
 import { Account, JsonRpcProvider, PublicKey, Signer, actions, baseEncode, encodeSignedDelegate, type Action } from "near-api-js";
 import { signMessage as signNep413 } from "near-api-js/nep413";
 import { formatNear, RPC_URL, type TxAction, type TxRequest } from "./chain";
-import { ensureNearWallet, getPrivy, privyLoggedIn } from "./privy";
+import { ensureNearWallet, getPrivy, privyLoggedIn, privyLogout } from "./privy";
 
 // ---------- pure helpers (tested) ----------
 
@@ -185,7 +185,9 @@ const host: Record<HostMethod, (p: Params) => Promise<unknown>> = {
     return id ? [{ accountId: id }] : [];
   },
   async signOut() {
+    // Petto's "Sign out" also ends the Privy login, so the next sign-in can be another account
     window.localStorage.removeItem(ACCOUNT_KEY);
+    await privyLogout();
   },
   async signIn(p) {
     const { signer, address } = await privyAccount();
