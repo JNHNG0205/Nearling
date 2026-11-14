@@ -18,11 +18,20 @@ export function homeRoute(pets: FlowPet[]): { href: string; label: string } {
 /**
  * Where /start sends an existing owner instead of re-running setup, or null to stay: new users,
  * people who came from a Petto's QR (they pick which pet lives on it) and a setup in progress
- * (a pet just hatched in step 2) all stay.
+ * (`setupInProgress`: a pet just hatched in step 2) all stay.
  */
-export function startRedirect(o: { pets: FlowPet[]; hasDeviceLink: boolean; wizardPetRef: string | null }): string | null {
-  if (o.pets.length === 0 || o.hasDeviceLink || o.wizardPetRef) return null;
+export function startRedirect(o: { pets: FlowPet[]; hasDeviceLink: boolean; inSetup: boolean }): string | null {
+  if (o.pets.length === 0 || o.hasDeviceLink || o.inSetup) return null;
   return homeRoute(o.pets).href;
+}
+
+/**
+ * A stored wizard still in progress: a pet picked or hatched but not customised yet. Once it is,
+ * only the optional device step is left (also offered on every pet page), so a later visit to
+ * /start goes home instead of reopening setup.
+ */
+export function setupInProgress(w: { petRef: string | null; customised: boolean }): boolean {
+  return w.petRef !== null && !w.customised;
 }
 
 /** Setup screens (wallet, hatch, pairing): the header hides the app nav there, so setup is finished before the app opens. */

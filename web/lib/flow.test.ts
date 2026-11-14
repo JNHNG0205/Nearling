@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PETS_CONTRACT, petPath } from "./chain";
-import { homeRoute, inSetup, needsYou, showDeviceNudge, startRedirect } from "./flow";
+import { homeRoute, inSetup, needsYou, setupInProgress, showDeviceNudge, startRedirect } from "./flow";
 
 const pet = (tokenId: string, name = `Pet ${tokenId}`) => ({ contract: PETS_CONTRACT, tokenId, name });
 
@@ -17,20 +17,27 @@ describe("homeRoute", () => {
 
 describe("startRedirect", () => {
   it("keeps new users in setup", () => {
-    expect(startRedirect({ pets: [], hasDeviceLink: false, wizardPetRef: null })).toBeNull();
+    expect(startRedirect({ pets: [], hasDeviceLink: false, inSetup: false })).toBeNull();
   });
 
   it("sends existing users home instead of re-running setup", () => {
-    expect(startRedirect({ pets: [pet("7")], hasDeviceLink: false, wizardPetRef: null })).toBe("/my");
-    expect(startRedirect({ pets: [pet("1"), pet("2")], hasDeviceLink: false, wizardPetRef: null })).toBe("/my");
+    expect(startRedirect({ pets: [pet("7")], hasDeviceLink: false, inSetup: false })).toBe("/my");
+    expect(startRedirect({ pets: [pet("1"), pet("2")], hasDeviceLink: false, inSetup: false })).toBe("/my");
   });
 
   it("keeps existing users who scanned a Petto's QR (they pick which pet lives on it)", () => {
-    expect(startRedirect({ pets: [pet("7")], hasDeviceLink: true, wizardPetRef: null })).toBeNull();
+    expect(startRedirect({ pets: [pet("7")], hasDeviceLink: true, inSetup: false })).toBeNull();
   });
 
   it("never interrupts a setup in progress (the pet just hatched in step 2)", () => {
-    expect(startRedirect({ pets: [pet("7")], hasDeviceLink: false, wizardPetRef: `${PETS_CONTRACT}:7` })).toBeNull();
+    expect(startRedirect({ pets: [pet("7")], hasDeviceLink: false, inSetup: true })).toBeNull();
+  });
+
+  it("knows when a stored wizard is still in progress: a pet picked but not customised yet", () => {
+    expect(setupInProgress({ petRef: `${PETS_CONTRACT}:7`, customised: false })).toBe(true);
+    expect(setupInProgress({ petRef: null, customised: false })).toBe(false);
+    // hatched and customised: only the optional device step is left, so a later visit goes home
+    expect(setupInProgress({ petRef: `${PETS_CONTRACT}:7`, customised: true })).toBe(false);
   });
 });
 

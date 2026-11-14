@@ -15,7 +15,7 @@ import { useHatch } from "@/components/wallet/useHatch";
 import { hasWebBluetooth, readPairingUrlOverBle } from "@/lib/ble";
 import { accountBalance, petFromRef, petPath, PETS_CONTRACT } from "@/lib/chain";
 import { needsFaucet } from "@/lib/faucet";
-import { startRedirect } from "@/lib/flow";
+import { setupInProgress, startRedirect } from "@/lib/flow";
 import { loadMyPets, type MyPet } from "@/lib/myPets";
 import { authHeaders } from "@/lib/session";
 import {
@@ -100,6 +100,7 @@ function Wizard() {
 
   const account = wallet.accountId;
   const petRef = state?.petRef ?? null;
+  const customised = state?.customised ?? false;
   const hasDeviceLink = !!urlToken || !!state?.pairingToken || connectIntent;
 
   // Existing owner (has pets, no QR, no setup in progress): go home instead (lib/flow.ts).
@@ -109,7 +110,7 @@ function Wizard() {
     loadMyPets(account, authHeaders())
       .then(({ pets }) => {
         if (!live) return;
-        const to = startRedirect({ pets, hasDeviceLink, wizardPetRef: petRef });
+        const to = startRedirect({ pets, hasDeviceLink, inSetup: setupInProgress({ petRef, customised }) });
         if (to) router.replace(to);
         else setCheckedFor(account);
       })
@@ -117,7 +118,7 @@ function Wizard() {
     return () => {
       live = false;
     };
-  }, [state, account, session, checkedFor, hasDeviceLink, petRef, router]);
+  }, [state, account, session, checkedFor, hasDeviceLink, petRef, customised, router]);
 
   // Step 1 is already done once signed in with enough NEAR to hatch; the faucet shows otherwise.
   const confirmed = state?.walletConfirmed ?? false;
