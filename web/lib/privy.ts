@@ -3,6 +3,7 @@
 // executor forwards to `window.pettoPrivy` (lib/privyHost.ts), which signs on this page behind a
 // confirm modal: no popup or tab. Login itself happens on /login.
 import type Privy from "@privy-io/js-sdk-core";
+import { BRAIN_URL } from "./brain";
 
 export const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID ?? "";
 export const PRIVY_CLIENT_ID = process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID ?? "";
@@ -126,4 +127,58 @@ export async function ensureNearWallet(privy: Privy): Promise<{ id: string; addr
   const w = await create(privy, { request: { chain_type: "near", owner: { user_id: user.id } } });
   await privy.user.refreshUser().catch(() => undefined);
   return { id: w.id, address: w.address };
+}
+
+// ---------- NEAR names (brain/src/identity/names.ts) ----------
+
+const nameKey = (implicit: string) => `petto.privy.name.${implicit}`;
+export const nameSkipKey = (implicit: string) => `petto.privy.name-skipped.${implicit}`;
+
+function readLocal(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeLocal(key: string, value: string): void {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // storage blocked: the brain still knows the name
+  }
+}
+
+/** The NEAR name (name.testnet) of an email/Google account, from this browser or the brain; null without one. */
+export async function nearNameFor(implicit: string): Promise<string | null> {
+  const cached = readLocal(nameKey(implicit));
+  if (cached) return cached;
+  try {
+    const res = await fetch(`${BRAIN_URL}/names/${implicit}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    const { name } = (await res.json()) as { name: string };
+    writeLocal(nameKey(implicit), name);
+    return name;
+  } catch {
+    return null;
+  }
+}
+
+/** The account an email/Google user acts as: their NEAR name once they have one, else the hex account. */
+export async function activeAccountFor(implicit: string): Promise<string> {
+  return (await nearNameFor(implicit)) ?? implicit;
+}
+
+/** Asks the brain to create `label.testnet` for the signed-in hex account (session headers). */
+export async function claimNearName(implicit: string, label: string, headers: Record<string, string>): Promise<string> {
+  const res = await fetch(`${BRAIN_URL}/names`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify({ name: label }),
+  });
+  const body = (await res.json().catch(() => null)) as { name?: string; error?: { message?: string } } | null;
+  if (!res.ok || !body?.name) throw new Error(body?.error?.message ?? "Couldn't create that name. Try again.");
+  writeLocal(nameKey(implicit), body.name);
+  return body.name;
 }

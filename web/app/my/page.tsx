@@ -8,9 +8,11 @@ import { DemoSpeedPill, StatePill } from "@/components/nearling/Pills";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
 import { AppFrame, ErrorText, Panel, Spinner } from "@/components/wallet/ui";
 import { getInbox } from "@/lib/brain";
-import { petPath } from "@/lib/chain";
+import { accountBalance, formatNear, petPath } from "@/lib/chain";
+import { moveplan, type OldPet } from "@/lib/nearName";
+import { moveFromOldAccount, privyAccounts } from "@/lib/privyHost";
 import { deviceNudgeKey, needsYou, type HomePet } from "@/lib/flow";
-import { loadMyPets, type MyPet } from "@/lib/myPets";
+import { loadMyPets, myPetsFromChain, type MyPet } from "@/lib/myPets";
 import { authHeaders } from "@/lib/session";
 import { useSignIn } from "@/lib/wallet";
 
@@ -78,6 +80,7 @@ export default function HomePage() {
 
   return (
     <AppFrame title="Home" wide>
+      <OldAccountBanner account={account} />
       {error ? (
         <ErrorText>{error}</ErrorText>
       ) : pets === null ? (
@@ -167,5 +170,72 @@ function PetCard({ pet, unread }: { pet: MyPet; unread: number }) {
         <Link href={`/feed/${encodeURIComponent(pet.ref)}`} className="pixel-btn pixel-btn--secondary flex-1 text-center text-sm">Feed</Link>
       </div>
     </article>
+  );
+}
+
+/**
+ * Email/Google users who got a NEAR name: their old hex account may still hold pets and NEAR.
+ * Moves the pets with nothing planted and the NEAR above a small reserve (lib/nearName.ts).
+ */
+function OldAccountBanner({ account }: { account: string }) {
+  const [old, setOld] = useState<{ implicit: string; move: OldPet[]; keep: OldPet[]; near: bigint } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      const ids = await privyAccounts();
+      if (!ids || ids.active === ids.implicit || ids.active !== account) return;
+      const [pets, balance] = await Promise.all([myPetsFromChain(ids.implicit), accountBalance(ids.implicit)]);
+      const oldPets: OldPet[] = pets.map((p) => ({
+        contract: p.contract,
+        tokenId: p.tokenId,
+        name: p.name,
+        staked: p.state?.garden.staked_yocto ?? "1", // unknown: keep it where it is
+        pending: !!p.state?.garden.pending_unstake,
+      }));
+      const plan = moveplan(oldPets, balance);
+      if (live && (plan.move.length > 0 || plan.nearYocto > 0n)) setOld({ implicit: ids.implicit, ...plan, near: plan.nearYocto });
+    })().catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [account]);
+
+  if (!old) return null;
+  const what = [
+    old.move.length > 0 ? `${old.move.length} ${old.move.length === 1 ? "pet" : "pets"} (${old.move.map((p) => p.name).join(", ")})` : null,
+    old.near > 0n ? `${formatNear(old.near, 3)} NEAR` : null,
+  ].filter(Boolean).join(" and ");
+
+  async function move() {
+    setBusy(true);
+    setError(null);
+    try {
+      await moveFromOldAccount(old!.move, old!.near);
+      window.location.reload();
+    } catch {
+      setError("The move stopped part way. What moved stays moved; try again for the rest.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section aria-label="Move from your old account" className="pixel-panel flex flex-col gap-3 border-accent p-4">
+      <p className="text-sm">
+        Your old account still holds {what}. Move {old.move.length + (old.near > 0n ? 1 : 0) > 1 ? "them" : "it"} to{" "}
+        <span className="font-mono">{account}</span>?
+      </p>
+      {old.keep.length > 0 && (
+        <p className="text-xs text-muted">
+          {old.keep.map((p) => p.name).join(", ")} stay for now: take the NEAR out of the Brain Garden first.
+        </p>
+      )}
+      <button className="pixel-btn self-start" disabled={busy} onClick={() => void move()}>
+        {busy ? "Moving..." : `Move to ${account}`}
+      </button>
+      <ErrorText>{error}</ErrorText>
+    </section>
   );
 }

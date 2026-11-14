@@ -6,7 +6,8 @@ import type Privy from "@privy-io/js-sdk-core";
 import { Account, JsonRpcProvider, PublicKey, Signer, actions, baseEncode, encodeSignedDelegate, type Action } from "near-api-js";
 import { signMessage as signNep413 } from "near-api-js/nep413";
 import { DEMO_PETS_CONTRACT, formatNear, PETS_CONTRACT, RPC_URL, SHIRTS_CONTRACT, type TxAction, type TxRequest } from "./chain";
-import { ensureNearWallet, getPrivy, privyLoggedIn, privyLogout } from "./privy";
+import type { OldPet } from "./nearName";
+import { activeAccountFor, ensureNearWallet, getPrivy, privyLoggedIn, privyLogout } from "./privy";
 
 // ---------- pure helpers (tested) ----------
 
@@ -192,7 +193,8 @@ function mountPrivyIframe(privy: Privy): Promise<void> {
 }
 
 /** The signed-in user's Privy NEAR account; sends people to /login when there is no Privy session. */
-async function privyAccount(): Promise<{ account: Account; signer: PrivySigner; address: string }> {
+/** The signed-in user's account: their NEAR name once they have one (same Privy key), else the hex account. */
+async function privyAccount(): Promise<{ account: Account; signer: PrivySigner; address: string; implicit: string }> {
   const privy = await getPrivy();
   if (!(await privyLoggedIn(privy))) {
     const back = window.location.pathname === "/" ? "/go" : window.location.pathname; // landing: route by pets
@@ -202,7 +204,38 @@ async function privyAccount(): Promise<{ account: Account; signer: PrivySigner; 
   const wallet = await ensureNearWallet(privy);
   await mountPrivyIframe(privy);
   const signer = new PrivySigner(privy, wallet);
-  return { account: new Account(wallet.address, new JsonRpcProvider({ url: RPC_URL }), signer), signer, address: wallet.address };
+  const address = await activeAccountFor(wallet.address);
+  return { account: new Account(address, new JsonRpcProvider({ url: RPC_URL }), signer), signer, address, implicit: wallet.address };
+}
+
+/** Email/Google user's two accounts (null when not logged in to Privy): the hex one and the one in use. */
+export async function privyAccounts(): Promise<{ implicit: string; active: string } | null> {
+  try {
+    const privy = await getPrivy();
+    if (!(await privyLoggedIn(privy))) return null;
+    const wallet = await ensureNearWallet(privy);
+    return { implicit: wallet.address, active: await activeAccountFor(wallet.address) };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Hands the old hex account's free pets (nothing planted) and NEAR above the reserve to the user's
+ * NEAR name, signed by the same Privy key as the old account. One transaction per pet, then one transfer.
+ */
+export async function moveFromOldAccount(pets: OldPet[], nearYocto: bigint): Promise<void> {
+  const { account: named, signer, implicit } = await privyAccount();
+  const old = new Account(implicit, new JsonRpcProvider({ url: RPC_URL }), signer);
+  for (const p of pets) {
+    await old.signAndSendTransaction({
+      receiverId: p.contract,
+      actions: [actions.functionCall("nft_transfer", { receiver_id: named.accountId, token_id: p.tokenId }, 30n * 10n ** 12n, 1n)],
+    });
+  }
+  if (nearYocto > 0n) {
+    await old.signAndSendTransaction({ receiverId: named.accountId, actions: [actions.transfer(nearYocto)] });
+  }
 }
 
 async function signedMessage(account: Account, p: { message: string; recipient: string; nonce: Uint8Array; callbackUrl?: string }) {
@@ -215,8 +248,9 @@ type Params = Record<string, unknown>;
 /** The object NEAR Connect's sandbox calls (`external: ["pettoPrivy"]`). Results must be cloneable. */
 const host: Record<HostMethod, (p: Params) => Promise<unknown>> = {
   async getAccounts() {
+    // stored as the hex account; shown as its NEAR name once it has one
     const id = window.localStorage.getItem(ACCOUNT_KEY);
-    return id ? [{ accountId: id }] : [];
+    return id ? [{ accountId: await activeAccountFor(id) }] : [];
   },
   async signOut() {
     // Petto's "Sign out" also ends the Privy login, so the next sign-in can be another account
@@ -224,16 +258,16 @@ const host: Record<HostMethod, (p: Params) => Promise<unknown>> = {
     await privyLogout();
   },
   async signIn(p) {
-    const { signer, address } = await privyAccount();
+    const { signer, address, implicit } = await privyAccount();
     await approve("signIn", p);
-    window.localStorage.setItem(ACCOUNT_KEY, address);
+    window.localStorage.setItem(ACCOUNT_KEY, implicit);
     return [{ accountId: address, publicKey: (await signer.getPublicKey()).toString() }];
   },
   async signInAndSignMessage(p) {
-    const { account, signer, address } = await privyAccount();
+    const { account, signer, address, implicit } = await privyAccount();
     await approve("signInAndSignMessage", p);
     const signed = await signedMessage(account, p.messageParams as Parameters<typeof signedMessage>[1]);
-    window.localStorage.setItem(ACCOUNT_KEY, address);
+    window.localStorage.setItem(ACCOUNT_KEY, implicit);
     return [{ accountId: address, publicKey: (await signer.getPublicKey()).toString(), signedMessage: signed }];
   },
   async signMessage(p) {
