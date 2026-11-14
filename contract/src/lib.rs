@@ -587,6 +587,35 @@ mod tests {
     }
 
     #[test]
+    fn the_admin_dev_cheat_sets_a_battle_level_and_keeps_the_record() {
+        let (mut c, a, b) = two_pets();
+        battle(&mut c, &a, &b, false, false, "b1", DAY);
+        ctx(accounts(0), NearToken::from_yoctonear(0), DAY);
+        c.admin_set_battle_level(a.clone(), 10);
+        let r = c.get_battle(a);
+        assert_eq!((r.level, r.xp, r.wins), (10, 0, 1));
+        assert!(events()
+            .iter()
+            .any(|e| e.contains("\"event\":\"battle_level_up\"") && e.contains("\"level\":10")));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_NOT_ADMIN")]
+    fn only_the_admin_can_set_a_battle_level() {
+        let (mut c, a, _) = two_pets();
+        ctx(accounts(3), NearToken::from_yoctonear(0), DAY);
+        c.admin_set_battle_level(a, 10);
+    }
+
+    #[test]
+    #[should_panic(expected = "E_BATTLE: Level must be 1 to 20")]
+    fn a_battle_level_above_20_is_refused() {
+        let (mut c, a, _) = two_pets();
+        ctx(accounts(0), NearToken::from_yoctonear(0), DAY);
+        c.admin_set_battle_level(a, 21);
+    }
+
+    #[test]
     #[should_panic(expected = "E_NOT_BRAIN: Only brain")]
     fn record_battle_is_brain_only() {
         let (mut c, a, b) = two_pets();

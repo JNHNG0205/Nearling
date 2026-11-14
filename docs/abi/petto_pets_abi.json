@@ -2,7 +2,12 @@
   "schema_version": "0.4.0",
   "metadata": {
     "name": "petto-pets",
-    "version": "0.1.0"
+    "version": "0.1.0",
+    "build": {
+      "compiler": "rustc 1.99.1",
+      "builder": "cargo-near cargo-near-build 0.11.5"
+    },
+    "wasm_hash": "2djBHxwcUqQzHqzEp2QBXvnJsTc9Z3FWwpgQFQ31jgVK"
   },
   "body": {
     "functions": [
@@ -24,6 +29,30 @@
               "type_schema": {
                 "type": "integer",
                 "format": "uint32",
+                "minimum": 0.0
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "admin_set_battle_level",
+        "doc": " Admin only, testnet dev cheat (scripts/dev-battle-level.sh): sets a pet's battle level\n (1 to 20, XP toward the next level back to 0); wins, losses and draws stay. Emits\n `battle_level_up`.",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "pet_id",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "level",
+              "type_schema": {
+                "type": "integer",
+                "format": "uint8",
                 "minimum": 0.0
               }
             }

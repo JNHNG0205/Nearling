@@ -134,6 +134,31 @@ impl Contract {
         map.flush();
     }
 
+    /// Admin only, testnet dev cheat (scripts/dev-battle-level.sh): sets a pet's battle level
+    /// (1 to 20, XP toward the next level back to 0); wins, losses and draws stay. Emits
+    /// `battle_level_up`.
+    pub fn admin_set_battle_level(&mut self, pet_id: TokenId, level: u8) {
+        require!(
+            env::predecessor_account_id() == self.config.admin,
+            "E_NOT_ADMIN: Only admin"
+        );
+        require!(
+            (1..=MAX_LEVEL).contains(&level),
+            "E_BATTLE: Level must be 1 to 20"
+        );
+        self.owner_of(&pet_id);
+        let mut map = records();
+        let mut r = map.get(&pet_id).cloned().unwrap_or_default();
+        r.level = level;
+        r.xp = 0;
+        map.insert(pet_id.clone(), r);
+        map.flush();
+        events::emit(
+            "battle_level_up",
+            json!({ "pet_id": pet_id, "level": level }),
+        );
+    }
+
     /// A pet's battle record; level 1 and zeros before its first battle.
     pub fn get_battle(&self, pet_id: TokenId) -> BattleRecord {
         self.owner_of(&pet_id);
