@@ -5,7 +5,6 @@ import { PetSprite } from "@/components/PetSprite";
 import { Parade } from "@/components/landing/Parade";
 import { CountUp } from "@/components/nearling/CountUp";
 import { DemoPet } from "@/components/nearling/DemoPet";
-import { NearlingFrame } from "@/components/nearling/NearlingFrame";
 import { ReceiptCard } from "@/components/talk/ReceiptCard";
 import { DEMO_PET_REF, getPublicReceipts } from "@/lib/brain";
 import { getConfig, PETS_CONTRACT } from "@/lib/chain";
@@ -20,6 +19,7 @@ const STEPS: { title: string; body: string; stage: number; play: AnyAnim | null;
   { title: "Talk", body: "Hold to talk. A private model answers in its voice and the pet pays one thought.", stage: 2, play: "talk" },
   { title: "Feed", body: "Anyone can send it NEAR. The food lands in its own budget on chain.", stage: 2, play: "eat" },
   { title: "Plant", body: "Stake NEAR in its Brain Garden and the yield pays for its thoughts.", stage: 3, play: "celebrate", costume: "crown" },
+  { title: "Game", body: "Race a friend in Petto Run or battle turn by turn. Battle levels are saved on NEAR.", stage: 2, play: "dizzy", costume: "ninja" },
 ];
 
 /** What the pet's AI does (README, "What the pet's AI actually does"). */
@@ -93,8 +93,8 @@ export default async function Home() {
           <Parade />
         </section>
 
-        <Section id="day" title="A day with your pet" intro="Four things you do from the console. The chain stays out of the way: chatting never opens your wallet.">
-          <Tray cols="sm:grid-cols-2 lg:grid-cols-4">
+        <Section id="day" title="A day with your pet" intro="Five things you do from the console. The chain stays out of the way: chatting never opens your wallet.">
+          <Tray cols="sm:grid-cols-2 lg:grid-cols-5">
             {STEPS.map((s, i) => (
               <article key={s.title} className="flex flex-col gap-4 border-2 border-line bg-bg p-5">
                 <div className="flex h-24 items-end">
@@ -152,11 +152,11 @@ export default async function Home() {
         <Section id="body" title="The Tamagotchi on your desk" intro="The device is the pet. The web app is its console, and plays the same pet in the browser when you have no device.">
           <div className="grid items-center gap-10 md:grid-cols-2">
             <figure className="flex flex-col items-center gap-3">
-              <NearlingFrame label="The desk Petto">
-                <PetSprite traits={[5, 0, 2, 0, 0]} stageIndex={3} winged state="happy" play="rock" playKey="body"
-                  scale={6} label="A winged Petto rocking" />
-              </NearlingFrame>
-              <figcaption className="text-sm text-muted">Pixel render of the device until photos of the printed body are ready.</figcaption>
+              {/* eslint-disable-next-line @next/next/no-img-element -- a static photo, already sized and compressed */}
+              <img src="/petto-device.webp" width={528} height={606} loading="lazy"
+                alt="The Petto device: a white 3D-printed egg-shaped case with a dragon on top, a colour screen showing the Petto egg, and three red buttons"
+                className="w-full max-w-[380px] drop-shadow-[0_24px_48px_rgba(214,170,90,0.25)]" />
+              <figcaption className="text-sm text-muted">Our Petto: 3D-printed case, ESP32-S3, colour screen, three buttons.</figcaption>
             </figure>
             <ul className="flex flex-col gap-4 text-lg">
               <li><span className="font-display">Pat, rock, lights off.</span> Touch, motion and light sensors care for it offline, at no cost. Do all three and it grows wings.</li>
