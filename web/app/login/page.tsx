@@ -28,9 +28,9 @@ export default function LoginPage() {
   );
 }
 
-/** Only same-site paths, so `?next=` cannot send people elsewhere. */
+/** Only same-site paths, so `?next=` cannot send people elsewhere; default /go routes by pets. */
 function safeNext(raw: string | null): string {
-  return raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : "/my";
+  return raw && raw.startsWith("/") && !raw.startsWith("//") && raw !== "/" ? raw : "/go";
 }
 
 type Phase = "loading" | "signed-out" | "code-sent" | "wallet" | "error";

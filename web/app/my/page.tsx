@@ -52,23 +52,31 @@ export default function MyPetsPage() {
 
   return (
     <AppFrame title="My pets">
-      <p className="text-sm text-muted">
-        Pets owned by <span className="font-mono">{account}</span> on NEAR testnet.
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted">
+          Pets owned by <span className="font-mono">{account}</span> on NEAR testnet.
+        </p>
+        {pets && pets.length > 0 && <Link href="/adopt" className="pixel-btn">Hatch a new pet</Link>}
+      </div>
       {error ? (
         <ErrorText>{error}</ErrorText>
       ) : pets === null ? (
         <Spinner />
       ) : pets.length === 0 ? (
         <Panel>
-          <p>No pets yet.</p>
-          <Link href="/adopt" className="pixel-btn self-start">Hatch a pet</Link>
+          <p>No pets yet. Setup hatches your first one and connects your Petto.</p>
+          <Link href="/start" className="pixel-btn self-start">Hatch your first pet</Link>
         </Panel>
       ) : (
         <ul className="flex flex-col gap-3">
           {pets.map((p) => (
-            <li key={p.ref}>
+            <li key={p.ref} className="flex flex-col gap-1">
               <PetCard pet={p} />
+              {p.state && !p.state.device.paired && (
+                <Link href={petPath(p.contract, p.tokenId, "/device")} className="self-start text-sm text-muted underline">
+                  No device · Connect a Petto
+                </Link>
+              )}
             </li>
           ))}
         </ul>

@@ -12,7 +12,9 @@ import { MintForm } from "@/components/wallet/MintForm";
 import { AppFrame, DemoSpeedPill, ErrorText, Panel, Spinner } from "@/components/wallet/ui";
 import { getPetState, postHatch } from "@/lib/brain";
 import { hasWebBluetooth, readPairingUrlOverBle } from "@/lib/ble";
-import { petFromRef, petPath, PETS_CONTRACT } from "@/lib/chain";
+import { accountBalance, petFromRef, petPath, PETS_CONTRACT } from "@/lib/chain";
+import { needsFaucet } from "@/lib/faucet";
+import { startRedirect } from "@/lib/flow";
 import { loadMyPets, type MyPet } from "@/lib/myPets";
 import { authHeaders } from "@/lib/session";
 import {
@@ -59,10 +61,16 @@ function tokenFromPath(path: string): string | null {
 }
 
 function Wizard() {
-  const urlToken = useSearchParams().get("t");
+  const router = useRouter();
+  const params = useSearchParams();
+  const urlToken = params.get("t");
+  /** From /connect-device: here to pair a Petto, so an existing owner stays and picks a pet. */
+  const connectIntent = params.get("connect") === "1";
   const { wallet, session } = useSignIn();
   const [state, setState] = useState<WizardState | null>(null);
   const [open, setOpen] = useState<StepId | null>(null);
+  /** Account whose pets were checked: existing owners go home instead of re-running setup (lib/flow.ts). */
+  const [checkedFor, setCheckedFor] = useState<string | null>(null);
 
   const facts: WizardFacts = { account: wallet.accountId, signedIn: !!session, urlToken };
 
@@ -89,7 +97,42 @@ function Wizard() {
     setOpen(null);
   }, []);
 
-  if (!state || !wallet.ready) {
+  const account = wallet.accountId;
+  const petRef = state?.petRef ?? null;
+  const hasDeviceLink = !!urlToken || !!state?.pairingToken || connectIntent;
+
+  // Existing owner (has pets, no QR, no setup in progress): go home instead (lib/flow.ts).
+  useEffect(() => {
+    if (!state || !account || !session || checkedFor === account) return;
+    let live = true;
+    loadMyPets(account, authHeaders())
+      .then(({ pets }) => {
+        if (!live) return;
+        const to = startRedirect({ pets, hasDeviceLink, wizardPetRef: petRef });
+        if (to) router.replace(to);
+        else setCheckedFor(account);
+      })
+      .catch(() => live && setCheckedFor(account)); // chain unreachable: stay in setup
+    return () => {
+      live = false;
+    };
+  }, [state, account, session, checkedFor, hasDeviceLink, petRef, router]);
+
+  // Step 1 is already done once signed in with enough NEAR to hatch; the faucet shows otherwise.
+  const confirmed = state?.walletConfirmed ?? false;
+  const stateAccount = state?.account ?? null;
+  useEffect(() => {
+    if (!account || !session || confirmed || stateAccount !== account) return;
+    let live = true;
+    accountBalance(account)
+      .then((b) => live && !needsFaucet(b) && update({ walletConfirmed: true }))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [account, session, confirmed, stateAccount, update]);
+
+  if (!state || !wallet.ready || (account && session && checkedFor !== account)) {
     return (
       <AppFrame title="Set up your Petto" back="/">
         <Spinner />
@@ -132,7 +175,8 @@ function Wizard() {
                   )}
                 </header>
                 {isActive && (
-                  <StepBody step={st.id} state={state} update={update} accountId={wallet.accountId} signedIn={!!session} />
+                  <StepBody step={st.id} state={state} update={update} accountId={wallet.accountId} signedIn={!!session}
+                    preferPick={hasDeviceLink} />
                 )}
               </section>
             </li>
@@ -149,9 +193,11 @@ interface StepProps {
   update: (patch: Partial<WizardState>) => void;
   accountId: string | null;
   signedIn: boolean;
+  /** Here for a device: list the owner's pets first instead of the hatch form. */
+  preferPick: boolean;
 }
 
-function StepBody({ step, state, update, accountId, signedIn }: StepProps) {
+function StepBody({ step, state, update, accountId, signedIn, preferPick }: StepProps) {
   switch (step) {
     case 1:
       return (
@@ -179,7 +225,9 @@ function StepBody({ step, state, update, accountId, signedIn }: StepProps) {
           </button>
         </div>
       ) : (
-        <PetStep accountId={accountId} onChosen={(petRef) => update({ petRef, customised: false })} />
+        // a pet you already had needs no customising here: straight on to the device step
+        <PetStep accountId={accountId} preferPick={preferPick}
+          onChosen={(petRef, existing) => update({ petRef, customised: existing })} />
       );
     case 3:
       return state.petRef ? <HandoffStep state={state} update={update} /> : null;
@@ -244,11 +292,15 @@ function DeviceOptions({ onBle }: { onBle: (token: string | null) => void }) {
 
 // ---------- step 3 ----------
 
-function PetStep({ accountId, onChosen }: { accountId: string; onChosen: (petRef: string) => void }) {
+function PetStep({ accountId, preferPick, onChosen }: {
+  accountId: string;
+  preferPick: boolean;
+  onChosen: (petRef: string, existing: boolean) => void;
+}) {
   const [pets, setPets] = useState<MyPet[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   // setup is mainly for hatching a new pet; picking an existing one is the secondary path
-  const [minting, setMinting] = useState(true);
+  const [minting, setMinting] = useState(!preferPick);
   const [hatching, setHatching] = useState<string | null>(null);
   const [busyRef, setBusyRef] = useState<string | null>(null);
 
@@ -267,7 +319,7 @@ function PetStep({ accountId, onChosen }: { accountId: string; onChosen: (petRef
     // an egg that never hatched hatches now (Build Spec 1); brain down: the pet page offers it again
     if (p.state && !p.state.hatched) await postHatch(p.ref, authHeaders()).catch(() => undefined);
     setBusyRef(null);
-    onChosen(p.ref);
+    onChosen(p.ref, true);
   }
 
   if (hatching) {
@@ -278,7 +330,7 @@ function PetStep({ accountId, onChosen }: { accountId: string; onChosen: (petRef
         tokenId={p.tokenId}
         onDone={async () => {
           await postHatch(hatching, authHeaders()).catch(() => undefined);
-          onChosen(hatching);
+          onChosen(hatching, false);
         }}
       />
     ) : null;
@@ -394,8 +446,10 @@ function HandoffStep({ state, update }: { state: WizardState; update: (p: Partia
   const browserLink = (
     <div className="flex flex-col gap-2 border-t-2 border-line pt-4">
       <h3 className="font-display">No device? Play in the browser</h3>
-      <p className="text-sm text-muted">The browser Petto has the same pet, chat and fuel. You can pair a device later.</p>
-      <Link href="/my" className="pixel-btn pixel-btn--secondary self-start">Continue in the browser</Link>
+      <p className="text-sm text-muted">
+        The browser Petto has the same pet, chat and fuel. You can pair a device later from {name}&apos;s page.
+      </p>
+      <Link href={petPath(p.contract, p.tokenId)} className="pixel-btn pixel-btn--secondary self-start">Continue in the browser</Link>
     </div>
   );
 

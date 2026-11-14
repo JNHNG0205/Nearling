@@ -17,6 +17,7 @@ import {
 import { authHeaders, useSession } from "@/lib/session";
 import { useStream } from "@/lib/useStream";
 import { useTalk } from "@/lib/useTalk";
+import { DeviceNudge } from "./DeviceNudge";
 import { notifyInBackground } from "./Inbox";
 import { DemoSpeedPill, StatePill, stateBanner } from "./Pills";
 import { talkAnim, turnFromTalk } from "./talkFlow";
@@ -277,6 +278,7 @@ export function PetHome({ initial }: { initial: PetState }) {
 
       <div className="chat-scroll flex flex-col gap-6 lg:col-start-1 lg:row-start-2 lg:max-h-full lg:min-h-0 lg:gap-3 lg:overflow-y-auto">
 
+      <DeviceNudge petRef={petRef} name={pet.name} href={`/pet/${ref}/device`} isOwner={isOwner} paired={pet.device.paired} />
       <PantryCard compact contract={pet.contract} tokenId={pet.token_id} name={pet.name} />
       <nav aria-label={`${pet.name} pages`} className="flex flex-wrap gap-2 border-t-2 border-line pt-4">
         {[

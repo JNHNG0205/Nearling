@@ -80,7 +80,7 @@ export default function ConnectDevicePage() {
         </ul>
       </section>
       <div className="flex flex-wrap gap-2">
-        <Link href="/start" className="pixel-btn">I&apos;m ready, start setup</Link>
+        <Link href="/start?connect=1" className="pixel-btn">I&apos;m ready, start setup</Link>
         <Link href="/device-sim" className="pixel-btn pixel-btn--secondary">Try the browser device instead</Link>
       </div>
     </AppFrame>

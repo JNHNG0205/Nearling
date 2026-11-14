@@ -196,7 +196,8 @@ function mountPrivyIframe(privy: Privy): Promise<void> {
 async function privyAccount(): Promise<{ account: Account; signer: PrivySigner; address: string }> {
   const privy = await getPrivy();
   if (!(await privyLoggedIn(privy))) {
-    window.location.assign(`/login?next=${encodeURIComponent(window.location.pathname)}`);
+    const back = window.location.pathname === "/" ? "/go" : window.location.pathname; // landing: route by pets
+    window.location.assign(`/login?next=${encodeURIComponent(back)}`);
     throw new Error("Sign in with email or Google first");
   }
   const wallet = await ensureNearWallet(privy);
