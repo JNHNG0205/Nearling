@@ -6,10 +6,8 @@
 //   cd brain && set -a && . ../.env && . data/testnet-accounts.env && set +a && npx tsx scripts/chat-bench.ts
 // Options: BENCH_VOICE=1 also voices each reply (TTS time included, uses voice credits).
 //          BENCH_PET=<contract:token_id> picks the pet (default: the player's first pet).
-import { Account, JsonRpcProvider, KeyPairSigner } from "near-api-js";
-import { signMessage } from "near-api-js/nep413";
+import { BRAIN, benchSession } from "./bench-session";
 
-const BRAIN = process.env.BRAIN_URL ?? "http://localhost:8787";
 const VOICE = process.env.BENCH_VOICE === "1";
 
 const PROMPTS: { level: string; text: string }[] = [
@@ -26,39 +24,14 @@ const PROMPTS: { level: string; text: string }[] = [
   },
 ];
 
-async function session(id: string, key: string): Promise<string> {
-  const n = (await (await fetch(`${BRAIN}/auth/nonce`)).json()) as { nonce: string; message: string; recipient: string };
-  const provider = new JsonRpcProvider({ url: "https://rpc.testnet.near.org" });
-  const account = new Account(id, provider, KeyPairSigner.fromSecretKey(key as `ed25519:${string}`));
-  const signed = await signMessage({
-    signerAccount: account,
-    payload: { message: n.message, recipient: n.recipient, nonce: Buffer.from(n.nonce, "base64") },
-  });
-  const r = await fetch(`${BRAIN}/session`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      accountId: signed.accountId,
-      publicKey: signed.publicKey.toString(),
-      signature: Buffer.from(signed.signature).toString("base64"),
-      nonce: n.nonce,
-    }),
-  });
-  if (!r.ok) throw new Error(`POST /session ${r.status}`);
-  return ((await r.json()) as { token: string }).token;
-}
-
 async function main() {
-  const id = process.env.E2E_PLAYER_ID;
-  const key = process.env.E2E_PLAYER_KEY;
-  if (!id || !key) throw new Error("Set E2E_PLAYER_ID and E2E_PLAYER_KEY (brain/data/testnet-accounts.env)");
-  const auth = { Authorization: `Bearer ${await session(id, key)}` };
+  const auth = await benchSession();
 
   let pet = process.env.BENCH_PET;
   if (!pet) {
     const r = (await (await fetch(`${BRAIN}/me/pets`, { headers: auth })).json()) as { pets: { pet_ref: string; fuel: { left: number } }[] };
     const usable = r.pets.filter((p) => p.fuel.left > 0);
-    if (usable.length === 0) throw new Error(`${id} owns no pet with fuel on this brain's contracts`);
+    if (usable.length === 0) throw new Error(`The test player owns no pet with fuel on this brain's contracts`);
     pet = usable[0]!.pet_ref;
   }
   console.log(`pet ${pet}, voice ${VOICE ? "on" : "off"}, ${PROMPTS.length} messages\n`);
