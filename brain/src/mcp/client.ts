@@ -15,7 +15,11 @@ export interface McpTool {
 }
 
 export class McpError extends Error {
-  constructor(public code: "bad_url" | "private_address" | "unreachable" | "tool_failed" | "not_set_up" | "expired" | "needs_key") {
+  constructor(
+    public code: "bad_url" | "private_address" | "unreachable" | "tool_failed" | "not_set_up" | "expired" | "needs_key",
+    /** what the tool itself said went wrong (tool output: sealed and shown to the owner, never logged) */
+    public detail?: string,
+  ) {
     super(`mcp_${code}`);
     this.name = "McpError";
   }
@@ -102,7 +106,7 @@ export async function callTool(url: URL, token: string | null, tool: string, arg
       .filter(Boolean)
       .join("\n")
       .slice(0, 4_000);
-    if (r.isError) throw new McpError("tool_failed");
+    if (r.isError) throw new McpError("tool_failed", text || undefined);
     return text || "(the tool finished with no text output)";
   });
 }

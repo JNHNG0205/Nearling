@@ -108,6 +108,9 @@ function TaskCard({ task, name, onTask }: { task: McpTaskCard; name: string; onT
           ))}
         </dl>
       )}
+      {task.status === "failed" && task.error && (
+        <p className="border-l-2 border-warn pl-2 font-mono text-xs text-warn break-words">{task.error}</p>
+      )}
       {task.status === "pending" && onTask && (
         <div className="flex gap-2">
           <button type="button" className="pixel-btn px-3 text-sm" disabled={busy !== null} onClick={() => void decide("approve")}>

@@ -80,7 +80,8 @@ export function taskCard(deps: Deps, row: TaskRow): McpTaskCard {
   } catch {
     args = {};
   }
-  return { id: row.id, server: srv?.name ?? "removed tool", tool: row.tool, args, status: row.status, follow_turn_id: row.follow_turn_id };
+  const error = row.status === "failed" && row.result_enc ? deps.sealer.tryOpen(row.pet_ref, row.result_enc)?.slice(0, 400) : undefined;
+  return { id: row.id, server: srv?.name ?? "removed tool", tool: row.tool, args, status: row.status, follow_turn_id: row.follow_turn_id, ...(error ? { error } : {}) };
 }
 
 export const tasksForTurn = (deps: Deps, turnId: string) =>

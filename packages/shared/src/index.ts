@@ -211,6 +211,8 @@ export interface McpTaskCard {
   status: "pending" | "approved" | "done" | "failed" | "declined";
   /** the pet's reply about the result, once done */
   follow_turn_id: string | null;
+  /** failed tasks: what the tool said went wrong */
+  error?: string;
 }
 
 /** `GET /pets/:petRef/inbox` item (AI-brain architectual/08). */
