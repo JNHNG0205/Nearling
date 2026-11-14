@@ -32,6 +32,7 @@ export interface TaskRow {
   result_enc: Buffer | null;
   error_code: string | null;
   follow_turn_id: string | null;
+  goal_enc: Buffer | null;
   created_at: number;
   updated_at: number;
 }
