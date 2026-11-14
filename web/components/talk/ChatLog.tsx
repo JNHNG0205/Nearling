@@ -76,11 +76,6 @@ function ReplyBubble({ turn, name, petRef }: { turn: Turn; name: string; petRef?
 
 /** `petRef` turns on "Hear it" for the owner's saved replies. */
 export function ChatLog({ entries, name, readOnly, petRef }: { entries: ChatEntry[]; name: string; readOnly?: boolean; petRef?: string }) {
-  const end = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    end.current?.scrollIntoView({ block: "nearest" });
-  }, [entries.length]);
-
   if (entries.length === 0) {
     return (
       <p className="text-muted">
@@ -114,7 +109,6 @@ export function ChatLog({ entries, name, readOnly, petRef }: { entries: ChatEntr
           )}
         </div>
       ))}
-      <div ref={end} />
     </section>
   );
 }

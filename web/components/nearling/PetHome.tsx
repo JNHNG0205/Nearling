@@ -270,7 +270,7 @@ export function PetHome({ initial }: { initial: PetState }) {
       )}
       </div>
 
-      <div ref={chatRef} className="chat-scroll lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-3">
+      <div ref={chatRef} className="chat-scroll max-h-[60dvh] overflow-y-auto pr-2 lg:max-h-none lg:min-h-0 lg:flex-1 lg:pr-3">
         <ChatLog entries={chat} name={pet.name} readOnly={!isOwner} petRef={petRef} />
       </div>
       </div>
@@ -304,7 +304,10 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** Chat turns plus the pet's own messages, oldest first; pending turns (no time yet) stay last. */
 function mergeInbox(entries: ChatEntry[], inbox: InboxItem[]): ChatEntry[] {
+  // a message the pet sent first also exists as a turn with no owner line; show it once, as the note
+  const noteTurns = new Set(inbox.map((i) => i.turn_id).filter(Boolean));
+  const turns = entries.filter((e) => !(e.turn && noteTurns.has(e.turn.turn_id)));
   const notes: ChatEntry[] = inbox.map((i) => ({ key: `inbox-${i.id}`, user: null, turn: null, error: null, note: { text: i.text, at: i.created_at } }));
   const at = (e: ChatEntry) => e.note?.at ?? e.turn?.at ?? Number.POSITIVE_INFINITY;
-  return [...entries, ...notes].sort((a, b) => at(a) - at(b));
+  return [...turns, ...notes].sort((a, b) => at(a) - at(b));
 }

@@ -211,6 +211,8 @@ export interface InboxItem {
   text: string;
   trigger: string | null;
   created_at: number;
+  /** the billed turn behind this message, if any; that turn shows in the chat as this note */
+  turn_id: string | null;
   /** When the owner read it (acked); null = unread. */
   read_at: number | null;
 }
@@ -224,6 +226,7 @@ export function normalizeInbox(raw: unknown): InboxItem | null {
     id,
     text,
     trigger: str(r.trigger),
+    turn_id: str(r.turn_id),
     created_at: typeof r.created_at === "number" ? r.created_at : Date.now(),
     read_at: typeof r.read_at === "number" ? r.read_at : null,
   };
