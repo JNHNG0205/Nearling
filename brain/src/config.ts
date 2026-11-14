@@ -95,7 +95,9 @@ const Env = z.object({
 export type Config = z.infer<typeof Env>;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
-  const parsed = Env.safeParse({ NEAR_NETWORK: "testnet", ...env });
+  // A blank `NAME=` line in .env means "not set": drop it so the default applies.
+  const set = Object.fromEntries(Object.entries(env).filter(([, v]) => v !== undefined && v.trim() !== ""));
+  const parsed = Env.safeParse({ NEAR_NETWORK: "testnet", ...set });
   if (!parsed.success) {
     throw new Error(`Bad brain config: ${parsed.error.issues.map((i) => i.path.join(".")).join(", ")}`);
   }
