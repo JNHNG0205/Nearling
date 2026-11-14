@@ -240,6 +240,8 @@ export const tx = {
     call(contract, "nft_mint_pet", soul ? { name, soul } : { name }, GAS.mint, price),
   setSoul: (contract: string, petId: string, prompt: string) =>
     call(contract, "set_soul", { pet_id: petId, prompt }, GAS.soul),
+  /** Owner, once: the egg becomes a Baby on chain (no deposit, so the gas relay pays the gas). */
+  hatch: (contract: string, petId: string) => call(contract, "hatch", { pet_id: petId }, GAS.soul),
   feed: (contract: string, petId: string, amount: bigint) => call(contract, "feed", { pet_id: petId }, GAS.feed, amount),
   stake: (contract: string, petId: string, amount: bigint) =>
     call(contract, "stake", { pet_id: petId }, GAS.garden, amount),

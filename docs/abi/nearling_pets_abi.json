@@ -7,7 +7,7 @@
       "compiler": "rustc 1.99.1",
       "builder": "cargo-near cargo-near-build 0.11.5"
     },
-    "wasm_hash": "GvWhNwo5TXy9DqC2voEQXidQCZaPunh1sg1tYJZNggKz"
+    "wasm_hash": "HaBqwwEq1W5hC9Fa7kibs9QNyoMVkrPriFM8gm5aNHXs"
   },
   "body": {
     "functions": [
@@ -307,6 +307,22 @@
           "type_schema": {
             "$ref": "#/definitions/SoulView"
           }
+        }
+      },
+      {
+        "name": "hatch",
+        "doc": " Owner, once: the egg hatches into a Baby on chain (Build Spec 1), so the app and the\n chain agree. Later stages still come from XP (Teen 100, Adult 500).",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "pet_id",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
         }
       },
       {

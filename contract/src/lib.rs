@@ -2216,6 +2216,51 @@ mod tests {
     }
 
     #[test]
+    fn the_owner_hatches_the_egg_into_a_baby() {
+        let (mut contract, id) = minted();
+        ctx(accounts(3), NearToken::from_yoctonear(0), DAY);
+        contract.hatch(id.clone());
+        let view = contract.get_pet(id);
+        assert_eq!((view.stage, view.xp), (1, 0));
+        assert!(events()
+            .iter()
+            .any(|e| e.contains("\"event\":\"stage_up\"") && e.contains("\"stage\":1")));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_NOT_OWNER")]
+    fn only_the_owner_hatches() {
+        let (mut contract, id) = minted();
+        ctx(accounts(4), NearToken::from_yoctonear(0), DAY);
+        contract.hatch(id);
+    }
+
+    #[test]
+    #[should_panic(expected = "E_HATCHED: Already hatched")]
+    fn an_egg_hatches_once() {
+        let (mut contract, id) = minted();
+        ctx(accounts(3), NearToken::from_yoctonear(0), DAY);
+        contract.hatch(id.clone());
+        contract.hatch(id);
+    }
+
+    #[test]
+    fn a_hatched_baby_still_grows_by_xp() {
+        let (mut contract, id) = minted();
+        ctx(accounts(3), NearToken::from_yoctonear(0), DAY);
+        contract.hatch(id.clone());
+        as_brain(DAY);
+        for _ in 0..20 {
+            chat(&mut contract, &id, 0, 5); // 5 xp each, 50 a day cap
+        }
+        as_brain(2 * DAY);
+        for _ in 0..12 {
+            chat(&mut contract, &id, 0, 5);
+        }
+        assert_eq!(contract.get_pet(id).stage, 2, "Teen at 100 xp");
+    }
+
+    #[test]
     #[should_panic(expected = "E_POOL_NOT_READY")]
     fn staking_waits_for_pool_registration() {
         let mut contract = unregistered();

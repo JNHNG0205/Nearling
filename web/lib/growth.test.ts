@@ -2,13 +2,20 @@ import { describe, expect, it } from "vitest";
 import { growth } from "./growth";
 
 describe("growth", () => {
-  it("counts toward the next stage from the contract's thresholds (10, 100, 500 XP)", () => {
-    expect(growth(0)).toEqual({ xp: 0, next: "Baby", at: 10, from: 0 });
-    expect(growth(12)).toEqual({ xp: 12, next: "Teen", at: 100, from: 10 });
-    expect(growth(120)).toEqual({ xp: 120, next: "Adult", at: 500, from: 100 });
+  it("an egg grows into a Baby by hatching", () => {
+    expect(growth(0, 0)).toEqual({ xp: 0, next: "Baby", at: null, from: 0 });
+  });
+
+  it("a hatched Baby counts toward Teen at 100 XP", () => {
+    expect(growth(0, 1)).toEqual({ xp: 0, next: "Teen", at: 100, from: 0 });
+    expect(growth(42, 1)).toEqual({ xp: 42, next: "Teen", at: 100, from: 0 });
+  });
+
+  it("a Teen counts toward Adult at 500 XP", () => {
+    expect(growth(120, 2)).toEqual({ xp: 120, next: "Adult", at: 500, from: 100 });
   });
 
   it("has no next stage once Adult", () => {
-    expect(growth(500)).toEqual({ xp: 500, next: null, at: 500, from: 500 });
+    expect(growth(500, 3)).toEqual({ xp: 500, next: null, at: null, from: 500 });
   });
 });

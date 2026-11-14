@@ -30,6 +30,7 @@ Quick reference for the brain, web and device. Full rules: `CLAUDE.md` 6 and 7. 
 |---|---|---|---|
 | `nft_mint_pet(name, soul?)` | exactly `mint_storage + starter_food` (0.2 NEAR; 0.105 on demo) | 50 Tgas | Returns the token id. `nft_mint`, `soul_updated` if a soul is given. `E_DEPOSIT`, `E_NAME`, `E_SOUL_SIZE` |
 | `set_soul(pet_id, prompt)` | 0 | 30 Tgas | ≤ 1 KB, bumps the version. `soul_updated`. `E_NOT_OWNER`, `E_SOUL_SIZE` |
+| `hatch(pet_id)` | 0 | 30 Tgas | Once: the egg becomes a Baby (stage 1) on chain; later stages still need XP (Teen 100, Adult 500). `stage_up`. `E_NOT_OWNER`, `E_HATCHED` |
 | `stake(pet_id)` | ≥ 1 NEAR | **450 Tgas** | Brain Garden. `staked` (in the callback). `E_MIN_STAKE`, `E_GAS`, `E_POOL_NOT_READY`, `E_APPROVAL_MODE` |
 | `unstake(pet_id, amount)` | ≥ `config().pool_unstake_deposit` (0.00772 NEAR), excess refunded | 450 Tgas | NEARON's unstake deposit, returned with the withdrawal (`pending_unstake.deposit`). One pending per pet, unlocks at `pending_unstake.unlock_epoch` (12 to 24 h). `unstaked`. `E_DEPOSIT`, `E_UNSTAKE_PENDING`, `E_NO_STAKE` |
 | `withdraw(pet_id)` | 0 | 450 Tgas | After unlock; pays `amount + deposit`. May fail with the unstake still pending while NEARON collects it: show "processing, retry later". `unstake_withdrawn { amount, deposit }` |
@@ -79,4 +80,4 @@ NEP-297, standard `nearling`, version `1.0.0`, in `EVENT_JSON:` logs: `fed` (wit
 
 ## Error codes
 
-`E_NOT_ADMIN`, `E_NOT_BRAIN`, `E_NOT_OWNER`, `E_NOT_DEVICE`, `E_UNKNOWN_PET`, `E_DEPOSIT`, `E_NAME`, `E_GAS`, `E_COOLDOWN`, `E_ASLEEP`, `E_MIN_STAKE`, `E_NO_STAKE`, `E_UNSTAKE_PENDING`, `E_NO_UNSTAKE`, `E_LOCKED`, `E_DEVICE_CAP`, `E_FOOD_RESERVE`, `E_STAKED`, `E_ITEM`, `E_CREDIT_CAP`, `E_STORAGE`, `E_APPROVAL_MODE`, `E_EXPIRED`, `E_SAME_KEY`, `E_NO_ACTION`, `E_TOO_MANY_ACTIONS`, `E_SOUL_SIZE`, `E_POOL_NOT_READY`, `E_POOL_READY`, `E_METADATA`, `E_PANTRY`; shirts: `E_CLAIMED`, `E_DEPOSIT`.
+`E_NOT_ADMIN`, `E_NOT_BRAIN`, `E_NOT_OWNER`, `E_NOT_DEVICE`, `E_UNKNOWN_PET`, `E_DEPOSIT`, `E_NAME`, `E_GAS`, `E_COOLDOWN`, `E_ASLEEP`, `E_MIN_STAKE`, `E_NO_STAKE`, `E_UNSTAKE_PENDING`, `E_NO_UNSTAKE`, `E_LOCKED`, `E_DEVICE_CAP`, `E_FOOD_RESERVE`, `E_STAKED`, `E_ITEM`, `E_CREDIT_CAP`, `E_STORAGE`, `E_APPROVAL_MODE`, `E_EXPIRED`, `E_SAME_KEY`, `E_NO_ACTION`, `E_TOO_MANY_ACTIONS`, `E_SOUL_SIZE`, `E_POOL_NOT_READY`, `E_POOL_READY`, `E_METADATA`, `E_PANTRY`, `E_HATCHED`; shirts: `E_CLAIMED`, `E_DEPOSIT`.

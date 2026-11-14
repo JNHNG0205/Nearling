@@ -1,15 +1,17 @@
-// Stage progress from on-chain XP. Thresholds match the contract (contract/src/pet.rs STAGE_XP):
-// Baby 10, Teen 100, Adult 500. XP comes from chats (+1 each) and the owner's daily check-in (+2).
+// Stage progress from the on-chain stage and XP (contract/src/pet.rs): an egg becomes a Baby by
+// hatching (contract `hatch`), then XP grows it: Teen at 100, Adult at 500. XP comes from chats
+// (+1 each) and the owner's daily check-in (+2).
 
-const STAGES: { name: string; xp: number }[] = [
-  { name: "Baby", xp: 10 },
-  { name: "Teen", xp: 100 },
-  { name: "Adult", xp: 500 },
-];
+const NEXT: Record<number, { name: string; at: number | null; from: number } | null> = {
+  0: { name: "Baby", at: null, from: 0 }, // by hatching, not XP
+  1: { name: "Teen", at: 100, from: 0 },
+  2: { name: "Adult", at: 500, from: 100 },
+  3: null,
+};
 
-/** Where `xp` stands: the next stage (null when Adult), its threshold, and where this stage began. */
-export function growth(xp: number): { xp: number; next: string | null; at: number; from: number } {
-  const i = STAGES.findIndex((s) => xp < s.xp);
-  if (i === -1) return { xp, next: null, at: 500, from: 500 };
-  return { xp, next: STAGES[i]!.name, at: STAGES[i]!.xp, from: i === 0 ? 0 : STAGES[i - 1]!.xp };
+/** Next stage for a pet at `stage` (0 egg .. 3 adult) with `xp`; `at` is null when it is not reached by XP. */
+export function growth(xp: number, stage: number): { xp: number; next: string | null; at: number | null; from: number } {
+  const n = NEXT[Math.min(Math.max(stage, 0), 3)];
+  if (!n) return { xp, next: null, at: null, from: 500 };
+  return { xp, next: n.name, at: n.at, from: n.from };
 }

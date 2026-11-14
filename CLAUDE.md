@@ -194,7 +194,7 @@ Daily burn = metabolism (passive, default $0.001/day [TBD]) + recent average tho
 Precedence (first match wins): Dormant > Starving > Sleepy (also while asleep) > Hungry > Sad > Happy. A new pet starts at mood 80, energy 100.
 
 ### 5.4 Growth [FIXED, tune thresholds]
-- Stages **Egg → Baby → Teen → Adult** by `xp` (10 / 100 / 500).
+- Stages **Egg → Baby → Teen → Adult** by `xp` (10 / 100 / 500). **Hatching [2026-11-14]:** the owner's one-time `hatch(pet_id)` makes the egg a Baby on chain straight away (no XP needed), so the app and the chain agree; Teen and Adult still come from XP. Deployed in place on `pets-v9` and `pets-demo-v9` (txs `467kBGxL…`, `5nwqpAjy…`); `hatch` on pet #0 emitted `stage_up` 1, a second call gave `E_HATCHED`.
 - XP comes from **care, not money**: chats, play, daily check-ins, streaks.
 - **Traits** (five u8): playful, curious, calm, sassy, kind. Random at mint, nudged by how the owner treats the pet (brain proposes deltas; contract caps ±2 per trait per day).
 
@@ -345,7 +345,7 @@ Brain only:
 - `credit(pet_id, micro_usd: u64, ref: String)`: capped correction only (credit normally accrues lazily). Above `credit_correction_max_micro` it panics (a correction that large is a bug, not a retry). Clears starving if the budget is now above 0. Emits `credited`.
 - `set_metadata(pet_id, media, media_hash, reference, reference_hash)` [FIXED, pets-v9]: points the NFT (NEP-177) at the pet's PNG and public JSON that the brain pinned on IPFS. Links start with `ipfs://` and are ≤ 256 bytes, hashes are 32-byte sha256 (base64 in JSON), else `E_METADATA`; one update per pet per 60 s (`E_COOLDOWN`). Sets `media`, `media_hash`, `reference`, `reference_hash`, `updated_at` and `description` (first 200 bytes of the Soul, cut on a char boundary; `set_soul` and mint also set it). Emits `metadata_updated { pet_id, media, reference }`. The brain's function-call keys list `charge, credit, sweep_credit, set_metadata` (`scripts/add-brain-keys.sh`).
 
-**Panic codes [FIXED, M4b] (C4):** every panic message starts with a stable code and a colon, e.g. `E_NOT_OWNER: Only the owner`, so the web can map it to a friendly line. Codes: `E_NOT_ADMIN`, `E_NOT_BRAIN`, `E_NOT_OWNER`, `E_NOT_DEVICE`, `E_UNKNOWN_PET`, `E_DEPOSIT`, `E_NAME`, `E_GAS`, `E_COOLDOWN`, `E_ASLEEP`, `E_MIN_STAKE`, `E_NO_STAKE`, `E_UNSTAKE_PENDING`, `E_NO_UNSTAKE`, `E_LOCKED`, `E_DEVICE_CAP`, `E_FOOD_RESERVE`, `E_STAKED`, `E_ITEM`, `E_CREDIT_CAP`, `E_STORAGE`, `E_APPROVAL_MODE`, `E_EXPIRED`, `E_SAME_KEY`, `E_NO_ACTION`, `E_TOO_MANY_ACTIONS`, `E_SOUL_SIZE`, `E_POOL_NOT_READY`, `E_POOL_READY`, `E_METADATA`, `E_PANTRY` (pets-v9); shirts: `E_CLAIMED`, `E_DEPOSIT`.
+**Panic codes [FIXED, M4b] (C4):** every panic message starts with a stable code and a colon, e.g. `E_NOT_OWNER: Only the owner`, so the web can map it to a friendly line. Codes: `E_NOT_ADMIN`, `E_NOT_BRAIN`, `E_NOT_OWNER`, `E_NOT_DEVICE`, `E_UNKNOWN_PET`, `E_DEPOSIT`, `E_NAME`, `E_GAS`, `E_COOLDOWN`, `E_ASLEEP`, `E_MIN_STAKE`, `E_NO_STAKE`, `E_UNSTAKE_PENDING`, `E_NO_UNSTAKE`, `E_LOCKED`, `E_DEVICE_CAP`, `E_FOOD_RESERVE`, `E_STAKED`, `E_ITEM`, `E_CREDIT_CAP`, `E_STORAGE`, `E_APPROVAL_MODE`, `E_EXPIRED`, `E_SAME_KEY`, `E_NO_ACTION`, `E_TOO_MANY_ACTIONS`, `E_SOUL_SIZE`, `E_POOL_NOT_READY`, `E_POOL_READY`, `E_METADATA`, `E_PANTRY` (pets-v9), `E_HATCHED` (hatch, 2026-11-14); shirts: `E_CLAIMED`, `E_DEPOSIT`.
 
 **persona_hash (C5):** not stored on chain; the brain keeps the persona.
 

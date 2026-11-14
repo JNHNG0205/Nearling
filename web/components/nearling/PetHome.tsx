@@ -11,12 +11,13 @@ import { ChatLog, type ChatEntry } from "@/components/talk/ChatLog";
 import { TalkBar } from "@/components/talk/TalkBar";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
 import {
-  ackInbox, errorCopy, getInbox, getPetState, getTurns, normalizeInbox, normalizeTurn, postCare, postHatch,
+  ackInbox, errorCopy, getInbox, getPetState, getTurns, normalizeInbox, normalizeTurn, postCare,
   type InboxItem, type Turn,
 } from "@/lib/brain";
 import { authHeaders, useSession } from "@/lib/session";
 import { useStream } from "@/lib/useStream";
 import { useTalk } from "@/lib/useTalk";
+import { useHatch } from "@/components/wallet/useHatch";
 import { growth } from "@/lib/growth";
 import { DeviceNudge } from "./DeviceNudge";
 import { PetTabs } from "./PetTabs";
@@ -36,6 +37,7 @@ export function PetHome({ initial }: { initial: PetState }) {
   const [bubble, setBubble] = useState<string | null>(null);
   const [careError, setCareError] = useState<string | null>(null);
   const [hatching, setHatching] = useState(false);
+  const hatch = useHatch();
   const petRef = pet.pet_ref;
   const chatRef = useRef<HTMLDivElement>(null);
 
@@ -215,7 +217,7 @@ export function PetHome({ initial }: { initial: PetState }) {
             play("egg_hatch");
             try {
               // let the 8-frame hatch play on the egg before the baby appears
-              const [r] = await Promise.all([postHatch(petRef, authHeaders()), new Promise((ok) => setTimeout(ok, 1_400))]);
+              const [r] = await Promise.all([hatch(pet.contract, pet.token_id), new Promise((ok) => setTimeout(ok, 1_400))]);
               setPet(r.state);
             } catch {
               setCareError(`${pet.name} could not hatch right now. Try again in a moment.`);
@@ -239,7 +241,21 @@ export function PetHome({ initial }: { initial: PetState }) {
           </span>
           <span className="text-muted">Pat, rock and put {pet.name} to sleep to grow wings.</span>
         </p>
-        <GrowthLine xp={pet.xp ?? 0} name={pet.name} />
+        <GrowthLine
+          xp={pet.xp ?? 0}
+          stage={pet.chain_stage_index}
+          name={pet.name}
+          // hatched in the app before hatching moved on chain: one signature makes it a Baby there too
+          onFinishHatch={isOwner && pet.hatched && pet.chain_stage_index === 0
+            ? async () => {
+                try {
+                  setPet((await hatch(pet.contract, pet.token_id)).state);
+                } catch {
+                  setCareError(`${pet.name} could not finish hatching. Try again in a moment.`);
+                }
+              }
+            : undefined}
+        />
         <PantryCard compact contract={pet.contract} tokenId={pet.token_id} name={pet.name} />
       </div>
 
@@ -303,20 +319,36 @@ function mergeInbox(entries: ChatEntry[], inbox: InboxItem[]): ChatEntry[] {
   return [...turns, ...notes].sort((a, b) => at(a) - at(b));
 }
 
-/** On-chain XP toward the next stage (lib/growth.ts): chats +1, the owner's daily check-in +2. */
-function GrowthLine({ xp, name }: { xp: number; name: string }) {
-  const g = growth(xp);
+/** On-chain stage and XP toward the next stage (lib/growth.ts): hatch for Baby, then chats +1 XP, daily visit +2. */
+function GrowthLine({ xp, stage, name, onFinishHatch }: { xp: number; stage: number; name: string; onFinishHatch?: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const g = growth(xp, stage);
   const blocks = 5;
-  const lit = g.next ? Math.floor(((xp - g.from) / (g.at - g.from)) * blocks) : blocks;
+  const lit = g.at === null ? (g.next ? 0 : blocks) : Math.min(blocks, Math.floor(((xp - g.from) / (g.at - g.from)) * blocks));
   return (
-    <p className="flex items-center gap-3 text-sm" title={`Chats give ${name} 1 XP each, plus 2 XP for your first visit each day.`}>
+    <p className="flex flex-wrap items-center gap-3 text-sm" title={`Chats give ${name} 1 XP each, plus 2 XP for your first visit each day.`}>
       <span className="font-display">Growth</span>
       <span className="flex gap-1" aria-hidden="true">
         {Array.from({ length: blocks }, (_, i) => (
           <span key={i} className={`inline-block h-3 w-3 border-2 ${i < lit ? "border-accent bg-accent" : "border-line"}`} />
         ))}
       </span>
-      <span className="font-mono text-muted">{g.next ? `${xp} / ${g.at} XP to ${g.next}` : `${xp} XP · fully grown`}</span>
+      <span className="font-mono text-muted">
+        {!g.next ? `${xp} XP · fully grown` : g.at === null ? "Hatch to grow into a Baby" : `${xp} / ${g.at} XP to ${g.next}`}
+      </span>
+      {onFinishHatch && (
+        <button
+          className="text-accent underline"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            await onFinishHatch();
+            setBusy(false);
+          }}
+        >
+          {busy ? "Hatching..." : "Finish hatching"}
+        </button>
+      )}
     </p>
   );
 }

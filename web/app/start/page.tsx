@@ -10,7 +10,8 @@ import { FaucetPanel } from "@/components/wallet/FaucetPanel";
 import { HatchAnimation } from "@/components/wallet/HatchAnimation";
 import { MintForm } from "@/components/wallet/MintForm";
 import { AppFrame, DemoSpeedPill, ErrorText, Panel, Spinner } from "@/components/wallet/ui";
-import { getPetState, postHatch } from "@/lib/brain";
+import { getPetState } from "@/lib/brain";
+import { useHatch } from "@/components/wallet/useHatch";
 import { hasWebBluetooth, readPairingUrlOverBle } from "@/lib/ble";
 import { accountBalance, petFromRef, petPath, PETS_CONTRACT } from "@/lib/chain";
 import { needsFaucet } from "@/lib/faucet";
@@ -301,6 +302,7 @@ function PetStep({ accountId, preferPick, onChosen }: {
   const [error, setError] = useState<string | null>(null);
   // setup is mainly for hatching a new pet; picking an existing one is the secondary path
   const [minting, setMinting] = useState(!preferPick);
+  const hatch = useHatch();
   const [hatching, setHatching] = useState<string | null>(null);
   const [busyRef, setBusyRef] = useState<string | null>(null);
 
@@ -317,7 +319,8 @@ function PetStep({ accountId, preferPick, onChosen }: {
   async function choose(p: MyPet) {
     setBusyRef(p.ref);
     // an egg that never hatched hatches now (Build Spec 1); brain down: the pet page offers it again
-    if (p.state && !p.state.hatched) await postHatch(p.ref, authHeaders()).catch(() => undefined);
+    // still an egg on chain: hatch it (contract `hatch`); cancelled or failed, the pet page offers it again
+    if (p.state && p.state.chain_stage_index === 0) await hatch(p.contract, p.tokenId).catch(() => undefined);
     setBusyRef(null);
     onChosen(p.ref, true);
   }
@@ -329,7 +332,7 @@ function PetStep({ accountId, preferPick, onChosen }: {
         contract={p.contract}
         tokenId={p.tokenId}
         onDone={async () => {
-          await postHatch(hatching, authHeaders()).catch(() => undefined);
+          if (p) await hatch(p.contract, p.tokenId).catch(() => undefined);
           onChosen(hatching, false);
         }}
       />
