@@ -149,6 +149,8 @@ export interface PetState {
   stage_index: number;
   /** the contract's own stage (0 egg until 10 xp from on-chain chats and check-ins) */
   chain_stage_index: number;
+  /** on-chain XP (chats +1, the owner's daily check-in +2); stages at 10, 100 and 500 */
+  xp: number;
   /** true once hatched off chain (adopt, pairing, hatch button) or grown on chain */
   hatched: boolean;
   traits: number[];

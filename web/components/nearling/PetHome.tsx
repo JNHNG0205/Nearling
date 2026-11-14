@@ -17,6 +17,7 @@ import {
 import { authHeaders, useSession } from "@/lib/session";
 import { useStream } from "@/lib/useStream";
 import { useTalk } from "@/lib/useTalk";
+import { growth } from "@/lib/growth";
 import { DeviceNudge } from "./DeviceNudge";
 import { PetTabs } from "./PetTabs";
 import { notifyInBackground } from "./Inbox";
@@ -238,6 +239,7 @@ export function PetHome({ initial }: { initial: PetState }) {
           </span>
           <span className="text-muted">Pat, rock and put {pet.name} to sleep to grow wings.</span>
         </p>
+        <GrowthLine xp={pet.xp ?? 0} name={pet.name} />
         <PantryCard compact contract={pet.contract} tokenId={pet.token_id} name={pet.name} />
       </div>
 
@@ -299,4 +301,22 @@ function mergeInbox(entries: ChatEntry[], inbox: InboxItem[]): ChatEntry[] {
   const notes: ChatEntry[] = inbox.map((i) => ({ key: `inbox-${i.id}`, user: null, turn: null, error: null, note: { text: i.text, at: i.created_at } }));
   const at = (e: ChatEntry) => e.note?.at ?? e.turn?.at ?? Number.POSITIVE_INFINITY;
   return [...turns, ...notes].sort((a, b) => at(a) - at(b));
+}
+
+/** On-chain XP toward the next stage (lib/growth.ts): chats +1, the owner's daily check-in +2. */
+function GrowthLine({ xp, name }: { xp: number; name: string }) {
+  const g = growth(xp);
+  const blocks = 5;
+  const lit = g.next ? Math.floor(((xp - g.from) / (g.at - g.from)) * blocks) : blocks;
+  return (
+    <p className="flex items-center gap-3 text-sm" title={`Chats give ${name} 1 XP each, plus 2 XP for your first visit each day.`}>
+      <span className="font-display">Growth</span>
+      <span className="flex gap-1" aria-hidden="true">
+        {Array.from({ length: blocks }, (_, i) => (
+          <span key={i} className={`inline-block h-3 w-3 border-2 ${i < lit ? "border-accent bg-accent" : "border-line"}`} />
+        ))}
+      </span>
+      <span className="font-mono text-muted">{g.next ? `${xp} / ${g.at} XP to ${g.next}` : `${xp} XP · fully grown`}</span>
+    </p>
+  );
 }

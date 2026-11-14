@@ -39,6 +39,12 @@ describe("hatch (Build Spec 1)", () => {
     expect((await t.state()).hatched).toBe(false);
   });
 
+  it("the state carries the pet's on-chain XP (web growth bar)", async () => {
+    const t = await setup();
+    t.deps.pets["1"] = { ...egg, xp: 42 };
+    expect((await t.state()).xp).toBe(42);
+  });
+
   it("chain stages above baby always win", async () => {
     const t = await setup();
     t.deps.pets["1"] = { ...egg, stage: 2 };
