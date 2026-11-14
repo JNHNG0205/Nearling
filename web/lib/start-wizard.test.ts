@@ -26,7 +26,7 @@ describe("start wizard: resume", () => {
     const s = with_({ device: "ble", account: ACC, walletConfirmed: true, petRef: "pets-v8.nearling.testnet:3" });
     const back = parseWizard(JSON.stringify(s));
     expect(back).toEqual(s);
-    expect(currentStep(back, signedIn)).toBe(3);
+    expect(currentStep(back, signedIn)).toBe(2); // pet hatched, not customised yet
   });
 
   it("resumes at step 1 when the session is gone, even with a pet saved", () => {
@@ -61,11 +61,11 @@ describe("start wizard: skip and completion", () => {
     expect(applyFacts(s, signedIn)).toBe(s);
   });
 
-  it("ends at step 4 (device or browser), which is never marked done", () => {
+  it("ends at step 3 (device or browser), which is never marked done", () => {
     const s = with_({ device: "ble", account: ACC, walletConfirmed: true, petRef: "pets-v8.nearling.testnet:3", customised: true });
-    expect(currentStep(s, signedIn)).toBe(4);
-    expect(stepDone(s, signedIn, 4)).toBe(false);
-    expect(progress(s, signedIn)).toBe(3);
+    expect(currentStep(s, signedIn)).toBe(3);
+    expect(stepDone(s, signedIn, 3)).toBe(false);
+    expect(progress(s, signedIn)).toBe(2);
   });
 
   it("cannot jump ahead, can reopen earlier steps", () => {
@@ -73,6 +73,7 @@ describe("start wizard: skip and completion", () => {
     expect(canOpen(s, signedIn, 1)).toBe(true);
     expect(canOpen(s, signedIn, 2)).toBe(true);
     expect(canOpen(s, signedIn, 3)).toBe(false);
+    expect(stepDone({ ...s, petRef: "pets-v9.nearling.testnet:3" }, signedIn, 2)).toBe(false); // hatched but not customised
   });
 });
 

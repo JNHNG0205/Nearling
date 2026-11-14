@@ -103,8 +103,8 @@ function Wizard() {
       <div className="flex flex-col gap-2">
         <p className="font-display text-sm text-muted">Step {active} of {STEPS.length}</p>
         <div role="progressbar" aria-label="Setup progress" aria-valuemin={0} aria-valuemax={STEPS.length - 1} aria-valuenow={done}
-          className="grid grid-cols-3 gap-1">
-          {[0, 1, 2].map((i) => (
+          className="grid grid-cols-2 gap-1">
+          {[0, 1].map((i) => (
             <span key={i} className={`h-3 border-2 border-line ${i < done ? "bg-accent" : "bg-surface"}`} />
           ))}
         </div>
@@ -166,14 +166,19 @@ function StepBody({ step, state, update, accountId, signedIn }: StepProps) {
         </div>
       );
     case 2:
-      return accountId && signedIn ? (
-        <PetStep accountId={accountId} onChosen={(petRef) => update({ petRef, customised: false })} />
+      // hatch (or pick) first, then customise the same pet in this step
+      if (!accountId || !signedIn) return <p className="text-sm text-muted">Connect your wallet first.</p>;
+      return state.petRef ? (
+        <div className="flex flex-col gap-3">
+          <CustomiseStep petRef={state.petRef} onNext={() => update({ customised: true })} />
+          <button className="self-start text-sm text-muted underline" onClick={() => update({ petRef: null, customised: false })}>
+            Hatch or pick a different pet
+          </button>
+        </div>
       ) : (
-        <p className="text-sm text-muted">Connect your wallet first.</p>
+        <PetStep accountId={accountId} onChosen={(petRef) => update({ petRef, customised: false })} />
       );
     case 3:
-      return state.petRef ? <CustomiseStep petRef={state.petRef} onNext={() => update({ customised: true })} /> : null;
-    case 4:
       return state.petRef ? <HandoffStep state={state} update={update} /> : null;
   }
 }

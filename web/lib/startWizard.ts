@@ -3,12 +3,11 @@
 
 export const WIZARD_KEY = "nearling.start";
 
-export type StepId = 1 | 2 | 3 | 4;
+export type StepId = 1 | 2 | 3;
 export const STEPS: { id: StepId; title: string }[] = [
   { id: 1, title: "Connect your wallet" },
-  { id: 2, title: "Hatch your pet" },
-  { id: 3, title: "Make it yours" },
-  { id: 4, title: "Connect your Petto or play in the browser" },
+  { id: 2, title: "Hatch and customise your pet" },
+  { id: 3, title: "Connect your Petto or play in the browser" },
 ];
 
 /** How the visitor reached a device: the QR link or Bluetooth (kept for the last step), or none. */
@@ -19,7 +18,7 @@ export interface WizardState {
   device: DeviceLink;
   /** Pairing token from `/start?t=` or Bluetooth, so the last step can finish pairing with it. */
   pairingToken: string | null;
-  /** Account the pet choice belongs to; another account resets steps 2 and 3. */
+  /** Account the pet choice belongs to; another account resets step 2. */
   account: string | null;
   /** The owner pressed on from step 1 (after the faucet check) with this account. */
   walletConfirmed: boolean;
@@ -84,17 +83,15 @@ export function stepDone(s: WizardState, f: WizardFacts, step: StepId): boolean 
     case 1:
       return f.signedIn && s.walletConfirmed && s.account === f.account;
     case 2:
-      return stepDone(s, f, 1) && s.petRef !== null;
+      return stepDone(s, f, 1) && s.petRef !== null && s.customised;
     case 3:
-      return stepDone(s, f, 2) && s.customised;
-    case 4:
       return false; // device or browser is where the wizard ends
   }
 }
 
 /** First step that is not done; this is where a returning visitor resumes. */
 export function currentStep(s: WizardState, f: WizardFacts): StepId {
-  return STEPS.find((st) => !stepDone(s, f, st.id))?.id ?? 4;
+  return STEPS.find((st) => !stepDone(s, f, st.id))?.id ?? 3;
 }
 
 /** A step can be opened when it is done or is the current one (no jumping ahead). */
@@ -102,7 +99,7 @@ export function canOpen(s: WizardState, f: WizardFacts, step: StepId): boolean {
   return step <= currentStep(s, f);
 }
 
-/** Steps done out of the three that can be done, for the progress bar. */
+/** Steps done out of the two that can be done, for the progress bar. */
 export function progress(s: WizardState, f: WizardFacts): number {
-  return STEPS.filter((st) => st.id !== 4 && stepDone(s, f, st.id)).length;
+  return STEPS.filter((st) => st.id !== 3 && stepDone(s, f, st.id)).length;
 }
