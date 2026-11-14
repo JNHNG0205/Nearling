@@ -19,6 +19,7 @@ import {
   applyFacts, canOpen, currentStep, EMPTY_WIZARD, parseWizard, progress, stepDone, STEPS, WIZARD_KEY,
   type StepId, type WizardFacts, type WizardState,
 } from "@/lib/startWizard";
+import { FROM_SETUP } from "@/lib/fromSetup";
 import { useSignIn } from "@/lib/wallet";
 
 // /start: guided setup. Connect the Petto, connect the wallet, choose a pet, make it yours,
@@ -353,17 +354,17 @@ function CustomiseStep({ petRef, onNext }: { petRef: string; onNext: () => void 
   const name = pet?.name ?? "your pet";
   const cards = [
     {
-      href: petPath(p.contract, p.tokenId, "/soul"),
+      href: petPath(p.contract, p.tokenId, "/soul") + FROM_SETUP,
       title: "Write its Soul",
       body: pet ? (pet.soul_version > 0 ? `Soul version ${pet.soul_version}, public on NEAR.` : "No Soul yet. It uses the default voice.") : null,
     },
     {
-      href: petPath(p.contract, p.tokenId, "/closet"),
+      href: petPath(p.contract, p.tokenId, "/closet") + FROM_SETUP,
       title: "Pick a shirt",
       body: pet ? (pet.equipped_shirt ? `Wearing shirt #${pet.equipped_shirt}.` : "No shirt yet. Claim one free shirt.") : null,
     },
     {
-      href: petPath(p.contract, p.tokenId, "/settings"),
+      href: petPath(p.contract, p.tokenId, "/settings") + FROM_SETUP,
       title: "Set nickname and time zone",
       body: "What it calls you, and when it says good morning.",
     },

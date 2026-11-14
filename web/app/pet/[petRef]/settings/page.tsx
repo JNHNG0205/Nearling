@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { OwnerGate } from "@/components/wallet/OwnerGate";
 import { PetHeader } from "@/components/wallet/PetHeader";
@@ -8,6 +9,7 @@ import { ErrorText, Panel } from "@/components/wallet/ui";
 import type { PetData } from "@/components/wallet/usePet";
 import { BrainRequestError, getProfile, putProfile } from "@/lib/brain";
 import { brainErrorCopy } from "@/lib/errors";
+import { useFromSetup } from "@/lib/fromSetup";
 import { authHeaders } from "@/lib/session";
 
 // /pet/[petRef]/settings: what the pet calls its owner and the owner's clock (LIMITATIONS A9, A10).
@@ -37,6 +39,8 @@ function browserZone(): string {
 }
 
 function ProfileForm({ pet }: { pet: PetData }) {
+  const router = useRouter();
+  const fromSetup = useFromSetup();
   const name = pet.chain!.name;
   const [nickname, setNickname] = useState("");
   const [tz, setTz] = useState(browserZone);
@@ -68,6 +72,7 @@ function ProfileForm({ pet }: { pet: PetData }) {
     try {
       await putProfile(pet.ref, authHeaders(), { nickname: nickname.trim() || null, owner_tz: tz });
       setSaved(true);
+      if (fromSetup) router.push("/start");
     } catch (err) {
       setError(brainErrorCopy(err instanceof BrainRequestError ? err.code : "upstream", name));
     } finally {

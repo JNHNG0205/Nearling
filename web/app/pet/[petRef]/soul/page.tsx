@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { SoulView } from "@nearling/shared";
 import { getTimeline, toMs, type TimelineItem } from "@/components/wallet/brainApi";
@@ -11,6 +12,7 @@ import { ErrorText, Panel, Spinner, TxLink, TxStatus } from "@/components/wallet
 import type { PetData } from "@/components/wallet/usePet";
 import { useTx } from "@/components/wallet/useTx";
 import { eventData, getSoul, soulBytes, SOUL_MAX_BYTES, tx } from "@/lib/chain";
+import { useFromSetup } from "@/lib/fromSetup";
 
 // /pet/[petRef]/soul (03 section 7): the public, versioned personality prompt on chain.
 export default function SoulPage() {
@@ -18,6 +20,8 @@ export default function SoulPage() {
 }
 
 function Soul({ pet }: { pet: PetData }) {
+  const router = useRouter();
+  const fromSetup = useFromSetup();
   const name = pet.chain!.name;
   const [soul, setSoul] = useState<SoulView | null>(null);
   const [draft, setDraft] = useState("");
@@ -48,6 +52,7 @@ function Soul({ pet }: { pet: PetData }) {
     const v = eventData<{ version?: number }>(r.events, "soul_updated")[0]?.version;
     if (v !== undefined) setSoul({ version: v, prompt: draft.trim() });
     else await load();
+    if (fromSetup) router.push("/start"); // back to setup to customise the rest
   }
 
   if (!soul) return error ? <ErrorText>{error}</ErrorText> : <Spinner />;
