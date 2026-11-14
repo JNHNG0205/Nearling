@@ -105,7 +105,7 @@ export async function callTool(url: URL, token: string | null, tool: string, arg
       .map((p) => (p && typeof p === "object" && "text" in p && typeof p.text === "string" ? p.text : ""))
       .filter(Boolean)
       .join("\n")
-      .slice(0, 8_000);
+      .slice(0, 12_000);
     if (r.isError) throw new McpError("tool_failed", text || undefined);
     return text || "(the tool finished with no text output)";
   });
