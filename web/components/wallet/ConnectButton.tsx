@@ -24,12 +24,12 @@ export function ConnectButton({ label = "Connect wallet", compact = false }: { l
     return (
       <div className="flex items-center justify-between gap-3">
         <span className="flex min-w-0 flex-col items-end leading-tight">
-          <span className={`truncate font-mono text-sm ${compact ? "max-w-[9rem]" : ""}`} title={wallet.accountId}>
+          <span className={`truncate font-mono text-sm ${compact ? "max-w-[7.5rem] sm:max-w-[9rem]" : ""}`} title={wallet.accountId}>
             {wallet.accountId}
           </span>
           <Balance account={wallet.accountId} />
         </span>
-        <button className={`pixel-btn pixel-btn--secondary ${compact ? "px-3 text-sm" : ""}`} onClick={() => void signOut()}>
+        <button className={`pixel-btn pixel-btn--secondary whitespace-nowrap ${compact ? "px-3 text-sm" : ""}`} onClick={() => void signOut()}>
           Sign out
         </button>
       </div>

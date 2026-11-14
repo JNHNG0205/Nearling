@@ -31,20 +31,20 @@ export function SiteHeader() {
   }
   return (
     <header className="border-b-2 border-line">
-      {/* one row at 390 px too: no wrap, tighter gaps and wordmark on phones */}
-      <div className="mx-auto flex min-h-16 max-w-[1200px] items-center gap-x-3 px-4 py-2 md:gap-x-6 md:px-6">
+      {/* phones: wordmark and wallet on the first row, the nav on its own row below; one row from md */}
+      <div className="mx-auto flex min-h-16 max-w-[1200px] flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 md:flex-nowrap md:gap-x-6 md:px-6">
         <Link href="/" aria-label="Petto, home" className="shrink-0 pt-3"><Logo /></Link>
-        {inSetup(path) ? (
-          <span className="flex-1" />
-        ) : (
-          <nav aria-label="Main" className="flex flex-1 gap-3 font-display text-sm md:gap-6">
+        {!inSetup(path) && (
+          <nav aria-label="Main" className="order-last flex w-full gap-6 font-display text-sm md:order-none md:w-auto md:flex-1">
             <Link href="/my" className="hover:text-accent">Home</Link>
             <Link href="/shop" className="hover:text-accent">Shop</Link>
             <Link href="/battle" className="hover:text-accent">Battle</Link>
             <Link href="/mcp" className="hover:text-accent">MCP</Link>
           </nav>
         )}
-        <ConnectButton compact label="Connect wallet" />
+        <div className="ml-auto min-w-0">
+          <ConnectButton compact label="Connect wallet" />
+        </div>
       </div>
     </header>
   );
