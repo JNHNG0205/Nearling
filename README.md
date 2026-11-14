@@ -1,13 +1,38 @@
 # Petto
 
-**Petto is an AI pet that lives on NEAR and pays for its own brain.** Every reply is a private AI inference on NEAR AI Cloud, paid on chain from the pet's own fuel. Feed it and it thrives; neglect it and it starves and goes dormant; stake NEAR for it and the staking yield keeps it fed.
+**Petto is a pet game where every word your pet says is a real AI thought, and the pet pays for it out of its own wallet.** Each reply is a private inference on NEAR AI Cloud, billed on chain to the pet's own fuel. Feed it and it chats; neglect it and it goes hungry, quiet, then dormant; plant NEAR in its Brain Garden and the staking yield feeds it forever. It lives in your browser and in a small device on your desk.
 
 > **Status:** built for NEAR HACKATHON (Nov 2026), **testnet only**. Tracks: `games` (main), `nfts`, `agents`, `privacy`, `security`.
 > **Hosted demo:** _URL added after deploy_ · **Demo video / X post:** _link added at submission_
 
-## Why
+## Why it is different
 
-AI pets usually run on a company's servers and a company's bill. Petto makes the pet an NFT **that owns the money for its own mind**: its fuel lives in the pet's on-chain budget, every thought is billed there and logged as a public event, and NEARON staking turns yield into AI credit that can pay for it forever. It is Illia Polosukhin's "NFT pets each with a NEAR balance that pays for AI inference", with a body you can hold.
+Most AI pets are a chat window with a cute skin, paid for by a company. In Petto the economics **are** the game:
+
+| In a classic virtual pet | In Petto |
+|---|---|
+| Food is a number that refills for free | Food is NEAR in the pet's on-chain budget; one reply burns one fuel ($0.001), visible as a public `thought` event |
+| A hungry pet looks sad | A hungry pet literally cannot think: at zero fuel it stops calling the AI and says "zzz... my brain is out of fuel" for free |
+| Care is tapping buttons | Care is real: pat, rock and lights off on the device sensors grow its wings; chatting and daily visits grow it from Baby to Teen to Adult |
+| Wealth means a bigger number | Stake NEAR for it and the yield (NEARON CREDIT) pays for its thoughts: a pet that never goes hungry again |
+
+It is Illia Polosukhin's "NFT pets each with a NEAR balance that pays for AI inference", turned into a game loop with a body you can hold.
+
+## What the pet's AI actually does
+
+Every reply comes from a private (TEE) model on NEAR AI Cloud, built from five inputs: brain-owned safety rules, the pet's on-chain **Soul**, its live state, its memory, and the last 10 turns.
+
+| Ability | Example | How |
+|---|---|---|
+| **Is the character you wrote** | A grumpy wizard cat, a shy sprout: the owner writes the Soul (1 KB, public, versioned on chain) | Soul wrapped as character data under safety rules it cannot override |
+| **Knows its own body and wallet** | "I only have 3 thoughts left... snack?" when fuel is low; sleepy late at night; proud of its wizard hat | The prompt carries its fuel left, mood, stage, wings, costume and the owner's local time |
+| **Remembers you** | "You said your exam was today. How did it go?" | Encrypted memory: a summary plus up to 30 facts, some with a follow-up date, rewritten every 20 turns |
+| **Speaks first** | A morning greeting, "I missed you", a follow-up, a low-fuel plea | Every 15 min the brain checks each pet (max 3 messages a day); chatty ones are real thoughts paid from fuel, alerts are free canned lines |
+| **Shows how it feels** | It bounces when excited, droops when sad, zzz when sleepy | Each reply starts with an emotion tag that drives the sprite on screen and on the device |
+| **Hears you and talks back** | Hold to talk on the phone or the device | Whisper on NEAR AI for speech; optional voice replies |
+| **Proves every thought** | A "Model verified" badge and a receipt per reply | GPU attestation with a fresh nonce, a signature over the exact request and response, and the on-chain `charge` for that turn |
+
+What it does **not** do: it does not move money, trade or give financial advice. Only the brain can bill fuel, within on-chain caps, and value actions always need the owner's wallet.
 
 ## Architecture
 
@@ -25,12 +50,12 @@ Editable source: [`docs/architecture.drawio`](docs/architecture.drawio) (open in
 
 | Feature | What you see | How it works |
 |---|---|---|
-| **Pet NFT** | Adopt and name an egg, hatch it, watch it grow Baby → Teen → Adult | NEP-171/177/181 token on `pets-v9.nearling.testnet`; `hatch` makes it a Baby, XP from chats and daily care grows it |
+| **Pet NFT** | Adopt and name an egg, hatch it, watch it grow Baby → Teen → Adult | NEP-171/177/181 token on `pets.petto.testnet`; `hatch` makes it a Baby, XP from chats and daily care grows it |
 | **Fuel = its own budget** | A fuel meter that drops with every reply | One reply = one `charge` of $0.001, paid from staking credit first, then food. Idempotent `usage_ref`, so retries never double-charge |
 | **Hungry, starving, dormant** | The pet asks for food, then goes to sleep curled up | Budget 0 = Starving (no inference, nothing billed); 72 h later Dormant. Pets never die: feeding or staking revives them |
 | **Brain Garden (stake to live)** | "Self-sustaining" badge, credit ticking up every second | The contract stakes the owner's NEAR in NEARON; per-pet CREDIT accrues on chain and the brain sweeps it into its NEAR AI org |
 | **Soul** | A public, versioned personality you can edit | Stored on chain (max 1 KB); every version is a public event; each reply's receipt names the Soul version used |
-| **Demo speed** | Hungry to dormant in under an hour | Same code on `pets-demo-v9` with about 100x faster rates, labelled "demo speed" |
+| **Demo speed** | Hungry to dormant in under an hour | Same code on `pets-demo.petto.testnet` with about 100x faster rates, labelled "demo speed" |
 
 ### Talking to it (private AI)
 
@@ -47,7 +72,7 @@ Editable source: [`docs/architecture.drawio`](docs/architecture.drawio) (open in
 | Feature | What you see | How it works |
 |---|---|---|
 | **Feed the Brain** | Snack / Meal / Feast packs; anyone can feed any pet | `feed(pet)` from your wallet; NEAR Intents (pay from another chain) when enabled, dry quotes by default |
-| **Closet and Shop** | Claim a free shirt; try on and buy 36 costumes | Shirts contract `shirts.nearling.testnet`: `claim()` (free shirt) and `buy(costume)` (0.05 NEAR); each item is a NEP-171 NFT you own and can gift |
+| **Closet and Shop** | Claim a free shirt; try on and buy 36 costumes | Shirts contract `shirts.petto.testnet`: `claim()` (free shirt) and `buy(costume)` (0.05 NEAR); each item is a NEP-171 NFT you own and can gift |
 | **Petto Run** | Two-lane race against a friend, browser or device | Deterministic rules shared by web and firmware (golden vectors); the brain replays inputs to pick the winner |
 | **Care and evolution** | Pat, rock and lights off; the pet grows wings | Device sensors (touch, motion, light) or web buttons; care is local, no transaction |
 | **Public pet page** | `/p/<pet>`: timeline, receipts, "Feed this pet" | No wallet needed: the link to share |
@@ -82,27 +107,29 @@ Open the hosted app. Sign in with **Email or Google**, or a testnet wallet (Mete
 
 ```bash
 # a pet's settled state: fuel, life state, stake, self_sustaining
-near contract call-function as-read-only pets-v9.nearling.testnet get_pet \
-  json-args '{"pet_id":"4"}' network-config testnet now
+near contract call-function as-read-only pets.petto.testnet get_pet \
+  json-args '{"pet_id":"3"}' network-config testnet now
 # its public personality
-near contract call-function as-read-only pets-v9.nearling.testnet get_soul \
-  json-args '{"pet_id":"1"}' network-config testnet now
+near contract call-function as-read-only pets.petto.testnet get_soul \
+  json-args '{"pet_id":"0"}' network-config testnet now
 # the costume catalog
-near contract call-function as-read-only shirts.nearling.testnet costumes \
+near contract call-function as-read-only shirts.petto.testnet costumes \
   json-args '{}' network-config testnet now
 ```
 
-**See:** pet #4 (Sprout) has 2 NEAR staked and `"self_sustaining": true`; seeded pets #1 to #4 show different life states.
+**See:** pet #3 (Sprout) has 2 NEAR staked and `"self_sustaining": true`; seeded pets #0 Sunny, #1 Crumb and #2 Echo show other life states (their fuel keeps draining, so states change over time).
 
-Evidence that the pet pays for its thoughts: a brain `charge` on testnet, emitting `thought { cost_micro: 1000, source: "food" }`: [`CCSUkTh5…`](https://testnet.nearblocks.io/txns/CCSUkTh5BLD9APFi8uWJsrnVqZ1kxmmQwXizHGMxR8Yq). A costume purchase: [`8yv86u3Q…`](https://testnet.nearblocks.io/txns/8yv86u3QigLjmF4WN1DHTCx9jLQ4XDgC5z8DJobeUGVJ).
+Evidence that the pet pays for its thoughts: a brain `charge` on the current contract, emitting `{"standard":"petto","event":"thought","cost_micro":1000,"source":"food"}`: [`CndDMwrm…`](https://testnet.nearblocks.io/txns/CndDMwrmsz5B8xjg36UdSy4dZjzPy8HibRpwdtgZawoy).
 
 ### Deployed contracts (testnet)
 
 | Contract | Account |
 |---|---|
-| Pets (normal speed) | [`pets-v9.nearling.testnet`](https://testnet.nearblocks.io/address/pets-v9.nearling.testnet) |
-| Pets (demo speed) | [`pets-demo-v9.nearling.testnet`](https://testnet.nearblocks.io/address/pets-demo-v9.nearling.testnet) |
-| Shirts and costumes | [`shirts.nearling.testnet`](https://testnet.nearblocks.io/address/shirts.nearling.testnet) |
+| Pets (normal speed) | [`pets.petto.testnet`](https://testnet.nearblocks.io/address/pets.petto.testnet) |
+| Pets (demo speed) | [`pets-demo.petto.testnet`](https://testnet.nearblocks.io/address/pets-demo.petto.testnet) |
+| Shirts and costumes | [`shirts.petto.testnet`](https://testnet.nearblocks.io/address/shirts.petto.testnet) |
+| Brain (function-call keys only) | `brain.petto.testnet` |
+| Gas relayer | `relayer.petto.testnet` |
 | NEARON pool used | `mw-pool-1024.testnet` |
 
 ## The device
@@ -151,13 +178,13 @@ _Photos, video and build steps: to be added by the hardware team._
 
 ## Naming
 
-Petto was called **Nearling** while we built it. The deployed testnet accounts (`*.nearling.testnet`), the event standard `nearling` and the crate and package names keep that name: renaming them means new contracts and fresh state, which would reset every pet, stake and costume. The NFT collections are already named **Petto** (`PETTO`) and **Petto Shirts** (`PSHIRT`). Petto is **not affiliated** with nearling.xyz, a separate project with a similar name.
+Petto was called **Nearling** while we built it. On 2026-11-14 we moved to `petto.testnet` accounts with the event standard `petto`. The earlier `*.nearling.testnet` contracts still exist with their history (event standard `nearling`, which the brain still reads), but the app no longer uses them, and pets on them did not move. A few internal names keep "Nearling" (some file and component names, the hosted brain's database and app name). Petto is **not affiliated** with nearling.xyz, a separate project.
 
 ## Prior art and similar projects
 
 | Project | What it is | What Petto adds |
 |---|---|---|
-| nearling.xyz | A web AI pet on NEAR testnet: Google sign-in, feeding with NEAR (also cross-chain), per-thought receipts on NEAR, pets that debate and give paid advice, outfits | A physical body (device with voice, care sensors and hold-to-approve); stake to live through NEARON; TEE attestation checked per reply; on-chain Soul; Petto Run |
+| nearling.xyz | A web AI pet on NEAR testnet: Google sign-in, feeding with NEAR (also cross-chain), per-thought receipts on NEAR, pets that debate and give paid advice, outfits | A physical body (device with voice, care sensors and hold-to-approve); fuel as a survival mechanic; stake to live through NEARON; TEE attestation checked per reply; on-chain Soul; Petto Run |
 | NEARON Tamagotchi demo (`mw-tama-1031.testnet`) | NEARON's sub-pool demo | A full game loop and per-pet credit inside the pet NFT |
 | TamaTown, agentchi, Dæmons, Pett.ai | AI or wallet pets on other chains | Built on NEAR AI private inference with the pet paying per thought |
 
@@ -197,7 +224,7 @@ Our edge, in order: the game loop (needs, memory, the pet reaching out first), t
 
 ## Roadmap
 
-A dedicated signing chip on the device, costume images in wallets, friend visits and postcards, a Dream Journal, pets earning on Agent Market, arena prizes, the brain inside OutLayer, then mainnet with the accounts renamed to Petto.
+A dedicated signing chip on the device, costume images in wallets, friend visits and postcards, a Dream Journal, pets earning on Agent Market, arena prizes, the brain inside OutLayer, then mainnet.
 
 ## Team
 
