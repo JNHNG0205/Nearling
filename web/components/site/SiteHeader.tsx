@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
+import { Logo } from "@/components/site/Logo";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
 import { putProfile } from "@/lib/brain";
 import { inSetup } from "@/lib/flow";
@@ -20,7 +21,7 @@ export function SiteHeader() {
     return (
       <header className="border-b-2 border-line">
         <div className="mx-auto flex min-h-16 max-w-[1200px] items-center justify-between gap-x-3 px-4 py-2 md:px-6">
-          <Link href="/" className="font-display text-xl leading-8 font-bold md:text-[32px]">Petto</Link>
+          <Link href="/" aria-label="Petto, home" className="pt-3"><Logo /></Link>
           <Link href="/start" className="pixel-btn px-3 text-sm">Open app</Link>
         </div>
       </header>
@@ -30,7 +31,7 @@ export function SiteHeader() {
     <header className="border-b-2 border-line">
       {/* one row at 390 px too: no wrap, tighter gaps and wordmark on phones */}
       <div className="mx-auto flex min-h-16 max-w-[1200px] items-center gap-x-3 px-4 py-2 md:gap-x-6 md:px-6">
-        <Link href="/" className="font-display text-xl leading-8 font-bold md:text-[32px]">Petto</Link>
+        <Link href="/" aria-label="Petto, home" className="shrink-0 pt-3"><Logo /></Link>
         {inSetup(path) ? (
           <span className="flex-1" />
         ) : (
