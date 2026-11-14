@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import type { Move } from "@petto/battle";
 import { PetSprite } from "@/components/PetSprite";
+import { PixelIcon } from "@/components/PixelIcon";
 import { eventText, menuOptions, type ClientEvent, type ClientState } from "@/lib/battle";
+import { battleFx, type SideFx } from "@/lib/battleFx";
 import { BattleMenu } from "./BattleMenu";
 import { StatusPlate } from "./StatusPlate";
 
@@ -51,20 +53,38 @@ export function BattleScreen({ s, dispatch, send }: { s: ClientState; dispatch: 
     dispatch({ type: "choose", screen: "waiting" });
   };
 
+  // the playing event's effect on each pet; a pet faints on screen only when its faint event plays
+  const fx: (SideFx | undefined)[] = [undefined, undefined];
+  if (event) for (const f of battleFx(event)) fx[f.side] = f;
+  const faintAt = (side: 0 | 1) => s.queue.findIndex((e) => e.kind === "faint" && e.side === side);
+
   const sprite = (side: 0 | 1) => {
     const p = s.pets[side];
     if (!p) return null;
-    const fainted = s.battle!.fighters[side].hp === 0;
+    const at = faintAt(side);
+    const fainted = s.battle!.fighters[side].hp === 0 && (s.screen !== "playing" || at === -1 || step >= at);
+    const f = fx[side];
+    const toward = side === you ? "up" : "down"; // yours stands bottom left, the foe top right
     return (
-      <PetSprite
-        traits={p.traits}
-        stageIndex={p.stageIndex}
-        winged={false}
-        costume={p.costume}
-        state={fainted ? "dormant" : "happy"}
-        scale={3}
-        label={p.name}
-      />
+      <div key={`${side}-${step}-${s.queue.length}`} className={`relative ${f?.motion ? `battle-fx battle-fx-${f.motion} battle-fx-${toward}` : ""}`}>
+        <PetSprite
+          traits={p.traits}
+          stageIndex={p.stageIndex}
+          winged={false}
+          costume={p.costume}
+          state={fainted ? "dormant" : "happy"}
+          play={f?.sprite ?? null}
+          playKey={`${step}-${side}`}
+          scale={3}
+          label={p.name}
+        />
+        {f?.popup && (
+          <span className={`battle-popup battle-popup-${f.popup.tone} font-display`} aria-hidden="true">
+            {f.popup.icon && <PixelIcon name={f.popup.icon} size={14} />}
+            {f.popup.text}
+          </span>
+        )}
+      </div>
     );
   };
 

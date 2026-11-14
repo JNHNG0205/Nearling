@@ -89,3 +89,51 @@ body { font-family: var(--font-text); font-size: 16px; line-height: 24px; }
   scrollbar-width: thin;
   scrollbar-color: var(--n-line) transparent;
 }
+
+/* Battle effects (components/battle/BattleScreen.tsx, lib/battleFx.ts): one short motion per event. */
+.battle-fx { animation-duration: 650ms; animation-timing-function: steps(6, end); animation-fill-mode: both; }
+.battle-fx-lunge.battle-fx-up { animation-name: battle-lunge-up; }
+.battle-fx-lunge.battle-fx-down { animation-name: battle-lunge-down; }
+.battle-fx-hit { animation-name: battle-hit; }
+.battle-fx-dodge.battle-fx-up { animation-name: battle-dodge-up; }
+.battle-fx-dodge.battle-fx-down { animation-name: battle-dodge-down; }
+.battle-fx-brace { animation-name: battle-brace; }
+.battle-fx-ready { animation-name: battle-ready; }
+.battle-fx-cast { animation-name: battle-cast; }
+.battle-fx-faint { animation-name: battle-faint; animation-duration: 900ms; }
+.battle-fx-run.battle-fx-up { animation-name: battle-run-up; animation-duration: 900ms; }
+.battle-fx-run.battle-fx-down { animation-name: battle-run-down; animation-duration: 900ms; }
+@keyframes battle-lunge-up { 0%, 100% { transform: translate(0, 0); } 40% { transform: translate(28px, -20px); } }
+@keyframes battle-lunge-down { 0%, 100% { transform: translate(0, 0); } 40% { transform: translate(-28px, 20px); } }
+@keyframes battle-hit {
+  0%, 100% { transform: translateX(0); filter: none; }
+  20% { transform: translateX(-6px); filter: brightness(2) saturate(0); }
+  40% { transform: translateX(6px); filter: none; }
+  60% { transform: translateX(-4px); filter: brightness(2) saturate(0); }
+  80% { transform: translateX(3px); filter: none; }
+}
+@keyframes battle-dodge-up { 0%, 100% { transform: translateX(0); opacity: 1; } 40% { transform: translateX(-30px); opacity: .5; } }
+@keyframes battle-dodge-down { 0%, 100% { transform: translateX(0); opacity: 1; } 40% { transform: translateX(30px); opacity: .5; } }
+@keyframes battle-brace { 0%, 100% { transform: scale(1, 1); } 30%, 70% { transform: scale(1.12, .85) translateY(6px); } }
+@keyframes battle-ready { 0%, 100% { transform: translateY(0); } 30% { transform: translateY(-12px); } 60% { transform: translateY(0); } }
+@keyframes battle-cast { 0%, 100% { transform: scale(1); filter: none; } 40% { transform: scale(1.12); filter: brightness(1.5); } }
+@keyframes battle-faint { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(14px); opacity: .45; filter: grayscale(1); } }
+@keyframes battle-run-up { 0% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(-160px); opacity: 0; } }
+@keyframes battle-run-down { 0% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(160px); opacity: 0; } }
+
+.battle-popup {
+  position: absolute; left: 50%; top: -6px; display: inline-flex; align-items: center; gap: 4px;
+  white-space: nowrap; font-size: 14px; pointer-events: none;
+  text-shadow: 2px 2px 0 var(--n-shadow);
+  animation: battle-popup 1100ms steps(8, end) both;
+}
+.battle-popup-damage { color: var(--n-danger); }
+.battle-popup-crit { color: var(--n-warn); font-size: 18px; }
+.battle-popup-heal { color: var(--n-fuel); }
+.battle-popup-info { color: var(--p-ink); }
+@keyframes battle-popup { 0% { transform: translate(-50%, 8px); opacity: 0; } 15% { opacity: 1; } 80% { opacity: 1; } 100% { transform: translate(-50%, -28px); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .battle-fx { animation: none; }
+  .battle-popup { animation: none; transform: translateX(-50%); }
+}
