@@ -9,7 +9,6 @@ import { ConnectButton } from "@/components/wallet/ConnectButton";
 import { FaucetPanel } from "@/components/wallet/FaucetPanel";
 import { HatchAnimation } from "@/components/wallet/HatchAnimation";
 import { MintForm } from "@/components/wallet/MintForm";
-import { SpeedPicker } from "@/components/wallet/SpeedPicker";
 import { AppFrame, DemoSpeedPill, ErrorText, Panel, Spinner } from "@/components/wallet/ui";
 import { getPetState, postHatch } from "@/lib/brain";
 import { hasWebBluetooth, readPairingUrlOverBle } from "@/lib/ble";
@@ -246,7 +245,6 @@ function PetStep({ accountId, onChosen }: { accountId: string; onChosen: (petRef
   const [error, setError] = useState<string | null>(null);
   // setup is mainly for hatching a new pet; picking an existing one is the secondary path
   const [minting, setMinting] = useState(true);
-  const [mintContract, setMintContract] = useState<string>(PETS_CONTRACT);
   const [hatching, setHatching] = useState<string | null>(null);
   const [busyRef, setBusyRef] = useState<string | null>(null);
 
@@ -286,8 +284,7 @@ function PetStep({ accountId, onChosen }: { accountId: string; onChosen: (petRef
     return (
       <div className="flex flex-col gap-3">
         <FaucetPanel />
-        <SpeedPicker contract={mintContract} onChange={setMintContract} />
-        <MintForm key={mintContract} contract={mintContract} onMinted={(id) => setHatching(formatPetRef(mintContract, id))} />
+        <MintForm contract={PETS_CONTRACT} onMinted={(id) => setHatching(formatPetRef(PETS_CONTRACT, id))} />
         <button className="self-start text-sm text-muted underline" onClick={() => setMinting(false)}>
           Or pick a pet I already have
         </button>
