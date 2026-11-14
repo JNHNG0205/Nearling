@@ -16,6 +16,7 @@ export function PetTabs({ petRef, isOwner }: { petRef: string; isOwner: boolean 
     [`/pet/${ref}/garden`, "Garden"],
     [`/pet/${ref}/closet`, "Closet"],
     [`/pet/${ref}/soul`, "Soul"],
+    [`/pet/${ref}/traits`, "Traits"],
     [`/pet/${ref}/device`, "Device"],
   ];
   const more: [string, string][] = [
