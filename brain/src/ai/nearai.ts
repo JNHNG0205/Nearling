@@ -162,6 +162,9 @@ export function createNearAi(
         messages,
         max_tokens: o.maxTokens ?? 160,
         temperature: o.temperature ?? 0.8,
+        // Qwen3 thinks before answering unless told not to; a pet reply needs no reasoning, and
+        // thinking made replies about 10x slower and could use the whole token budget (empty reply).
+        ...(/^qwen\/qwen3/i.test(model) ? { chat_template_kwargs: { enable_thinking: false } } : {}),
       });
       const headers = {
         Authorization: auth(),
