@@ -34,7 +34,9 @@ export default function StartPage() {
 
 function readStored(): WizardState {
   try {
-    return parseWizard(window.localStorage.getItem(WIZARD_KEY));
+    const s = parseWizard(window.localStorage.getItem(WIZARD_KEY));
+    // a pet saved before a contract redeploy (e.g. pets-v8) is not served any more: choose again
+    return s.petRef && !petFromRef(s.petRef) ? { ...s, petRef: null, customised: false } : s;
   } catch {
     return EMPTY_WIZARD;
   }
@@ -133,6 +135,7 @@ function Wizard() {
           );
         })}
       </ol>
+      <DeviceChoice petRef={state.petRef} />
     </AppFrame>
   );
 }
@@ -457,6 +460,22 @@ function HandoffStep({ state, update }: { state: WizardState; update: (p: Partia
         </>
       )}
       {browserLink}
+    </div>
+  );
+}
+
+/** Always at the bottom: set up a device now (guide), or carry on in the browser. */
+function DeviceChoice({ petRef }: { petRef: string | null }) {
+  const p = petRef ? petFromRef(petRef) : null;
+  return (
+    <div className="flex flex-col gap-2 border-t-2 border-line pt-4">
+      <p className="text-sm text-muted">Have a Petto device? Pair it any time. No device? Your pet lives in the browser too.</p>
+      <div className="flex flex-wrap gap-2">
+        <Link href="/connect-device" className="pixel-btn">Connect device</Link>
+        <Link href={p ? petPath(p.contract, p.tokenId) : "/adopt"} className="pixel-btn pixel-btn--secondary">
+          Continue without a device
+        </Link>
+      </div>
     </div>
   );
 }
