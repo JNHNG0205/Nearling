@@ -9,7 +9,7 @@ import { ErrorText, Panel, Spinner, TxStatus } from "@/components/wallet/ui";
 import type { PetData } from "@/components/wallet/usePet";
 import { useTx } from "@/components/wallet/useTx";
 import { BrainRequestError } from "@/lib/brain";
-import { COSTUME_PRICE, formatNear, nftTokensForOwner, SHIRT_DEPOSIT, SHIRTS_CONTRACT, tx } from "@/lib/chain";
+import { formatNear, nftTokensForOwner, SHIRT_DEPOSIT, SHIRTS_CONTRACT, tx } from "@/lib/chain";
 import { closetItems, costumeLabel, shopCostumes, type ClosetItem } from "@/lib/closet";
 import { brainErrorCopy } from "@/lib/errors";
 
@@ -139,10 +139,9 @@ export function Closet({ pet }: { pet: PetData }) {
         <section aria-labelledby="shop-title" className="flex flex-col gap-3">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 id="shop-title" className="font-display text-lg">Costume shop</h2>
-            <span className="text-sm text-muted">
-              {formatNear(COSTUME_PRICE)} NEAR each, yours as an NFT ·{" "}
-              <Link href={`/shop?pet=${encodeURIComponent(pet.ref)}`} className="underline">Open the Shop</Link>
-            </span>
+            <Link href={`/shop?pet=${encodeURIComponent(pet.ref)}`} className="font-display text-sm text-accent hover:underline">
+              Open the Shop &gt;
+            </Link>
           </div>
           <TxStatus state={buyTx.state} doneText="Bought" />
           <CostumeGrid model={model} keys={shop} trying={trying} busyKey={buying} disabled={buyTx.busy || saving}

@@ -2,6 +2,7 @@
 
 import type { CostumeKey } from "@petto/sprites";
 import { PetSprite } from "@/components/PetSprite";
+import { COSTUME_PRICE, formatNear } from "@/lib/chain";
 import { costumeLabel } from "@/lib/closet";
 
 /** The pet the costumes are previewed on. */
@@ -14,7 +15,7 @@ export interface Model {
 
 /**
  * Costume cards (Closet and /shop): the pet in each costume, tap to try on, Buy or Wear.
- * Costumes in `owned` show Wear instead of Buy; `onBuy` null means buying is off (signed out).
+ * Costumes in `owned` show Wear instead of Buy; `onBuy` null shows the price disabled (signed out).
  */
 export function CostumeGrid({
   model, keys, owned, trying, busyKey, disabled, onTry, onBuy, onWear,
@@ -44,11 +45,12 @@ export function CostumeGrid({
               <button className="pixel-btn pixel-btn--secondary w-full text-sm" disabled={disabled} onClick={() => onWear(token)}>
                 Owned · Wear
               </button>
-            ) : onBuy ? (
-              <button className="pixel-btn w-full text-sm" disabled={disabled} onClick={() => onBuy(key)}>
-                {busyKey === key ? "Check your wallet..." : "Buy"}
+            ) : (
+              <button className="pixel-btn w-full text-sm" disabled={disabled || !onBuy} onClick={() => onBuy?.(key)}
+                aria-label={`Buy ${costumeLabel(key)} for ${formatNear(COSTUME_PRICE)} NEAR`}>
+                {busyKey === key ? "Check your wallet..." : `${formatNear(COSTUME_PRICE)} NEAR`}
               </button>
-            ) : null}
+            )}
           </li>
         );
       })}

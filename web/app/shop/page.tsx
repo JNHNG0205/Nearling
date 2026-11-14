@@ -10,7 +10,7 @@ import { equipShirt } from "@/components/wallet/brainApi";
 import { AppFrame, ErrorText, Panel, Spinner, TxStatus } from "@/components/wallet/ui";
 import { useTx } from "@/components/wallet/useTx";
 import { BrainRequestError } from "@/lib/brain";
-import { COSTUME_PRICE, formatNear, nftTokensForOwner, SHIRTS_CONTRACT, tx } from "@/lib/chain";
+import { nftTokensForOwner, SHIRTS_CONTRACT, tx } from "@/lib/chain";
 import { closetItems, costumeLabel, ownedCostumes, type ClosetItem } from "@/lib/closet";
 import { brainErrorCopy } from "@/lib/errors";
 import { loadMyPets, type MyPet } from "@/lib/myPets";
@@ -116,7 +116,7 @@ function Shop() {
         <div className="flex flex-col items-center gap-2">
           <PetSprite traits={model.traits} stageIndex={model.stageIndex} winged={model.winged} costume={current}
             state="happy" scale={6} label={`${model.name}. ${caption}`} />
-          <p className="font-display text-sm text-muted" aria-live="polite">{caption}</p>
+          <p className="font-display text-sm" aria-live="polite">{caption}</p>
           {pets.length > 1 && (
             <label className="flex items-center gap-2 text-sm">Dress up
               <select className="bg-surface px-2 py-1" value={pet?.ref ?? ""}
@@ -127,18 +127,13 @@ function Shop() {
           )}
           {!account && (
             <>
-              <p className="text-sm text-muted">Connect your wallet to buy costumes and dress up your pets.</p>
               <ConnectButton />
             </>
           )}
-          {account && !pet && <p className="text-sm text-muted">No pet yet: costumes you buy wait in your closet.</p>}
         </div>
       </Panel>
 
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-display text-lg">Costumes</h2>
-        <span className="text-sm text-muted">{formatNear(COSTUME_PRICE)} NEAR each, yours to keep as an NFT</span>
-      </div>
+      <h2 className="font-display text-lg">Costumes</h2>
       <TxStatus state={buyTx.state} doneText="Bought" />
       <ErrorText>{error}</ErrorText>
       <CostumeGrid model={model} keys={COSTUME_KEYS} owned={owned} trying={trying} busyKey={buying}
