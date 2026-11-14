@@ -158,9 +158,9 @@ charge. `played`, `device_*`, `action_*` and `item_bought` are left out.
 
 | Method, path | Auth | Body | Returns |
 |---|---|---|---|
-| `POST /battle/rooms` | S (owner of the pet) | `{ pet_ref }` | `{ code }` |
-| `POST /battle/rooms/:code/join` | S (owner of the pet) | `{ pet_ref }` | `{ ok: true }` |
-| `GET /battle/ws?code=&token=` | S (session token in the query) | | WebSocket |
+| `POST /battle/rooms` | S (owner of the pet) or D (always its bound pet, `pet_ref` ignored) | `{ pet_ref }` | `{ code }` |
+| `POST /battle/rooms/:code/join` | S (owner of the pet) or D (its bound pet) | `{ pet_ref }` | `{ ok: true }` |
+| `GET /battle/ws?code=&token=` | S (session token in the query) or D (`Authorization: Device <token>` header) | | WebSocket |
 
 Errors: 404 `not_found`; 409 `full`, `same_owner`, `same_pet`, `other_contract` (pets on different contracts), `daily_limit` (3 battles per pair of pets in a rolling 24 hours; the body adds `retry_at`, ms since epoch, when the pair may battle again), `pet_busy` (the pet is fighting in another battle; joining or starting a room otherwise drops the pet's other waiting room); 422 `pet_unavailable` (starving or dormant); 429 `rate_limited`. The socket upgrade answers 401 before joining.
 

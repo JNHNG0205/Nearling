@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createApp } from "../app";
-import { issueSession } from "../auth/guard";
+import { issueSession, sha256 } from "../auth/guard";
 import type { Chain } from "../chain/near";
 import { TEST_PET, testDeps } from "../test/deps";
 import { battleHubFor } from "./routes";
@@ -20,7 +20,7 @@ function setup(owners: Record<string, string> = { "1": "alice.testnet", "2": "bo
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${(await issueSession(deps, account)).token}` },
       body: JSON.stringify(body),
     });
-  return { deps, post };
+  return { deps, post, app };
 }
 
 describe("battle routes", () => {
@@ -30,6 +30,28 @@ describe("battle routes", () => {
     expect(created.status).toBe(200);
     const { code } = (await created.json()) as { code: string };
     expect((await post("bob.testnet", `/battle/rooms/${code}/join`, { pet_ref: P("2") })).status).toBe(200);
+  });
+
+  it("lets a paired device battle with its own pet (and only that pet)", async () => {
+    const { deps, post, app } = setup();
+    deps.db
+      .prepare("INSERT INTO device (id, hw_id, secret_hash, token_hash, pet_ref, owner_account, created_at) VALUES ('d1','hw','x',?,?,?,0)")
+      .run(sha256("dev-token"), P("1"), "alice.testnet");
+    const asDevice = (path: string, body: unknown) =>
+      app.request(path, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Device dev-token" }, body: JSON.stringify(body) });
+    // the device names alice's other pet: it still fights with the pet it is bound to
+    const created = await asDevice("/battle/rooms", { pet_ref: P("3") });
+    expect(created.status).toBe(200);
+    const { code } = (await created.json()) as { code: string };
+    expect(battleHubFor(deps).petsOf(code)?.[0]?.petRef).toBe(P("1"));
+    expect(battleHubFor(deps).slotOf(code, "alice.testnet")).toBe(0);
+    // a web player joins the device's room
+    expect((await post("bob.testnet", `/battle/rooms/${code}/join`, { pet_ref: P("2") })).status).toBe(200);
+
+    // and the device can join a web player's room
+    const web = (await (await post("bob.testnet", "/battle/rooms", { pet_ref: P("2") })).json()) as { code: string };
+    expect((await asDevice(`/battle/rooms/${web.code}/join`, {})).status).toBe(200);
+    expect(battleHubFor(deps).slotOf(web.code, "alice.testnet")).toBe(1);
   });
 
   it("refuses a pet the caller does not own", async () => {

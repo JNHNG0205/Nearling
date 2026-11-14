@@ -12,7 +12,8 @@ import { createBattleWorker } from "./record";
 
 // Battle routes (spec 3.2): signed-in owners create or join a room with one of their pets, then
 // play over the WebSocket. Browsers cannot set headers on a WebSocket, so it takes the session
-// token as a query parameter.
+// token as a query parameter. A paired device (`Authorization: Device <token>`, header on the
+// socket too) plays for its owner, always with the pet it is bound to.
 
 const MAX_MESSAGE = 4 * 1024;
 const PAIR_LIMIT_PER_DAY = 3;
@@ -51,11 +52,13 @@ async function entrant(deps: Deps, account: string, rawRef: unknown): Promise<En
 export function battleRoutes(deps: Deps) {
   const hub = battleHubFor(deps);
   const app = new Hono<{ Variables: { caller: Caller; battleCode: string; battleSlot: 0 | 1 } }>();
-  const owner = requireCaller(deps, ["owner"]);
+  const player = requireCaller(deps, ["owner", "device"]);
+  /** A device can only bring its own pet; an owner names one. */
+  const petRefOf = (caller: Caller, body: { pet_ref?: unknown } | null) => (caller.kind === "device" ? caller.petRef : body?.pet_ref);
 
-  app.post("/battle/rooms", owner, async (c) => {
+  app.post("/battle/rooms", player, async (c) => {
     const body = (await jsonBody(c)) as { pet_ref?: unknown } | null;
-    const e = await entrant(deps, c.get("caller").account, body?.pet_ref);
+    const e = await entrant(deps, c.get("caller").account, petRefOf(c.get("caller"), body));
     if (!e.ok) return fail(c, e.status, e.code, e.message);
     if (!hub.release(e.pet.petRef)) return fail(c, 409, "pet_busy", `${e.pet.name} is already in a battle`);
     const code = hub.createRoom({ account: c.get("caller").account, pet: e.pet, xp: e.xp, xpToday: e.xpToday, day: e.day });
@@ -63,9 +66,9 @@ export function battleRoutes(deps: Deps) {
     return c.json({ code });
   });
 
-  app.post("/battle/rooms/:code/join", owner, async (c) => {
+  app.post("/battle/rooms/:code/join", player, async (c) => {
     const body = (await jsonBody(c)) as { pet_ref?: unknown } | null;
-    const e = await entrant(deps, c.get("caller").account, body?.pet_ref);
+    const e = await entrant(deps, c.get("caller").account, petRefOf(c.get("caller"), body));
     if (!e.ok) return fail(c, e.status, e.code, e.message);
     const host = hub.petsOf(c.req.param("code"))?.[0];
     if (host && host.petRef !== e.pet.petRef) {
@@ -97,9 +100,10 @@ export function battleRoutes(deps: Deps) {
   app.get(
     "/battle/ws",
     async (c, next) => {
-      const caller = await readCaller(deps, `Bearer ${c.req.query("token") ?? ""}`);
+      // the device sends its token as a header; browsers pass the session as ?token=
+      const caller = await readCaller(deps, c.req.header("Authorization") ?? `Bearer ${c.req.query("token") ?? ""}`);
       const code = (c.req.query("code") ?? "").toUpperCase();
-      const slot = caller?.kind === "owner" ? hub.slotOf(code, caller.account) : null;
+      const slot = caller ? hub.slotOf(code, caller.account) : null;
       if (slot === null) return fail(c, 401, "unauthorized", "Create or join this battle first");
       c.set("battleCode", code);
       c.set("battleSlot", slot);

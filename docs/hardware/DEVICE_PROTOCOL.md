@@ -152,7 +152,7 @@ While the pairing screen is up, the device advertises a BLE peripheral so a phon
 
 ## 10. Battles (Race was removed)
 
-Petto Run is gone; the device has no game for now. See `docs/hardware/BATTLE.md` for the turn-based battle and how the device can join later.
+Petto Run is gone. The device hosts turn-based battles (`firmware/petto`, menu Battle): `POST /battle/rooms` with the device token (the brain uses the bound pet), show the QR `https://mypetto.xyz/battle/<code>` for the other player, then `GET /battle/ws?code=<code>` with the header `Authorization: Device <token>`. Messages are in `packages/battle/src/protocol.ts`; send `{"type":"ready"}`, then one `{"type":"move","move":{...}}` per turn. The other player must be a different account. Details: `docs/hardware/BATTLE.md`.
 
 ## 11. Sprites: `art/nearling_sprites.h`
 
