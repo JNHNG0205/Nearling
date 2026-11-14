@@ -20,7 +20,7 @@ test("start wizard renders steps 1 to 3 and skips to the wallet without a device
 
   await page.getByRole("button", { name: "Continue in the browser" }).click();
   await expect(page.getByText("Step 2 of 5")).toBeVisible();
-  await expect(page.getByRole("button", { name: /Connect Meteor|Loading wallet/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Connect wallet|Loading wallet/ })).toBeVisible();
 
   // progress survives a reload
   await page.reload();

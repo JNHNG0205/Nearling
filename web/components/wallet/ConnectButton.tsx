@@ -1,8 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { privyEnabled } from "@/lib/privy";
 import { useSignIn } from "@/lib/wallet";
 import { ErrorText } from "./ui";
 
@@ -10,9 +7,8 @@ import { ErrorText } from "./ui";
  * Connect + NEP-413 sign-in in one popup when the wallet supports it, then POST /session.
  * When the wallet is connected but the brain session is missing, it signs the message only.
  */
-export function ConnectButton({ label = "Connect Meteor", compact = false }: { label?: string; compact?: boolean }) {
+export function ConnectButton({ label = "Connect wallet", compact = false }: { label?: string; compact?: boolean }) {
   const { wallet, session, busy, error, signIn, signOut } = useSignIn();
-  const path = usePathname();
 
   if (!wallet.ready) {
     return (
@@ -48,11 +44,6 @@ export function ConnectButton({ label = "Connect Meteor", compact = false }: { l
         >
           Use another wallet
         </button>
-      )}
-      {!compact && !wallet.accountId && privyEnabled() && (
-        <Link href={`/login?next=${encodeURIComponent(path || "/my")}`} className="self-start text-sm text-muted underline">
-          No wallet? Sign in with email or Google
-        </Link>
       )}
       {!compact && wallet.accountId && (
         <button className="self-start text-sm text-muted underline" onClick={() => void signOut()}>

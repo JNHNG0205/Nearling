@@ -123,7 +123,7 @@ export default function ApprovePage() {
             <ErrorText>Connect {approval.account_id} to sign this.</ErrorText>
           ) : (
             <button className="pixel-btn" disabled={busy} onClick={() => void sign()}>
-              {busy ? "Check Meteor..." : "Sign in Meteor"}
+              {busy ? "Check your wallet..." : "Sign in your wallet"}
             </button>
           )}
           <TxStatus state={state} doneText="Signed" />
