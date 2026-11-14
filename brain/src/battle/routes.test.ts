@@ -48,13 +48,18 @@ describe("battle routes", () => {
 
   it("refuses a 4th battle of the same two pets on one day", async () => {
     const { deps, post } = setup();
+    const hour = 3_600_000;
     for (let i = 0; i < 3; i++) {
-      deps.db.prepare("INSERT INTO battle (id, pet_a, pet_b, winner, reason, created_at) VALUES (?, ?, ?, 0, 'ko', ?)").run(`b${i}`, P("2"), P("1"), deps.now());
+      deps.db.prepare("INSERT INTO battle (id, pet_a, pet_b, winner, reason, created_at) VALUES (?, ?, ?, 0, 'ko', ?)").run(`b${i}`, P("2"), P("1"), deps.now() - (5 - i) * hour);
     }
     const { code } = (await (await post("alice.testnet", "/battle/rooms", { pet_ref: P("1") })).json()) as { code: string };
     const res = await post("bob.testnet", `/battle/rooms/${code}/join`, { pet_ref: P("2") });
     expect(res.status).toBe(409);
-    expect(((await res.json()) as { error: { code: string } }).error.code).toBe("daily_limit");
+    const body = (await res.json()) as { error: { code: string; message: string; retry_at: number } };
+    expect(body.error.code).toBe("daily_limit");
+    // a rolling 24 hours: the oldest of the three battles (5 h ago) frees a slot 19 h from now
+    expect(body.error.retry_at).toBe(deps.now() + 19 * hour);
+    expect(body.error.message).toBe("These two pets already battled 3 times in the last 24 hours.");
   });
 
   it("refuses a starving or dormant pet", async () => {
@@ -85,5 +90,13 @@ describe("battle routes", () => {
     const res = await post("bob.testnet", "/battle/rooms", { pet_ref: P("2") });
     expect(res.status).toBe(409);
     expect(((await res.json()) as { error: { code: string } }).error.code).toBe("pet_busy");
+  });
+  it("lets a pet that left its own waiting room join someone else's", async () => {
+    const { post } = setup();
+    const mine = (await (await post("alice.testnet", "/battle/rooms", { pet_ref: P("1") })).json()) as { code: string };
+    const theirs = (await (await post("bob.testnet", "/battle/rooms", { pet_ref: P("2") })).json()) as { code: string };
+    const res = await post("alice.testnet", `/battle/rooms/${theirs.code}/join`, { pet_ref: P("1") });
+    expect(res.status).toBe(200);
+    expect(mine.code).not.toBe(theirs.code);
   });
 });

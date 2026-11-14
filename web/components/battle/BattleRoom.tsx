@@ -108,6 +108,11 @@ export function BattleRoom({ code }: { code: string }) {
         <button type="button" className="pixel-btn w-full" onClick={join} disabled={joining || !joinPet}>
           {joining ? "Joining..." : "Join the battle"}
         </button>
+        {problem && (
+          <p role="alert" className="border-2 border-[var(--n-danger)] px-3 py-2 text-sm">
+            <span className="font-display text-danger">Can&apos;t battle.</span> {problem}
+          </p>
+        )}
       </section>
     );
   } else if (s.closedEarly) {
@@ -179,7 +184,7 @@ export function BattleRoom({ code }: { code: string }) {
     <main className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col gap-6 px-4 py-6 md:max-w-[760px] md:px-6 md:py-10">
       {header}
       {body}
-      {problem && (
+      {problem && !needJoin && (
         <p role="alert"><span className="font-display text-danger">Problem.</span> {problem}</p>
       )}
     </main>

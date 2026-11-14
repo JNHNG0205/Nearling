@@ -69,10 +69,14 @@ export function battleRoutes(deps: Deps) {
     if (!e.ok) return fail(c, e.status, e.code, e.message);
     const host = hub.petsOf(c.req.param("code"))?.[0];
     if (host && host.petRef !== e.pet.petRef) {
-      const today = deps.db.prepare(
-        "SELECT COUNT(*) AS n FROM battle WHERE ((pet_a = ? AND pet_b = ?) OR (pet_a = ? AND pet_b = ?)) AND created_at > ?",
-      ).get(host.petRef, e.pet.petRef, e.pet.petRef, host.petRef, deps.now() - DAY_MS) as { n: number };
-      if (today.n >= PAIR_LIMIT_PER_DAY) return fail(c, 409, "daily_limit", "These two pets battled 3 times today. Try again tomorrow.");
+      // a rolling 24 hours: the pair may battle again when its oldest recent battle is a day old
+      const recent = deps.db.prepare(
+        "SELECT created_at FROM battle WHERE ((pet_a = ? AND pet_b = ?) OR (pet_a = ? AND pet_b = ?)) AND created_at > ? ORDER BY created_at DESC LIMIT ?",
+      ).all(host.petRef, e.pet.petRef, e.pet.petRef, host.petRef, deps.now() - DAY_MS, PAIR_LIMIT_PER_DAY) as { created_at: number }[];
+      if (recent.length >= PAIR_LIMIT_PER_DAY) {
+        const retryAt = recent[PAIR_LIMIT_PER_DAY - 1]!.created_at + DAY_MS;
+        return c.json({ error: { code: "daily_limit", message: "These two pets already battled 3 times in the last 24 hours.", retry_at: retryAt } }, 409);
+      }
     }
     if (!hub.release(e.pet.petRef, c.req.param("code").toUpperCase())) return fail(c, 409, "pet_busy", `${e.pet.name} is already in a battle`);
     const r = hub.join(c.req.param("code"), { account: c.get("caller").account, pet: e.pet, xp: e.xp, xpToday: e.xpToday, day: e.day });

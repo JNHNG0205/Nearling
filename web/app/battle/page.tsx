@@ -12,24 +12,25 @@ export default function BattleLobbyPage() {
   const [pet, setPet] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
+  /** the last refusal, shown under the button that caused it */
+  const [problem, setProblem] = useState<{ at: "start" | "join"; text: string } | null>(null);
 
-  const run = async (work: () => Promise<string>) => {
+  const run = async (at: "start" | "join", work: () => Promise<string>) => {
     setBusy(true);
     setProblem(null);
     try {
       router.push(`/battle/${await work()}`);
     } catch (e) {
-      setProblem(e instanceof BattleRequestError ? e.message : "The brain didn't answer. Try again in a moment.");
+      setProblem({ at, text: e instanceof BattleRequestError ? e.message : "The brain didn't answer. Try again in a moment." });
       setBusy(false);
     }
   };
 
-  const start = () => pet && run(() => createBattle(pet, authHeaders()));
+  const start = () => pet && run("start", () => createBattle(pet, authHeaders()));
   const join = (e: React.FormEvent) => {
     e.preventDefault();
     if (!pet || code.length !== 6) return;
-    void run(async () => {
+    void run("join", async () => {
       await joinBattle(code, pet, authHeaders());
       return code;
     });
@@ -55,6 +56,7 @@ export default function BattleLobbyPage() {
         <button type="button" className="pixel-btn w-full" onClick={start} disabled={busy || !pet}>
           {busy ? "Starting..." : "Start a battle"}
         </button>
+        {problem?.at === "start" && <Refusal text={problem.text} />}
       </section>
 
       <form className="pixel-panel flex flex-col gap-3 p-4" onSubmit={join}>
@@ -73,11 +75,16 @@ export default function BattleLobbyPage() {
         <button type="submit" className="pixel-btn pixel-btn--secondary w-full" disabled={busy || !pet || code.length !== 6}>
           Join the battle
         </button>
+        {problem?.at === "join" && <Refusal text={problem.text} />}
       </form>
-
-      {problem && (
-        <p role="alert"><span className="font-display text-danger">Problem.</span> {problem}</p>
-      )}
     </main>
+  );
+}
+
+function Refusal({ text }: { text: string }) {
+  return (
+    <p role="alert" className="border-2 border-[var(--n-danger)] px-3 py-2 text-sm">
+      <span className="font-display text-danger">Can&apos;t battle.</span> {text}
+    </p>
   );
 }

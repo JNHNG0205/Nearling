@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { newBattle, type BattleState } from "@petto/battle";
 import type { BattlePet } from "@petto/battle/protocol";
-import { eventText, initialState, menuOptions, reduce, type ClientState } from "./battle";
+import { eventText, initialState, joinErrorText, menuOptions, reduce, type ClientState } from "./battle";
 
 const pet = (name: string, traits: number[], level: number): BattlePet =>
   ({ petRef: `pets.petto.testnet:${name}`, name, traits, level, stageIndex: 1, costume: null });
@@ -70,4 +70,27 @@ describe("battle client", () => {
     expect(eventText({ kind: "move", side: 0, skill: "attack", damage: 0, crit: false, healed: 0, dodge: "dodged" }, names)).toBe("Mochi used Attack! Bao dodged the attack!");
     expect(eventText({ kind: "move", side: 0, skill: "attack", damage: 7, crit: false, healed: 0, dodge: "failed" }, names)).toBe("Mochi used Attack! Bao tried to dodge, but got hit hard!");
   });
+
+describe("join errors", () => {
+  const utc = {
+    time: (d: Date) => `${d.getUTCHours()}:${String(d.getUTCMinutes()).padStart(2, "0")}`,
+    day: (d: Date) => d.toISOString().slice(0, 10),
+  };
+  const now = Date.UTC(2026, 10, 14, 14, 30);
+
+  it("the daily limit says when the two pets can battle again, and what to do now", () => {
+    expect(joinErrorText("daily_limit", Date.UTC(2026, 10, 15, 13, 19), now, utc)).toBe(
+      "These two pets already battled 3 times in the last 24 hours. They can battle again tomorrow at 13:19. Pick another pet, or battle someone else.",
+    );
+    expect(joinErrorText("daily_limit", Date.UTC(2026, 10, 14, 21, 5), now, utc)).toContain("They can battle again at 21:05.");
+    expect(joinErrorText("daily_limit", undefined, now, utc)).toBe(
+      "These two pets already battled 3 times in the last 24 hours. Pick another pet, or battle someone else.",
+    );
+  });
+
+  it("other codes keep their plain copy; unknown ones fall back", () => {
+    expect(joinErrorText("pet_busy")).toBe("That pet is already in a battle. Finish it first.");
+    expect(joinErrorText("weird")).toBe("The brain didn't answer. Try again in a moment.");
+  });
+});
 });

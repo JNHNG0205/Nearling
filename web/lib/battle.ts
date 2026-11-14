@@ -129,15 +129,29 @@ const JOIN_ERRORS: Record<string, string> = {
   other_contract: "Normal and demo speed pets can't battle each other. Pick a pet of the same kind.",
   full: "That battle already has two pets.",
   not_found: "No battle with that code.",
-  daily_limit: "These two pets already battled 3 times today. Try again tomorrow.",
+  daily_limit: "These two pets already battled 3 times in the last 24 hours.",
   pet_unavailable: "Your pet is too hungry to battle. Feed it first.",
   not_owner: "That pet isn't yours.",
   unauthorized: "Sign in to battle.",
 };
 
+const local = {
+  time: (d: Date) => d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+  day: (d: Date) => d.toDateString(),
+};
+
+/** Plain words for a refused join; the daily limit says when the pair can battle again and what to do now. */
+export function joinErrorText(code: string, retryAt?: number, now = Date.now(), clock = local): string {
+  if (code !== "daily_limit") return JOIN_ERRORS[code] ?? "The brain didn't answer. Try again in a moment.";
+  const when = retryAt
+    ? ` They can battle again ${clock.day(new Date(retryAt)) === clock.day(new Date(now)) ? "" : "tomorrow "}at ${clock.time(new Date(retryAt))}.`
+    : "";
+  return `${JOIN_ERRORS.daily_limit}${when} Pick another pet, or battle someone else.`;
+}
+
 export class BattleRequestError extends Error {
-  constructor(public code: string) {
-    super(JOIN_ERRORS[code] ?? "The brain didn't answer. Try again in a moment.");
+  constructor(public code: string, retryAt?: number) {
+    super(joinErrorText(code, retryAt));
   }
 }
 
@@ -147,8 +161,8 @@ async function post(path: string, body: unknown, auth: Record<string, string>): 
     headers: { "Content-Type": "application/json", ...auth },
     body: JSON.stringify(body),
   });
-  const json = (await res.json().catch(() => null)) as { error?: { code?: string } } | null;
-  if (!res.ok) throw new BattleRequestError(json?.error?.code ?? "upstream");
+  const json = (await res.json().catch(() => null)) as { error?: { code?: string; retry_at?: number } } | null;
+  if (!res.ok) throw new BattleRequestError(json?.error?.code ?? "upstream", json?.error?.retry_at);
   return json;
 }
 
