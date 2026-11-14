@@ -95,13 +95,13 @@ describe("inSetup", () => {
   });
 
   it("is false in the app and on look-alike paths", () => {
-    for (const p of ["/", "/my", "/shop", "/race", "/pet/x:1", "/starter", "/adopt"]) expect(inSetup(p)).toBe(false);
+    for (const p of ["/", "/my", "/shop", "/battle", "/pet/x:1", "/starter", "/adopt"]) expect(inSetup(p)).toBe(false);
   });
 });
 
 describe("setupGate", () => {
   it("sends a connected wallet with no pet from the app pages to setup", () => {
-    for (const path of ["/my", "/shop", "/race", "/race/ABCD", "/wallet"]) {
+    for (const path of ["/my", "/shop", "/battle", "/battle/ABCD", "/wallet"]) {
       expect(setupGate({ path, account: "new.testnet", pets: 0 })).toBe("/start");
     }
   });

@@ -10,7 +10,7 @@ import {
   type RacePlayer, type ServerMsg, type Slot,
 } from "@/lib/race";
 import { RaceCanvas, type Look, type Opponent, type RaceSnapshot } from "./RaceCanvas";
-import { RoomQr } from "./RoomQr";
+import { RoomQr } from "@/components/battle/RoomQr";
 
 // /race/[code] (web 03 section 11): lobby with Ready, countdown from start_at, the race, the result.
 

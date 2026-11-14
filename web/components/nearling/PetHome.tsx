@@ -19,6 +19,7 @@ import { useStream } from "@/lib/useStream";
 import { useTalk } from "@/lib/useTalk";
 import { useHatch } from "@/components/wallet/useHatch";
 import { growth } from "@/lib/growth";
+import { BattleLine } from "./BattleLine";
 import { DeviceNudge } from "./DeviceNudge";
 import { PetTabs } from "./PetTabs";
 import { notifyInBackground } from "./Inbox";
@@ -258,6 +259,7 @@ export function PetHome({ initial }: { initial: PetState }) {
             : undefined}
         />
         <PantryCard compact contract={pet.contract} tokenId={pet.token_id} name={pet.name} />
+        <BattleLine contract={pet.contract} tokenId={pet.token_id} isOwner={isOwner} />
       </div>
 
       </div>

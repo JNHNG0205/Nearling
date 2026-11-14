@@ -8,7 +8,7 @@ import {
 import type { PetState, PetView } from "@petto/shared";
 import { NearlingFrame } from "@/components/nearling/NearlingFrame";
 import { PetSprite } from "@/components/PetSprite";
-import { RoomQr } from "@/components/race/RoomQr";
+import { RoomQr } from "@/components/battle/RoomQr";
 import { AppFrame, ErrorText, Panel, Spinner, TxLink } from "@/components/wallet/ui";
 import { BRAIN_URL, getPetState } from "@/lib/brain";
 import { RPC_URL, formatNear, getPet, petFromRef, petPath, view } from "@/lib/chain";

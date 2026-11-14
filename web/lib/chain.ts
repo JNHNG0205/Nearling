@@ -195,6 +195,13 @@ export function getSoul(contract: string, tokenId: string): Promise<SoulView> {
   return view<SoulView>(contract, "get_soul", { pet_id: tokenId });
 }
 
+/** Contract `get_battle` (pet battles): level 1 and zeros before the first battle. */
+export interface BattleRecord { level: number; xp: number; wins: number; losses: number; draws: number; xp_today: number; day: number }
+
+export function getBattle(contract: string, tokenId: string): Promise<BattleRecord> {
+  return view<BattleRecord>(contract, "get_battle", { pet_id: tokenId });
+}
+
 export interface NftToken {
   token_id: string;
   owner_id: string;

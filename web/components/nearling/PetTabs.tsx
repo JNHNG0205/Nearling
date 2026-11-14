@@ -21,7 +21,7 @@ export function PetTabs({ petRef, isOwner }: { petRef: string; isOwner: boolean 
   const more: [string, string][] = [
     [`/pet/${ref}/receipts`, "Receipts"],
     [`/p/${ref}`, "Share"],
-    ["/race", "Race"],
+    ["/battle", "Battle"],
     ...(isOwner ? ([[`/pet/${ref}/settings`, "Settings"], [`/pet/${ref}/transfer`, "Give away"]] as [string, string][]) : []),
   ];
   const here = (href: string) => decodeURIComponent(path ?? "") === decodeURIComponent(href);
