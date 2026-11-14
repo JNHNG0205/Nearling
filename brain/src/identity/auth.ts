@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { Hono } from "hono";
-import { JsonRpcProvider, baseDecode, type Provider } from "near-api-js";
+import { JsonRpcProvider, KeyType, PublicKey, baseDecode, type Provider } from "near-api-js";
 import { verifyMessage } from "near-api-js/nep413";
 import { z } from "zod";
 import { NEP413_MESSAGE, NEP413_RECIPIENT } from "@nearling/shared";
@@ -26,8 +26,36 @@ export function nep413Verifier(provider: Provider): Nep413Verifier {
       signerPublicKey: publicKey,
       payload: { message: NEP413_MESSAGE, recipient: NEP413_RECIPIENT, nonce },
       signature,
-      provider,
+      provider: isOwnImplicitAccount(accountId, publicKey) ? implicitFallback(provider) : provider,
     });
+}
+
+/** True when `accountId` is the implicit account of this ed25519 key (64 hex chars = the key bytes). */
+export function isOwnImplicitAccount(accountId: string, publicKey: string): boolean {
+  if (!/^[0-9a-f]{64}$/.test(accountId)) return false;
+  try {
+    const pk = PublicKey.fromString(publicKey);
+    return pk.keyType === KeyType.ED25519 && Buffer.from(pk.data).toString("hex") === accountId;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * An implicit account (e.g. a Privy social-login wallet) has no on-chain record until funded, so
+ * the access-key lookup fails; its own key is then its full access key. Funded accounts still use
+ * the chain, so a deleted key stays rejected.
+ */
+function implicitFallback(provider: Provider): Provider {
+  return {
+    viewAccessKey: async (args: Parameters<Provider["viewAccessKey"]>[0]) => {
+      try {
+        return await provider.viewAccessKey(args);
+      } catch {
+        return { permission: "FullAccess" };
+      }
+    },
+  } as unknown as Provider;
 }
 
 const SessionBody = z.object({

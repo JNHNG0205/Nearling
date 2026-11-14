@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { AccountWithSignedMessage, NearConnector, SignedMessage } from "@hot-labs/near-connect";
+import type { AccountWithSignedMessage, NearConnector, SignedMessage, WalletManifest } from "@hot-labs/near-connect";
 import { NETWORK, RPC_URL, type Outcome } from "@/lib/chain";
+import { privyEnabled, privyManifest } from "@/lib/privy";
 import { WalletContext, type WalletApi } from "@/lib/wallet";
 
 /**
@@ -30,6 +31,12 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         features: { signMessage: true, testnet: true },
       });
       connectorRef.current = made;
+      if (privyEnabled()) {
+        // social login (lib/privy.ts): one more sandbox wallet next to the default list
+        await made.whenManifestLoaded.catch(() => undefined);
+        await made.registerWallet(privyManifest(window.location.origin) as unknown as WalletManifest);
+        if (cancelled) return;
+      }
       made.on("wallet:signIn", onSignIn);
       made.on("wallet:signOut", onSignOut);
       setConnector(made);
@@ -64,7 +71,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         };
         if (opts?.signMessage) c.on("wallet:signInAndSignMessage", onSigned);
         try {
-          const w = await c.connect(opts?.signMessage ? { signMessageParams: opts.signMessage } : {});
+          const w = await c.connect({
+            ...(opts?.walletId ? { walletId: opts.walletId } : {}),
+            ...(opts?.signMessage ? { signMessageParams: opts.signMessage } : {}),
+          });
           const accounts = await w.getAccounts();
           const id = accounts[0]?.accountId;
           if (!id) throw new Error("Failed to sign in");
