@@ -102,21 +102,21 @@ export function onFed(deps: Deps, petRef: string, data: Record<string, unknown>)
 }
 
 /**
- * Petto Run finished (`race_result` from the race hub): one canned, free line per match and
+ * A battle finished (`battle_result` from the battle hub): one canned, free line per battle and
  * pet, not counted in the daily max (it answers the owner's own play).
  */
-export function onRaceResult(deps: Deps, petRef: string, data: Record<string, unknown>): void {
-  const matchId = typeof data.match_id === "string" && data.match_id ? data.match_id : null;
+export function onBattleResult(deps: Deps, petRef: string, data: Record<string, unknown>): void {
+  const battleId = typeof data.battle_id === "string" && data.battle_id ? data.battle_id : null;
   const profile = getProfile(deps.db, petRef);
-  if (!matchId || !profile) return;
-  const trigger = `race:${matchId}`;
+  if (!battleId || !profile) return;
+  const trigger = `battle:${battleId}`;
   if (deps.db.prepare("SELECT 1 FROM inbox WHERE pet_ref = ? AND trigger = ?").get(petRef, trigger)) return;
   const text =
-    data.won === true ? "I won the race! Thank you for cheering me on!"
-    : data.draw === true ? "We tied the race! That was so much fun. Rematch?"
-    : "I didn't win this time, but racing with you was so much fun!";
+    data.won === true ? "I won the battle! We make a great team!"
+    : data.draw === true ? "That battle was a tie! Rematch?"
+    : "I lost this one, but I'll train harder!";
   const item = pushInbox(deps, petRef, profile.owner_account, trigger, text);
-  log.info("proactive sent", { pet_ref: petRef, trigger: "race", inbox_id: item.id, canned: true });
+  log.info("proactive sent", { pet_ref: petRef, trigger: "battle", inbox_id: item.id, canned: true });
 }
 
 async function petPass(deps: Deps, hooks: ProactiveHooks, p: KnownPet): Promise<void> {
@@ -214,10 +214,10 @@ export function createProactiveModule(hooksIn: ProactiveHooks | ((deps: Deps) =>
         }
       };
       const unsubscribe = subscribeAll((e) => {
-        if (e.type !== "evolved" && e.type !== "fuel_added" && e.type !== "race_result") return;
+        if (e.type !== "evolved" && e.type !== "fuel_added" && e.type !== "battle_result") return;
         try {
           if (e.type === "evolved") onEvolved(deps, e.petRef);
-          else if (e.type === "race_result") onRaceResult(deps, e.petRef, e.data);
+          else if (e.type === "battle_result") onBattleResult(deps, e.petRef, e.data);
           else onFed(deps, e.petRef, e.data);
         } catch (err) {
           log.warn(`${e.type} inbox failed`, { pet_ref: e.petRef, error: err instanceof Error ? err.name : "unknown" });

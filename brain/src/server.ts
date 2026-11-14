@@ -9,7 +9,7 @@ import { openDb } from "./db/db";
 import type { Deps } from "./deps";
 import { log } from "./log";
 import { MODULES } from "./modules";
-import { attachWebSockets } from "./race/ws";
+import { attachWebSockets } from "./ws";
 import { splitKeys } from "./wallet/rpc";
 
 const cfg = loadConfig();

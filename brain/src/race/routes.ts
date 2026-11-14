@@ -2,7 +2,7 @@ import { Hono, type Context } from "hono";
 import { requireCaller, type AuthEnv } from "../auth/guard";
 import type { Deps, Module } from "../deps";
 import { RaceHub, type Conn, type ResolveResult } from "./hub";
-import { upgradeWebSocket } from "./ws";
+import { upgradeWebSocket } from "../ws";
 
 // Routes: "AI-brain architectual/08-api-reference.md" (Race). Protocol: 06 section 3.
 

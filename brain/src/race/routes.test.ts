@@ -5,7 +5,7 @@ import { RULES_VERSION } from "@petto/race";
 import { createApp } from "../app";
 import { sha256 } from "../auth/guard";
 import { testDeps } from "../test/deps";
-import { attachWebSockets } from "./ws";
+import { attachWebSockets } from "../ws";
 
 // HTTP routes plus one real WebSocket round trip through @hono/node-ws on a Node server.
 

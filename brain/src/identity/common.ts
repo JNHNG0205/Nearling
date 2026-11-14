@@ -2,7 +2,7 @@ import type { Context, MiddlewareHandler } from "hono";
 import { parsePetRef, type BrainErrorCode } from "@petto/shared";
 import type { Deps } from "../deps";
 
-type Status = 400 | 401 | 403 | 404 | 409 | 410;
+type Status = 400 | 401 | 403 | 404 | 409 | 410 | 422 | 429;
 
 export const fail = (c: Context, status: Status, code: BrainErrorCode, message: string) =>
   c.json({ error: { code, message } }, status);
