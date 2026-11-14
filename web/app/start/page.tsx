@@ -9,6 +9,7 @@ import { ConnectButton } from "@/components/wallet/ConnectButton";
 import { FaucetPanel } from "@/components/wallet/FaucetPanel";
 import { HatchAnimation } from "@/components/wallet/HatchAnimation";
 import { MintForm } from "@/components/wallet/MintForm";
+import { SpeedPicker } from "@/components/wallet/SpeedPicker";
 import { AppFrame, DemoSpeedPill, ErrorText, Panel, Spinner } from "@/components/wallet/ui";
 import { getPetState, postHatch } from "@/lib/brain";
 import { hasWebBluetooth, readPairingUrlOverBle } from "@/lib/ble";
@@ -135,7 +136,7 @@ function Wizard() {
           );
         })}
       </ol>
-      <DeviceChoice petRef={state.petRef} />
+      <DeviceChoice />
     </AppFrame>
   );
 }
@@ -264,6 +265,7 @@ function PetStep({ accountId, onChosen }: { accountId: string; onChosen: (petRef
   const [pets, setPets] = useState<MyPet[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [minting, setMinting] = useState(false);
+  const [mintContract, setMintContract] = useState<string>(PETS_CONTRACT);
   const [hatching, setHatching] = useState<string | null>(null);
   const [busyRef, setBusyRef] = useState<string | null>(null);
 
@@ -303,7 +305,8 @@ function PetStep({ accountId, onChosen }: { accountId: string; onChosen: (petRef
     return (
       <div className="flex flex-col gap-3">
         <FaucetPanel />
-        <MintForm contract={PETS_CONTRACT} onMinted={(id) => setHatching(formatPetRef(PETS_CONTRACT, id))} />
+        <SpeedPicker contract={mintContract} onChange={setMintContract} />
+        <MintForm key={mintContract} contract={mintContract} onMinted={(id) => setHatching(formatPetRef(mintContract, id))} />
         <button className="self-start text-sm text-muted underline" onClick={() => setMinting(false)}>
           Pick a pet I have instead
         </button>
@@ -465,14 +468,13 @@ function HandoffStep({ state, update }: { state: WizardState; update: (p: Partia
 }
 
 /** Always at the bottom: set up a device now (guide), or carry on in the browser. */
-function DeviceChoice({ petRef }: { petRef: string | null }) {
-  const p = petRef ? petFromRef(petRef) : null;
+function DeviceChoice() {
   return (
     <div className="flex flex-col gap-2 border-t-2 border-line pt-4">
       <p className="text-sm text-muted">Have a Petto device? Pair it any time. No device? Your pet lives in the browser too.</p>
       <div className="flex flex-wrap gap-2">
         <Link href="/connect-device" className="pixel-btn">Connect device</Link>
-        <Link href={p ? petPath(p.contract, p.tokenId) : "/adopt"} className="pixel-btn pixel-btn--secondary">
+        <Link href="/my" className="pixel-btn pixel-btn--secondary">
           Continue without a device
         </Link>
       </div>
