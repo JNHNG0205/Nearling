@@ -16,6 +16,7 @@
     <a href="#try-it-do-x-see-y">Try it</a> &middot;
     <a href="#architecture">Architecture</a> &middot;
     <a href="docs/CONTRACT_INTERFACE.md">Contract interface</a> &middot;
+    <a href="#deployed-testnet">Contracts and NFTs</a> &middot;
     <a href="https://testnet.nearblocks.io/txns/CndDMwrmsz5B8xjg36UdSy4dZjzPy8HibRpwdtgZawoy">A thought, paid on chain</a> &middot;
     <a href="#limitations">Limitations</a>
   </p>
@@ -177,9 +178,20 @@ Evidence that the pet pays for its thoughts: a brain `charge` on the current con
 | Pets contract (normal speed) | [`pets.petto.testnet`](https://testnet.nearblocks.io/address/pets.petto.testnet) |
 | Pets (demo speed) | [`pets-demo.petto.testnet`](https://testnet.nearblocks.io/address/pets-demo.petto.testnet) |
 | Shirts and costumes | [`shirts.petto.testnet`](https://testnet.nearblocks.io/address/shirts.petto.testnet) |
-| Brain (function-call keys only) | `brain.petto.testnet` |
-| Gas relayer | `relayer.petto.testnet` |
-| NEARON pool used | `mw-pool-1024.testnet` |
+| Brain (function-call keys only) | [`brain.petto.testnet`](https://testnet.nearblocks.io/address/brain.petto.testnet) |
+| Gas relayer | [`relayer.petto.testnet`](https://testnet.nearblocks.io/address/relayer.petto.testnet) |
+| Admin and treasury | [`petto.testnet`](https://testnet.nearblocks.io/address/petto.testnet) |
+| NEARON pool used | [`mw-pool-1024.testnet`](https://testnet.nearblocks.io/address/mw-pool-1024.testnet) |
+
+**NFT collections** (every pet and every shirt or costume is a NEP-171 token you own and can transfer):
+
+| Collection | Symbol | Contract | Browse |
+|---|---|---|---|
+| Petto (pets, normal speed) | `PETTO` | `pets.petto.testnet` | [NearBlocks](https://testnet.nearblocks.io/nft-token/pets.petto.testnet) |
+| Petto (pets, demo speed) | `PETTO` | `pets-demo.petto.testnet` | [NearBlocks](https://testnet.nearblocks.io/nft-token/pets-demo.petto.testnet) |
+| Petto Shirts (free shirt and 38 costumes) | `PSHIRT` | `shirts.petto.testnet` | [NearBlocks](https://testnet.nearblocks.io/nft-token/shirts.petto.testnet) |
+
+Each pet's NFT metadata points at its PNG and public JSON on IPFS (`set_metadata`), so wallets and explorers show the pet itself. A single pet: `https://testnet.nearblocks.io/nft-token/pets.petto.testnet/<token_id>`; in the app, `https://mypetto.xyz/p/pets.petto.testnet:<token_id>`.
 
 ---
 
