@@ -20,6 +20,56 @@ use std::collections::HashMap;
 /// Attached by the claimer; covers the token's storage, the rest is refunded.
 const CLAIM_DEPOSIT: NearToken = NearToken::from_millinear(10);
 
+/// Price of one costume (storage included); it stays with the contract.
+const COSTUME_PRICE: NearToken = NearToken::from_millinear(50);
+
+/// Costume keys the sprites draw (packages/sprites costumes); one NFT per purchase.
+const COSTUMES: [&str; 36] = [
+    "cap",
+    "sunglasses",
+    "fire",
+    "scarf",
+    "ice_cube",
+    "wizard_hat",
+    "pirate_hat",
+    "flower_crown",
+    "top_hat",
+    "striped_shirt",
+    "headphones",
+    "detective",
+    "ninja",
+    "devil_wings",
+    "chef_hat",
+    "astronaut",
+    "clown",
+    "cyborg",
+    "explorer",
+    "bow_tie",
+    "crown",
+    "fairy_wings",
+    "graduate",
+    "viking",
+    "raincoat",
+    "volcano",
+    "mummy",
+    "tuxedo",
+    "ghost",
+    "knight",
+    "angel",
+    "superhero",
+    "cowboy",
+    "party_hat",
+    "sweater",
+    "ice_crystal",
+];
+
+/// `costumes()` view: the catalog and the flat price.
+#[near(serializers = [json])]
+pub struct Catalog {
+    pub costumes: Vec<String>,
+    pub price: U128,
+}
+
 #[near]
 #[derive(BorshStorageKey)]
 enum StorageKey {
@@ -75,6 +125,42 @@ impl Shirts {
         // Refunds the deposit beyond the token's storage and emits nft_mint.
         self.tokens.internal_mint(id.clone(), owner, Some(metadata));
         id
+    }
+
+    /// Buy a costume for the Closet: attach exactly `COSTUME_PRICE` (0.05 NEAR). The NFT records
+    /// its costume in `metadata.extra` ({"costume": key}); the price stays with the contract.
+    #[payable]
+    pub fn buy(&mut self, costume: String) -> TokenId {
+        require!(
+            env::attached_deposit() == COSTUME_PRICE,
+            format!("E_DEPOSIT: Attach exactly {COSTUME_PRICE}")
+        );
+        require!(
+            COSTUMES.contains(&costume.as_str()),
+            "E_COSTUME: Unknown costume"
+        );
+        let id = self.next_id.to_string();
+        self.next_id += 1;
+        let metadata = TokenMetadata {
+            title: Some(format!("Petto costume: {costume}")),
+            extra: Some(format!(r#"{{"costume":"{costume}"}}"#)),
+            ..Default::default()
+        };
+        // no refund account: the whole price stays (it covers the token's storage too)
+        self.tokens.internal_mint_with_refund(
+            id.clone(),
+            env::predecessor_account_id(),
+            Some(metadata),
+            None,
+        );
+        id
+    }
+
+    pub fn costumes(&self) -> Catalog {
+        Catalog {
+            costumes: COSTUMES.iter().map(|c| c.to_string()).collect(),
+            price: U128(COSTUME_PRICE.as_yoctonear()),
+        }
     }
 }
 
@@ -185,6 +271,46 @@ mod tests {
     fn setup() -> Shirts {
         ctx(accounts(0), NearToken::from_yoctonear(0));
         Shirts::new()
+    }
+
+    #[test]
+    fn buying_a_costume_mints_it_with_its_key_and_keeps_the_price() {
+        let mut shirts = setup();
+        ctx(accounts(1), COSTUME_PRICE);
+        let id = shirts.buy("wizard_hat".to_string());
+        let token = shirts.nft_token(id).unwrap();
+        assert_eq!(token.owner_id, accounts(1));
+        let m = token.metadata.unwrap();
+        assert_eq!(m.title.as_deref(), Some("Petto costume: wizard_hat"));
+        assert_eq!(m.extra.as_deref(), Some(r#"{"costume":"wizard_hat"}"#));
+        assert!(
+            near_sdk::test_utils::get_created_receipts().is_empty(),
+            "no refund: the price is the price"
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "E_DEPOSIT: Attach exactly 0.050 NEAR")]
+    fn a_costume_costs_exactly_its_price() {
+        let mut shirts = setup();
+        ctx(accounts(1), CLAIM_DEPOSIT);
+        shirts.buy("crown".to_string());
+    }
+
+    #[test]
+    #[should_panic(expected = "E_COSTUME: Unknown costume")]
+    fn only_listed_costumes_can_be_bought() {
+        let mut shirts = setup();
+        ctx(accounts(1), COSTUME_PRICE);
+        shirts.buy("tiara".to_string());
+    }
+
+    #[test]
+    fn the_catalog_lists_all_36_costumes_and_the_price() {
+        let c = setup().costumes();
+        assert_eq!(c.costumes.len(), 36);
+        assert_eq!(c.price, U128(COSTUME_PRICE.as_yoctonear()));
+        assert!(c.costumes.contains(&"ghost".to_string()));
     }
 
     #[test]
