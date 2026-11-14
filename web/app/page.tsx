@@ -19,7 +19,7 @@ const STEPS: { title: string; body: string; stage: number; play: AnyAnim | null;
   { title: "Talk", body: "Hold to talk. A private model answers in its voice and the pet pays one thought.", stage: 2, play: "talk" },
   { title: "Feed", body: "Anyone can send it NEAR. The food lands in its own budget on chain.", stage: 2, play: "eat" },
   { title: "Plant", body: "Stake NEAR in its Brain Garden and the yield pays for its thoughts.", stage: 3, play: "celebrate", costume: "crown" },
-  { title: "Game", body: "Race a friend in Petto Run or battle turn by turn. Battle levels are saved on NEAR.", stage: 2, play: "dizzy", costume: "ninja" },
+  { title: "Game", body: "Battle turn by turn. Battle levels are saved on NEAR.", stage: 2, play: "dizzy", costume: "ninja" },
 ];
 
 /** What the pet's AI does (README, "What the pet's AI actually does"). */
