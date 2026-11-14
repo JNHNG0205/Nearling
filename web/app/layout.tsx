@@ -9,8 +9,8 @@ const figtree = Figtree({ subsets: ["latin"], weight: ["400", "500", "600"], var
 const dmMono = DM_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-dm-mono" });
 
 export const metadata: Metadata = {
-  title: "Petto, a pixel pet that pays for its own AI",
-  description: "Every reply costs $0.001 of private AI, paid from the pet's own NEAR budget on testnet.",
+  title: "Petto, an AI Tamagotchi that pays for its own thoughts",
+  description: "A pixel pet with a private AI brain. Every reply is paid from its own NEAR wallet; the web app is its console.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

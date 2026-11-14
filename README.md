@@ -1,6 +1,6 @@
 # Petto
 
-**Petto is a pet game where every word your pet says is a real AI thought, and the pet pays for it out of its own wallet.** Each reply is a private inference on NEAR AI Cloud, billed on chain to the pet's own fuel. Feed it and it chats; neglect it and it goes hungry, quiet, then dormant; plant NEAR in its Brain Garden and the staking yield feeds it forever. It lives in your browser and in a small device on your desk.
+**Petto is an AI Tamagotchi that pays for its own thoughts.** Every word your pet says is a real AI thought, and the pet pays for it out of its own wallet. Each reply is a private inference on NEAR AI Cloud, billed on chain to the pet's own fuel. Feed it and it chats; neglect it and it goes hungry, quiet, then dormant; plant NEAR in its Brain Garden and the staking yield feeds it forever. The pet lives in a small device on your desk; the web app is its console (feed, dress, stake, read receipts) and also plays the same pet in the browser, so you can try everything without the hardware.
 
 > **Status:** built for NEAR HACKATHON (Nov 2026), **testnet only**. Tracks: `games` (main), `nfts`, `agents`, `privacy`, `security`.
 > **Hosted demo:** _URL added after deploy_ · **Demo video / X post:** _link added at submission_
@@ -9,7 +9,7 @@
 
 Most AI pets are a chat window with a cute skin, paid for by a company. In Petto the economics **are** the game:
 
-| In a classic virtual pet | In Petto |
+| In a classic Tamagotchi | In Petto |
 |---|---|
 | Food is a number that refills for free | Food is NEAR in the pet's on-chain budget; one reply burns one fuel ($0.001), visible as a public `thought` event |
 | A hungry pet looks sad | A hungry pet literally cannot think: at zero fuel it stops calling the AI and says "zzz... my brain is out of fuel" for free |
@@ -42,7 +42,7 @@ Editable source: [`docs/architecture.drawio`](docs/architecture.drawio) (open in
 
 - **The chain is the pet's bank:** ownership, fuel (food + staking credit), stake, Soul, stage and events live in the pets contract. Interface: [`docs/CONTRACT_INTERFACE.md`](docs/CONTRACT_INTERFACE.md); full spec: [`CLAUDE.md`](CLAUDE.md) sections 6 and 7.
 - **The brain is the pet's mind:** it talks (private TEE models), remembers (encrypted), reaches out first, and is the only account allowed to `charge` fuel, within on-chain caps.
-- **Two bodies, one brain:** the web app and the desk device show the same pet, driven by the same brain and the same on-chain fuel.
+- **The device is the pet, the web app is its console:** both show the same pet, driven by the same brain and the same on-chain fuel; the browser can play it on its own.
 
 ## Main features
 

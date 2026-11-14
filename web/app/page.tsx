@@ -64,10 +64,8 @@ export default async function Home() {
       <main>
         <section aria-label="Petto" className="flex min-h-[calc(100dvh-64px)] flex-col gap-10 pt-12">
           <div className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col items-center justify-center gap-6 px-4 text-center md:px-6">
-            <h1 className="font-display text-[44px] leading-[48px] font-semibold md:text-[96px] md:leading-[100px]">
-              A pet that pays
-              <br />
-              for its own{" "}
+            <h1 className="font-display text-[30px] leading-[44px] font-semibold md:text-[48px] md:leading-[64px] lg:text-[64px] lg:leading-[80px] xl:text-[80px] xl:leading-[92px]">
+              An AI Tamagotchi{" "}
               {/* the pet in a tile, cropped to its body so the tile fits the line */}
               <span aria-hidden className="mx-1 inline-block size-[52px] -rotate-6 overflow-hidden border-2 border-accent bg-surface align-middle md:size-[76px]"
                 style={{ boxShadow: "4px 4px 0 var(--p-accent)" }}>
@@ -79,12 +77,13 @@ export default async function Home() {
                     <PetSprite traits={[2, 0, 1, 0, 0]} stageIndex={1} winged={false} costume="sunglasses" state="happy" scale={3} label="" />
                   </span>
                 </span>
-              </span>{" "}
-              thoughts.
+              </span>
+              <br />
+              that pays for its thoughts.
             </h1>
             <p className="max-w-xl text-lg text-muted">
-              Every reply is a private AI thought, paid from the pet&apos;s own NEAR wallet. Feed it and it chats.
-              Forget it and it goes quiet.
+              A pixel pet with a private AI brain. Every reply is paid from its own NEAR wallet: feed it and it
+              chats, forget it and it goes quiet. It lives on your desk, and the web app is its console.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <Link href="/start" className="pixel-btn">Get started</Link>
@@ -94,7 +93,7 @@ export default async function Home() {
           <Parade />
         </section>
 
-        <Section id="day" title="A day with your pet" intro="Four things you do. The chain stays out of the way: chatting never opens your wallet.">
+        <Section id="day" title="A day with your pet" intro="Four things you do from the console. The chain stays out of the way: chatting never opens your wallet.">
           <Tray cols="sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map((s, i) => (
               <article key={s.title} className="flex flex-col gap-4 border-2 border-line bg-bg p-5">
@@ -150,7 +149,7 @@ export default async function Home() {
           </div>
         </Section>
 
-        <Section id="body" title="A pet you can hold" intro="The same pet lives in a small desk device, with the same brain and the same wallet.">
+        <Section id="body" title="The Tamagotchi on your desk" intro="The device is the pet. The web app is its console, and plays the same pet in the browser when you have no device.">
           <div className="grid items-center gap-10 md:grid-cols-2">
             <figure className="flex flex-col items-center gap-3">
               <NearlingFrame label="The desk Petto">
