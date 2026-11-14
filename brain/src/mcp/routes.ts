@@ -6,7 +6,7 @@ import { jsonBody } from "../identity/common";
 import { log } from "../log";
 import { checkUrl, listTools, McpError, type McpTool } from "./client";
 import { resolveServer, sealAuth, startSignIn, finishSignIn, type StoredAuth } from "./auth";
-import { CATALOG, catalogEntry, catalogView } from "./catalog";
+import { CATALOG, catalogEntry, catalogView, effectiveEntry, ZAPIER_MCP_URL } from "./catalog";
 import { server, servers, tokenContext, type ServerRow } from "./store";
 
 /**
@@ -58,10 +58,16 @@ export function mcpRoutes(deps: Deps) {
 
   /** Saves a connected catalog tool: one row per owner and tool (connecting again replaces it). */
   async function saveCatalogServer(account: string, id: string, auth: StoredAuth | null): Promise<ServerRow> {
-    const e = catalogEntry(id)!;
+    const listed = catalogEntry(id)!;
+    const e = effectiveEntry(cfg, listed);
     const probe = { id: 0, owner_account: account, name: e.name, url: e.url, token_enc: auth ? sealAuth(deps, account, auth) : null, tools_json: "[]", catalog_id: e.id, created_at: 0, refreshed_at: 0 };
     const { url, token } = await resolveServer(deps, account, probe);
-    const tools = await listTools(url, token);
+    let tools = await listTools(url, token);
+    // through Zapier one sign-in reaches every app the user allowed there: this card only gets its own app's tools
+    if (e.url === ZAPIER_MCP_URL && listed.viaZapier) {
+      const p = listed.viaZapier.prefix.toLowerCase();
+      tools = tools.filter((x) => x.name.toLowerCase().startsWith(p));
+    }
     const t = now();
     db.prepare("DELETE FROM mcp_server WHERE owner_account = ? AND catalog_id = ?").run(account, e.id);
     const newId = db

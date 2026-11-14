@@ -7,8 +7,8 @@ Web `/mcp` lists ready-made tools (brain `src/mcp/catalog.ts`). How each one con
 | Notion, Canva | "Sign in with..." (OAuth 2.1 + PKCE). Petto registers itself with the provider the first time (dynamic client registration) | None |
 | Firecrawl | The user pastes their own API key (firecrawl.dev, free tier) | None |
 | DeepWiki, Context7, GitMCP, Hugging Face, Microsoft Learn, AWS Knowledge, Cloudflare Docs | Open, no account | None |
-| Gmail, Google Calendar | Google sign-in. Google does not allow automatic registration | A Google Cloud OAuth app (below) |
-| Slack | Slack sign-in. Slack does not allow automatic registration | A Slack app (below) |
+| Gmail, Google Calendar | **Sign in with Google** directly once the team adds a Google Cloud OAuth app (below). Until then they connect **through Zapier** (Zapier MCP registers Petto automatically; the user signs in to Zapier and allows the app; each card keeps only its own app's tools) | Optional: a Google Cloud OAuth app |
+| Slack | **Sign in with Slack** directly once the team adds a Slack app (below); through Zapier until then | Optional: a Slack app |
 | Playwright | Not hosted: it drives a real browser, which on our server would let anyone reach internal addresses | Runs on the user's own computer |
 
 After a sign-in the provider sends the browser to `${BRAIN_PUBLIC_URL}/mcp/oauth/callback`; the brain finishes it,

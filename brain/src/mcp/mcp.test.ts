@@ -190,7 +190,9 @@ describe("MCP catalog and sign-in", () => {
     const { tools } = (await (await mcp.request("/mcp/catalog")).json()) as { tools: { id: string; auth: string; available: boolean }[] };
     const by = Object.fromEntries(tools.map((x) => [x.id, x]));
     for (const id of ["gmail", "gcal", "slack", "notion", "canva", "firecrawl", "playwright", "deepwiki"]) expect(by[id]).toBeDefined();
-    expect(by.gmail).toMatchObject({ auth: "oauth", available: false }); // no Google app in the test config
+    // no Google or Slack app in the test config: those connect through Zapier
+    expect(by.gmail).toMatchObject({ auth: "oauth", available: true, via: "Zapier" });
+    expect(by.slack).toMatchObject({ auth: "oauth", available: true, via: "Zapier" });
     expect(by.notion).toMatchObject({ auth: "oauth", available: true }); // registers itself
     expect(by.firecrawl).toMatchObject({ auth: "key", available: true });
     expect(by.playwright).toMatchObject({ auth: "local", available: false });
@@ -200,7 +202,6 @@ describe("MCP catalog and sign-in", () => {
   it("refuses what cannot connect, with a reason", async () => {
     const { connect } = await app();
     expect(await connect({ id: "firecrawl" })).toMatchObject({ status: 400, body: { error: { message: expect.stringMatching(/API key/) } } });
-    expect(await connect({ id: "gmail" })).toMatchObject({ status: 400, body: { error: { message: expect.stringMatching(/not set up/) } } });
     expect((await connect({ id: "playwright" })).status).toBe(400);
     expect((await connect({ id: "nope" })).status).toBe(400);
   });
@@ -222,5 +223,18 @@ describe("MCP catalog and sign-in", () => {
     expect(url.toString()).toBe("https://mcp.firecrawl.dev/fc-123/v2/mcp");
     expect(token).toBeNull();
     expect(row.url).not.toContain("fc-123");
+  });
+});
+
+describe("MCP via Zapier", () => {
+  it("Gmail, Calendar and Slack go through Zapier until the team sets its own app, then sign in directly", async () => {
+    const { effectiveEntry, catalogEntry, ZAPIER_MCP_URL } = await import("./catalog");
+    const deps = testDeps({ now: () => t });
+    for (const id of ["gmail", "gcal", "slack"]) {
+      expect(effectiveEntry(deps.cfg, catalogEntry(id)!)).toMatchObject({ url: ZAPIER_MCP_URL, auth: { kind: "oauth", setup: "dcr" } });
+    }
+    const withGoogle = { ...deps.cfg, GOOGLE_OAUTH_CLIENT_ID: "id", GOOGLE_OAUTH_CLIENT_SECRET: "secret" };
+    expect(effectiveEntry(withGoogle, catalogEntry("gmail")!)).toMatchObject({ url: "https://gmailmcp.googleapis.com/mcp/v1", auth: { setup: "google" } });
+    expect(effectiveEntry(withGoogle, catalogEntry("slack")!).url).toBe(ZAPIER_MCP_URL);
   });
 });

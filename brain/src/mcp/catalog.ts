@@ -25,6 +25,12 @@ export interface CatalogEntry {
   what: string;
   try: string;
   auth: CatalogAuth;
+  /**
+   * Without the team's own Google / Slack app, connect through Zapier's MCP server instead: it signs
+   * users in with automatic registration and reaches the app through Zapier's verified apps. Only
+   * tools whose name starts with `prefix` are given to the pet.
+   */
+  viaZapier?: { prefix: string };
 }
 
 export const CATALOG: CatalogEntry[] = [
@@ -33,18 +39,21 @@ export const CATALOG: CatalogEntry[] = [
     what: "Read, search and draft emails. Your pet drafts; you choose what to send.",
     try: "Draft an email to amy@example.com saying I'll be late to lunch.",
     auth: { kind: "oauth", setup: "google", scope: "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.compose" },
+    viaZapier: { prefix: "gmail" },
   },
   {
     id: "gcal", name: "Google Calendar", url: "https://calendarmcp.googleapis.com/mcp/v1",
     what: "See your schedule and book events.",
     try: "Book a dentist appointment next Tuesday at 3pm for 30 minutes.",
     auth: { kind: "oauth", setup: "google", scope: "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly" },
+    viaZapier: { prefix: "google_calendar" },
   },
   {
     id: "slack", name: "Slack", url: "https://mcp.slack.com/mcp",
     what: "Read channels, search messages and post for you.",
     try: "What did people say in #general today?",
     auth: { kind: "oauth", setup: "slack", scope: "channels:read,channels:history,chat:write,search:read.public,users:read" },
+    viaZapier: { prefix: "slack" },
   },
   {
     id: "notion", name: "Notion", url: "https://mcp.notion.com/mcp",
@@ -109,6 +118,14 @@ export const CATALOG: CatalogEntry[] = [
 
 export const catalogEntry = (id: string) => CATALOG.find((c) => c.id === id);
 
+export const ZAPIER_MCP_URL = "https://mcp.zapier.com/api/v1/connect";
+
+/** The entry as it will really connect: Gmail, Calendar and Slack go through Zapier until the team adds its own app. */
+export function effectiveEntry(cfg: Config, e: CatalogEntry): CatalogEntry {
+  if (!e.viaZapier || appCredentials(cfg, e) !== null) return e;
+  return { ...e, url: ZAPIER_MCP_URL, auth: { kind: "oauth", setup: "dcr", scope: "openid profile email" } };
+}
+
 /** Google and Slack need an app the team registers; the rest work as they are. */
 export function appCredentials(cfg: Config, e: CatalogEntry): { client_id: string; client_secret: string } | null | "none_needed" {
   if (e.auth.kind !== "oauth" || e.auth.setup === "dcr") return "none_needed";
@@ -128,6 +145,7 @@ export function catalogView(cfg: Config) {
     auth: e.auth.kind,
     ...(e.auth.kind === "key" ? { key_name: e.auth.keyName, key_url: e.auth.keyUrl } : {}),
     ...(e.auth.kind === "local" ? { help: e.auth.help } : {}),
-    available: e.auth.kind !== "local" && appCredentials(cfg, e) !== null,
+    available: e.auth.kind !== "local" && appCredentials(cfg, effectiveEntry(cfg, e)) !== null,
+    ...(effectiveEntry(cfg, e).url === ZAPIER_MCP_URL ? { via: "Zapier" } : {}),
   }));
 }

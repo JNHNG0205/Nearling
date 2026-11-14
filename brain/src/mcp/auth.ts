@@ -10,7 +10,7 @@ import {
 import type { AuthorizationServerMetadata, OAuthClientInformationFull } from "@modelcontextprotocol/sdk/shared/auth.js";
 import type { Deps } from "../deps";
 import { log } from "../log";
-import { appCredentials, catalogEntry, type CatalogEntry } from "./catalog";
+import { appCredentials, catalogEntry, effectiveEntry, type CatalogEntry } from "./catalog";
 import { checkUrl, McpError } from "./client";
 import { tokenContext, type ServerRow } from "./store";
 
@@ -55,7 +55,8 @@ interface Provider {
 const metaCache = new Map<string, { metadata: AuthorizationServerMetadata; authServer: URL; resource?: URL }>();
 
 async function discover(e: CatalogEntry): Promise<{ metadata: AuthorizationServerMetadata; authServer: URL; resource?: URL }> {
-  const hit = metaCache.get(e.id);
+  const cacheKey = `${e.id} ${e.url}`;
+  const hit = metaCache.get(cacheKey);
   if (hit) return hit;
   let authServer: URL;
   let resource: URL | undefined;
@@ -69,7 +70,7 @@ async function discover(e: CatalogEntry): Promise<{ metadata: AuthorizationServe
   const metadata = await discoverAuthorizationServerMetadata(authServer);
   if (!metadata) throw new McpError("unreachable");
   const out = { metadata, authServer, ...(resource ? { resource } : {}) };
-  metaCache.set(e.id, out);
+  metaCache.set(cacheKey, out);
   return out;
 }
 
@@ -105,7 +106,8 @@ async function provider(deps: Deps, e: CatalogEntry): Promise<Provider> {
 // ---------- sign-in ----------
 
 /** The provider's sign-in link for this owner. The PKCE verifier and state are kept for 10 minutes. */
-export async function startSignIn(deps: Deps, owner: string, e: CatalogEntry): Promise<string> {
+export async function startSignIn(deps: Deps, owner: string, catalog: CatalogEntry): Promise<string> {
+  const e = effectiveEntry(deps.cfg, catalog);
   if (e.auth.kind !== "oauth") throw new McpError("bad_url");
   const p = await provider(deps, e);
   const state = randomBytes(24).toString("base64url");
@@ -135,9 +137,10 @@ export async function finishSignIn(deps: Deps, state: string, code: string): Pro
     | { owner_account: string; catalog_id: string; verifier_enc: Buffer; created_at: number }
     | undefined;
   deps.db.prepare("DELETE FROM mcp_oauth_state WHERE state = ?").run(state);
-  const entry = row ? catalogEntry(row.catalog_id) : undefined;
-  if (!row || !entry || deps.now() - row.created_at > STATE_TTL_MS) throw new McpError("expired");
-  const p = await provider(deps, entry);
+  const found = row ? catalogEntry(row.catalog_id) : undefined;
+  if (!row || !found || deps.now() - row.created_at > STATE_TTL_MS) throw new McpError("expired");
+  const entry = found;
+  const p = await provider(deps, effectiveEntry(deps.cfg, entry));
   const tokens = await exchangeAuthorization(p.authServer, {
     metadata: p.metadata,
     clientInformation: p.client,
@@ -157,7 +160,8 @@ export async function finishSignIn(deps: Deps, state: string, code: string): Pro
 
 /** Address and bearer token for a call, refreshing OAuth access that is about to expire. */
 export async function resolveServer(deps: Deps, owner: string, row: ServerRow): Promise<{ url: URL; token: string | null }> {
-  const entry = row.catalog_id ? catalogEntry(row.catalog_id) : undefined;
+  const listed = row.catalog_id ? catalogEntry(row.catalog_id) : undefined;
+  const entry = listed ? effectiveEntry(deps.cfg, listed) : undefined;
   const auth = readAuth(deps, owner, row);
   if (auth?.kind === "path_key" && entry?.auth.kind === "key") {
     return { url: new URL(entry.auth.urlTemplate.replace("{key}", encodeURIComponent(auth.key))), token: null };

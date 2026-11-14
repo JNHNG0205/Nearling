@@ -57,6 +57,8 @@ export interface CatalogTool {
   help?: string;
   /** false: sign-in app not set up on this Petto yet, or runs locally only */
   available: boolean;
+  /** "Zapier": connects through Zapier's MCP (Gmail, Calendar, Slack without the team's own app) */
+  via?: string;
 }
 
 export const getCatalog = async () =>

@@ -176,6 +176,9 @@ function ToolCard({ tool, on, busy, onConnect, onDisconnect }: {
           : null}
       </header>
       <p className="text-sm text-muted">{tool.what}</p>
+      {tool.via && !on && (
+        <p className="text-xs text-muted">Connects through {tool.via} (free account): sign in there and allow your {tool.name}.</p>
+      )}
 
       {on ? (
         <>
@@ -201,7 +204,7 @@ function ToolCard({ tool, on, busy, onConnect, onDisconnect }: {
       ) : (
         <button className="pixel-btn mt-auto self-start px-3 text-sm" disabled={busy !== null}
           onClick={() => (tool.auth === "key" ? setAskKey(true) : void onConnect())}>
-          {mine ? (tool.auth === "oauth" ? "Opening sign-in..." : "Connecting...") : tool.auth === "oauth" ? `Sign in with ${tool.name.split(" ")[0]}` : "Connect"}
+          {mine ? (tool.auth === "oauth" ? "Opening sign-in..." : "Connecting...") : tool.auth === "oauth" ? `Sign in with ${tool.via ?? tool.name.split(" ")[0]}` : "Connect"}
         </button>
       )}
     </article>
