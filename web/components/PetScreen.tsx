@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { careAnim, type AnyAnim, type CareEvent, type DisplayState } from "@nearling/sprites";
 import { PetSprite } from "./PetSprite";
+import { createStroke } from "@/lib/stroke";
 import { NearlingFrame } from "./nearling/NearlingFrame";
 import { SpeechBubble } from "./nearling/SpeechBubble";
 
@@ -45,6 +46,9 @@ export function PetScreen(props: {
     setCareKey((k) => k + 1);
     props.onCare?.(event);
   };
+  // stroke the pet with the cursor or a finger (or tap it) to pat, like the device's touch pad
+  const stroke = useRef(createStroke());
+  const lastTapPat = useRef(0);
 
   let play: AnyAnim | null = care;
   let key = `c${careKey}`;
@@ -67,6 +71,23 @@ export function PetScreen(props: {
             <SpeechBubble text={props.bubble} className="max-h-[96px] overflow-hidden text-[14px] leading-4" />
           </div>
         )}
+        <div
+          className="cursor-grab touch-none select-none"
+          title={`Stroke or tap ${props.name} to pat`}
+          onPointerMove={(e) => {
+            if (stroke.current.move(e.clientX, e.clientY, e.timeStamp)) trigger("pat");
+          }}
+          onPointerLeave={() => stroke.current.reset()}
+          onPointerUp={(e) => {
+            // a tap pats too; at most one every 2 s, like a stroke
+            if (e.pointerType !== "mouse" || e.button === 0) {
+              if (e.timeStamp - lastTapPat.current >= 2_000) {
+                lastTapPat.current = e.timeStamp;
+                trigger("pat");
+              }
+            }
+          }}
+        >
         <PetSprite
           traits={props.traits}
           stageIndex={props.stageIndex}
@@ -79,6 +100,7 @@ export function PetScreen(props: {
           scale={props.scale ?? (props.bubble ? 4 : 6)}
           label={props.name}
         />
+        </div>
       </NearlingFrame>
       <div className="flex flex-wrap justify-center gap-2" role="group" aria-label="Care">
         {CARE.map((c) => (
