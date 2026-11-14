@@ -285,6 +285,7 @@ export type BrainErrorCode =
   // battle rooms (brain/src/battle)
   | "same_owner"
   | "same_pet"
+  | "other_contract"
   | "full"
   | "daily_limit"
   | "pet_unavailable"

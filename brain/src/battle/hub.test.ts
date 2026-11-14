@@ -102,6 +102,8 @@ describe("BattleHub", () => {
     const code = hub.createRoom(alice)!;
     expect(hub.join(code, { account: "alice.testnet", pet: pet("pets.petto.testnet:9") })).toEqual({ error: "same_owner" });
     expect(hub.join(code, { account: "carol.testnet", pet: alice.pet })).toEqual({ error: "same_pet" });
+    // record_battle writes both pets on one contract: a normal pet cannot meet a demo-speed one
+    expect(hub.join(code, { account: "carol.testnet", pet: pet("pets-demo.petto.testnet:2") })).toEqual({ error: "other_contract" });
     hub.join(code, bob);
     expect(hub.join(code, { account: "dave.testnet", pet: pet("pets.petto.testnet:5") })).toEqual({ error: "full" });
     expect(hub.join("NOPE00", bob)).toEqual({ error: "not_found" });

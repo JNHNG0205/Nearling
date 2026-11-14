@@ -47,7 +47,7 @@ interface Room {
   done: boolean;
 }
 
-export type JoinResult = { slot: 1 } | { error: "not_found" | "full" | "same_owner" | "same_pet" };
+export type JoinResult = { slot: 1 } | { error: "not_found" | "full" | "same_owner" | "same_pet" | "other_contract" };
 
 const other = (s: Slot): Slot => (s === 0 ? 1 : 0);
 
@@ -79,6 +79,8 @@ export class BattleHub {
     const host = room.players[0];
     if (host.pet.petRef === guest.pet.petRef) return { error: "same_pet" };
     if (host.account === guest.account) return { error: "same_owner" };
+    // record_battle scores both pets on one contract, so both must live on it (normal or demo speed)
+    if (parsePetRef(host.pet.petRef)?.contract !== parsePetRef(guest.pet.petRef)?.contract) return { error: "other_contract" };
     if (room.players[1] && room.players[1].account !== guest.account) return { error: "full" };
     room.players[1] = this.player(guest);
     this.broadcastRoom(room);

@@ -80,6 +80,7 @@ export function battleRoutes(deps: Deps) {
         full: [409, "That battle already has two pets"],
         same_owner: [409, "You can't battle your own pet. Invite a friend."],
         same_pet: [409, "A pet can't battle itself"],
+        other_contract: [409, "Normal and demo speed pets can't battle each other"],
       };
       const [status, message] = copy[r.error];
       return fail(c, status, r.error, message);
