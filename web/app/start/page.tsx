@@ -159,7 +159,7 @@ function StepBody({ step, state, update, accountId, signedIn }: StepProps) {
           <ConnectButton />
           {signedIn && <FaucetPanel />}
           {signedIn && (
-            <button className="pixel-btn self-start" onClick={() => update({ walletConfirmed: true })}>
+            <button className="pixel-btn self-start" onClick={() => update({ walletConfirmed: true, petRef: null, customised: false })}>
               Hatch a pet
             </button>
           )}
