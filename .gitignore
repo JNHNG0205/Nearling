@@ -28,3 +28,20 @@ web/playwright-report/
 # Vercel CLI link (vercel link)
 .vercel
 .env*
+
+# Media never goes to git, on any branch: raw footage, music, video assets and renders
+pettovideo/
+video/public/
+video/out/
+video/node_modules/
+*.mp4
+*.mov
+*.webm
+*.mkv
+*.avi
+*.mp3
+*.wav
+*.m4a
+*.aac
+*.ogg
+*.flac
