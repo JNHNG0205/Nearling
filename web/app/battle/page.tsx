@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PetPicker } from "@/components/battle/PetPicker";
@@ -38,10 +37,7 @@ export default function BattleLobbyPage() {
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col gap-6 px-4 py-6 md:max-w-[760px] md:gap-8 md:px-6 md:py-10">
-      <header className="flex items-center gap-3">
-        <Link href="/" aria-label="Back home" className="font-display text-2xl text-muted hover:text-ink">&lt;</Link>
-        <h1 className="font-display text-2xl">Battle</h1>
-      </header>
+      <h1 className="font-display text-2xl">Battle</h1>
 
       <p>
         Turn-based battles against a friend&apos;s pet. Each turn you both pick Fight or Run at the same time.
