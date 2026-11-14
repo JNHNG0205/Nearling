@@ -13,7 +13,7 @@ import { server, servers, tokenContext, type ServerRow } from "./store";
  * (talk.ts, approve/decline routes). Tokens are never sent back.
  */
 
-const MAX_SERVERS = 5;
+const MAX_SERVERS = 10;
 
 const AddBody = z.object({
   name: z.string().trim().min(1).max(40),
