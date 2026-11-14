@@ -1,6 +1,6 @@
 // Gas relay (brain/src/relay): wallets that sign NEP-366 delegate actions (Meteor, Intear, Ledger,
-// Email or Google) send calls to our contracts through the brain, which pays the gas. Deposits
-// still come from the user. Anything else, or a refusal before sending, signs normally.
+// Email or Google) send no-deposit calls to our contracts through the brain, which pays the gas.
+// Calls with NEAR attached, anything else, or a refusal before sending, sign normally.
 import type { NearWalletBase } from "@hot-labs/near-connect";
 import { BRAIN_URL, BrainRequestError } from "./brain";
 import { DEMO_PETS_CONTRACT, NETWORK, PETS_CONTRACT, SHIRTS_CONTRACT, type Outcome, type TxRequest } from "./chain";
@@ -8,9 +8,17 @@ import { authHeaders } from "./session";
 
 const RELAY_RECEIVERS = [PETS_CONTRACT, DEMO_PETS_CONTRACT, SHIRTS_CONTRACT];
 
-/** Only function calls to our contracts are relayed (the brain enforces the same). */
+/**
+ * Only function calls to our contracts with no NEAR attached (1 yocto at most) are relayed; the
+ * brain enforces the same. Under NEP-366 the relayer pays attached NEAR, so mint, feed, stake and
+ * the like are signed and paid by the user.
+ */
 export function relayEligible(req: TxRequest): boolean {
-  return RELAY_RECEIVERS.includes(req.receiverId) && req.actions.length > 0 && req.actions.every((a) => a.type === "FunctionCall");
+  return (
+    RELAY_RECEIVERS.includes(req.receiverId) &&
+    req.actions.length > 0 &&
+    req.actions.every((a) => a.type === "FunctionCall" && BigInt(a.params.deposit) <= 1n)
+  );
 }
 
 /**

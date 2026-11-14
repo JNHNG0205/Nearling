@@ -1,6 +1,7 @@
 // Gas relay (NEP-366 meta transactions): the user's wallet signs a delegate action, the brain's
-// relayer account wraps it in its own transaction and pays the gas. Attached deposits still come
-// from the user. Only calls to our own contracts, from the signed-in account, within caps.
+// relayer account wraps it in its own transaction and pays the gas. Under NEP-366 the relayer would
+// also pay any NEAR attached, so only calls with none (1 yocto at most) are relayed. Only calls to
+// our own contracts, from the signed-in account, within caps.
 import { Hono, type Context } from "hono";
 import { deserialize } from "borsh";
 import { Account, JsonRpcProvider, KeyPairSigner, SCHEMA, actions, type KeyPairString } from "near-api-js";
@@ -45,6 +46,9 @@ export function relayRefusal(
   if (senderId !== p.account) return "The sender must be the signed-in account";
   if (!p.receivers.includes(receiverId)) return "The receiver must be a Petto contract";
   if (acts.length === 0 || !acts.every((a) => a.functionCall)) return "Only function calls are relayed";
+  // NEP-366: NEAR attached to the inner calls is paid by the relayer, not the user. Only the
+  // 1 yocto that NEP-171 transfers need is allowed; anything else the user signs and pays.
+  if (acts.some((a) => a.functionCall!.deposit > 1n)) return "Calls with NEAR attached are not relayed";
   const gas = acts.reduce((sum, a) => sum + a.functionCall!.gas, 0n);
   if (gas > p.maxGasTgas * TGAS) return `At most ${p.maxGasTgas} Tgas of gas is relayed`;
   return null;

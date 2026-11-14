@@ -14,7 +14,7 @@ async function signed(o: { sender?: string; receiver?: string; acts?: Action[] }
   const delegateAction = buildDelegateAction({
     senderId: o.sender ?? "alice.testnet",
     receiverId: o.receiver ?? PETS,
-    actions: o.acts ?? [actions.functionCall("feed", { pet_id: "1" }, 30n * TGAS, 10n ** 23n)],
+    actions: o.acts ?? [actions.functionCall("set_soul", { pet_id: "1", prompt: "Brave." }, 30n * TGAS, 0n)],
     nonce: 7n,
     maxBlockHeight: 1_000n,
     publicKey: key.getPublicKey(),
@@ -23,6 +23,7 @@ async function signed(o: { sender?: string; receiver?: string; acts?: Action[] }
   return Buffer.from(encodeSignedDelegate(signedDelegate)).toString("base64");
 }
 
+const soul = actions.functionCall("set_soul", { pet_id: "1", prompt: "Brave." }, 30n * TGAS, 0n);
 const policy = { account: "alice.testnet", receivers: [PETS, "shirts.nearling.testnet"], maxGasTgas: 650n };
 
 describe("decodeSignedDelegate", () => {
@@ -30,7 +31,7 @@ describe("decodeSignedDelegate", () => {
     const d = decodeSignedDelegate(await signed());
     expect(d.delegateAction.senderId).toBe("alice.testnet");
     expect(d.delegateAction.receiverId).toBe(PETS);
-    expect(d.delegateAction.actions[0]?.functionCall?.methodName).toBe("feed");
+    expect(d.delegateAction.actions[0]?.functionCall?.methodName).toBe("set_soul");
   });
 
   it("throws on junk", () => {
@@ -39,8 +40,15 @@ describe("decodeSignedDelegate", () => {
 });
 
 describe("relayRefusal", () => {
+  it("refuses attached NEAR: under NEP-366 the relayer, not the user, pays it", async () => {
+    const feed = await signed({ acts: [actions.functionCall("feed", { pet_id: "1" }, 30n * TGAS, 10n ** 23n)] });
+    expect(relayRefusal(decodeSignedDelegate(feed), policy)).toMatch(/NEAR attached/);
+    const transfer1yocto = await signed({ acts: [actions.functionCall("nft_transfer", { receiver_id: "bob.testnet", token_id: "1" }, 30n * TGAS, 1n)] });
+    expect(relayRefusal(decodeSignedDelegate(transfer1yocto), policy)).toBeNull();
+  });
+
   it("accepts the signed-in owner calling our contract", async () => {
-    expect(relayRefusal(decodeSignedDelegate(await signed()), policy)).toBeNull();
+    expect(relayRefusal(decodeSignedDelegate(await signed({ acts: [soul] })), policy)).toBeNull();
   });
 
   it("refuses another sender than the session account", async () => {

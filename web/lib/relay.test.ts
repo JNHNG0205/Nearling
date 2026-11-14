@@ -3,10 +3,15 @@ import { PETS_CONTRACT, SHIRTS_CONTRACT, tx } from "./chain";
 import { relayEligible, relayFallback } from "./relay";
 
 describe("relayEligible", () => {
-  it("relays plain calls to our contracts, deposits included (the user still pays those)", () => {
+  it("relays calls to our contracts with no NEAR attached (1 yocto at most)", () => {
     expect(relayEligible(tx.setSoul(PETS_CONTRACT, "1", "Brave."))).toBe(true);
-    expect(relayEligible(tx.feed(PETS_CONTRACT, "1", 10n ** 23n))).toBe(true);
-    expect(relayEligible(tx.claimShirt())).toBe(true);
+    expect(relayEligible(tx.nftTransfer(PETS_CONTRACT, "bob.testnet", "1"))).toBe(true);
+  });
+
+  it("never relays attached NEAR: under NEP-366 the relayer would pay it, so the user signs normally", () => {
+    expect(relayEligible(tx.feed(PETS_CONTRACT, "1", 10n ** 23n))).toBe(false);
+    expect(relayEligible(tx.stake(PETS_CONTRACT, "1", 10n ** 24n))).toBe(false);
+    expect(relayEligible(tx.claimShirt())).toBe(false);
     expect(SHIRTS_CONTRACT).toBe(tx.claimShirt().receiverId);
   });
 
