@@ -2,6 +2,7 @@ import type { McpTaskCard } from "@petto/shared";
 import type { ChatTool } from "../ai/nearai";
 import type { Deps } from "../deps";
 import type { McpTool } from "./client";
+import { ZAPIER_LOOKUP, ZAPIER_MCP_URL } from "./catalog";
 
 /** Sealer context for an owner's MCP tokens (the sealer derives a key per context string). */
 export const tokenContext = (owner: string) => `mcp:${owner}`;
@@ -46,19 +47,26 @@ const fnName = (serverId: number, tool: string) => `s${serverId}_${tool.replace(
 
 export interface OwnerTools {
   specs: ChatTool[];
-  byName: Map<string, { serverId: number; tool: string; serverName: string }>;
+  byName: Map<string, { serverId: number; tool: string; serverName: string; lookup: boolean }>;
 }
 
 /** Every tool the owner connected, as chat tools (at most 32 in total). Null when there are none. */
 export function ownerTools(deps: Deps, owner: string): OwnerTools | null {
   const specs: ChatTool[] = [];
   const byName: OwnerTools["byName"] = new Map();
-  for (const s of servers(deps, owner)) {
+  const all = servers(deps, owner);
+  const seen = new Set<string>();
+  for (const s of all) {
+    // Gmail, Calendar and Slack through Zapier share one connection: offer its actions once
+    if (seen.has(s.url)) continue;
+    seen.add(s.url);
+    const zapier = s.url === ZAPIER_MCP_URL;
+    const label = zapier ? `Zapier (${all.filter((x) => x.url === s.url).map((x) => x.name).join(", ")})` : s.name;
     for (const t of JSON.parse(s.tools_json) as McpTool[]) {
       if (specs.length >= 32) break;
       const name = fnName(s.id, t.name);
-      byName.set(name, { serverId: s.id, tool: t.name, serverName: s.name });
-      specs.push({ type: "function", function: { name, description: `${s.name}: ${t.description}`.slice(0, 400), parameters: t.input_schema } });
+      byName.set(name, { serverId: s.id, tool: t.name, serverName: label, lookup: zapier && ZAPIER_LOOKUP.has(t.name) });
+      specs.push({ type: "function", function: { name, description: `${label}: ${t.description}`.slice(0, 400), parameters: t.input_schema } });
     }
   }
   return specs.length ? { specs, byName } : null;

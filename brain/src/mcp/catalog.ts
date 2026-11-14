@@ -120,6 +120,10 @@ export const catalogEntry = (id: string) => CATALOG.find((c) => c.id === id);
 
 export const ZAPIER_MCP_URL = "https://mcp.zapier.com/api/v1/connect";
 
+/** Zapier connect tools the pet gets: look up (runs without asking, read-only settings) and run (needs Approve). */
+export const ZAPIER_LOOKUP = new Set(["discover_zapier_actions", "inspect_zapier_actions", "list_zapier_connections"]);
+export const ZAPIER_TOOLS = new Set([...ZAPIER_LOOKUP, "execute_zapier_read_action", "execute_zapier_write_action"]);
+
 /** The entry as it will really connect: Gmail, Calendar and Slack go through Zapier until the team adds its own app. */
 export function effectiveEntry(cfg: Config, e: CatalogEntry): CatalogEntry {
   if (!e.viaZapier || appCredentials(cfg, e) !== null) return e;

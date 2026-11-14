@@ -6,7 +6,7 @@ import { jsonBody } from "../identity/common";
 import { log } from "../log";
 import { checkUrl, listTools, McpError, type McpTool } from "./client";
 import { resolveServer, sealAuth, startSignIn, finishSignIn, type StoredAuth } from "./auth";
-import { CATALOG, catalogEntry, catalogView, effectiveEntry, ZAPIER_MCP_URL } from "./catalog";
+import { CATALOG, catalogEntry, catalogView, effectiveEntry, ZAPIER_MCP_URL, ZAPIER_TOOLS } from "./catalog";
 import { server, servers, tokenContext, type ServerRow } from "./store";
 
 /**
@@ -48,8 +48,10 @@ const view = (s: ServerRow) => ({
 function cardTools(catalogId: string, url: string, tools: McpTool[]): McpTool[] {
   const listed = catalogEntry(catalogId);
   if (url !== ZAPIER_MCP_URL || !listed?.viaZapier) return tools;
-  const p = listed.viaZapier.prefix.toLowerCase();
-  return tools.filter((x) => x.name.toLowerCase().startsWith(p));
+  // names only (public tool metadata, no user content): shows why a card ends up with 0 actions
+  log.info("mcp zapier tools", { catalog_id: catalogId, count: tools.length, names: tools.map((x) => x.name).slice(0, 40).join(",") });
+  // Zapier's connect server is generic: find an enabled action, then run it. Keep those, drop its admin tools.
+  return tools.filter((x) => ZAPIER_TOOLS.has(x.name));
 }
 
 export function mcpRoutes(deps: Deps) {
