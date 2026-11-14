@@ -53,7 +53,7 @@ function optionalRow<T>(db: Db, sql: string, id: string): T | null {
 
 const nras = (a: AttestationRow | null) => (a ? (a.ok ? "pass" : "fail") : null);
 
-function buildReceipt(db: Db, turnId: string): { public: boolean; petRef: string; body: Receipt } | null {
+function buildReceipt(db: Db, turnId: string, ttsProvider = "elevenlabs"): { public: boolean; petRef: string; body: Receipt } | null {
   const v = db.prepare("SELECT * FROM verification WHERE turn_id = ?").get(turnId) as VerificationRow | undefined;
   const t = optionalRow<TurnRow>(db, "SELECT * FROM turn WHERE id = ?", turnId);
   if (!v && !t) return null;
@@ -88,11 +88,14 @@ function buildReceipt(db: Db, turnId: string): { public: boolean; petRef: string
         : null,
       provider_cost_usd: typeof t?.provider_cost_nano === "number" ? t.provider_cost_nano / 1e9 : null,
       voice: t?.audio_key
-        ? { provider: "elevenlabs", note: "reply text sent to a third-party voice service" }
+        ? { provider: ttsProvider, note: "reply text sent to a third-party voice service" }
         : null,
     },
   };
 }
+
+/** Who voiced the audio: the configured provider; "none" now means it was voiced before voice was switched off. */
+const voiceProvider = (deps: Deps) => (deps.cfg.TTS_PROVIDER === "none" ? undefined : deps.cfg.TTS_PROVIDER);
 
 export function receiptRoutes(deps: Deps) {
   const app = new Hono();
@@ -117,7 +120,7 @@ export function receiptRoutes(deps: Deps) {
   }
 
   app.get("/receipts/:turnId", async (c) => {
-    const r = buildReceipt(deps.db, c.req.param("turnId"));
+    const r = buildReceipt(deps.db, c.req.param("turnId"), voiceProvider(deps));
     if (!r) return c.json(notFound, 404);
     if (!r.public) {
       const denied = await checkOwner(c, r.petRef);
@@ -145,7 +148,7 @@ export function receiptRoutes(deps: Deps) {
       )
       .all(ref.petRef, LIST_LIMIT) as { turn_id: string }[];
     const receipts = rows.flatMap((r) => {
-      const b = buildReceipt(deps.db, r.turn_id);
+      const b = buildReceipt(deps.db, r.turn_id, voiceProvider(deps));
       return b ? [b.body] : [];
     });
     return c.json({ receipts });

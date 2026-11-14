@@ -312,7 +312,7 @@ export function createTalk(deps: Deps, overrides: TalkOverrides = {}) {
   });
 
   async function synth(turnId: string, text: string): Promise<string | null> {
-    if (!tts || ttsLow || (tts.name === "elevenlabs" && !voiceId)) return null;
+    if (!tts || ttsLow || (tts.name !== "kokoro" && !voiceId)) return null;
     const clipped = clipForVoice(text);
     const t0 = now();
     try {

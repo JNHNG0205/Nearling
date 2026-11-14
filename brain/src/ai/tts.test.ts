@@ -18,4 +18,20 @@ describe("tts", () => {
     const tts = createTts(CFG, (async () => new Response(JSON.stringify(body), { status: 402 })) as unknown as typeof fetch);
     await expect(tts!.synth("hi", "voice")).rejects.toThrow("tts_402_paid_plan_required");
   });
+
+  it("calls Fish Audio with the voice model as reference_id and returns WAV", async () => {
+    let req: { url: string; init: RequestInit } | null = null;
+    const f = (async (url: string, init: RequestInit) => {
+      req = { url, init };
+      return new Response(new Uint8Array(3200), { status: 200 });
+    }) as unknown as typeof fetch;
+    const tts = createTts({ ...CFG, TTS_PROVIDER: "fishaudio", FISH_AUDIO_API_KEY: "fk", FISH_AUDIO_MODEL: "s1" }, f);
+    const out = await tts!.synth("hello", "a3d61f39b5114be3bffb345159077528");
+    expect(req!.url).toBe("https://api.fish.audio/v1/tts");
+    expect(req!.init.headers).toMatchObject({ Authorization: "Bearer fk", model: "s1" });
+    expect(JSON.parse(req!.init.body as string)).toMatchObject({ reference_id: "a3d61f39b5114be3bffb345159077528", format: "pcm", sample_rate: 16000 });
+    expect(out.mime).toBe("audio/wav");
+    expect(out.bytes.length).toBe(44 + 3200);
+    expect(createTts({ ...CFG, TTS_PROVIDER: "fishaudio" })).toBeNull(); // no key, no voice
+  });
 });
