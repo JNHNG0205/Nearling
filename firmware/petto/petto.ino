@@ -41,7 +41,7 @@
 #define BRAIN_URL "https://api.mypetto.xyz"   // live brain (web app: https://mypetto.xyz)
 #endif
 
-#define FW_VERSION "0.6.0"
+#define FW_VERSION "0.6.1"
 #define WEB_URL "https://mypetto.xyz"   // QR codes always point here, whatever web URL the brain is set to
 #define REC_MAX_SAMPLES (MIC_SAMPLE_HZ * REC_MAX_SECONDS)
 
@@ -134,6 +134,7 @@ Battle bat;
 struct BItem { String label; bool ok; String move; int submenu; };   // submenu 1 = open skills, 2 = back
 bool wantBattle = false, battleLeave = false, battleReady = false;
 String battleMove;   // JSON message waiting to be sent
+bool wantUnpair = false;   // menu New pet: the device unpairs itself
 
 // =====================================================================
 // small helpers
@@ -408,6 +409,18 @@ void doConfirm() {
   }
   nToken = tok; nRef = ref;
   Serial.println("[PAIR] paired, token stored");
+}
+
+// Menu New pet: the device unpairs itself, then hello gives a fresh hatch QR.
+void doUnpair() {
+  Resp r = request("POST", "/devices/unpair", "", AUTH_TOKEN);
+  if (r.code == 200 || r.code == 401) {   // 401: already unpaired
+    Serial.println("[PAIR] unpaired from this device");
+    forgetToken();
+    Lock l; wantHello = true; netNote = "";
+  } else {
+    setNote(r.code == 404 ? "unpair on the web (brain too old)" : "unpair failed (" + String(r.code) + ")");
+  }
 }
 
 void pollState() {
@@ -941,6 +954,9 @@ void netTask(void *) {
       if (now - lastPair > 2000) { lastPair = now; pollPairing(); }
     } else if (ph == PH_PET && nRef.length()) {
       if (talk) { { Lock l; talkReady = false; } doTalk(); continue; }
+      bool unpair;
+      { Lock l; unpair = wantUnpair; wantUnpair = false; }
+      if (unpair) { doUnpair(); continue; }
       bool battle;
       { Lock l; battle = wantBattle; }
       if (battle) { runBattle(); continue; }
@@ -1165,11 +1181,11 @@ void drawHearts(Adafruit_GFX &g) {
 // =====================================================================
 // UI state (UI thread only)
 // =====================================================================
-enum Mode : uint8_t { M_PET, M_MENU, M_STATS, M_FEEDQR, M_DEVICE, M_BATTLE };
+enum Mode : uint8_t { M_PET, M_MENU, M_STATS, M_FEEDQR, M_DEVICE, M_BATTLE, M_NEWPET };
 Mode mode = M_PET;
 int menuSel = 0;
-const char *MENU[] = {"Stats", "Battle", "Sleep", "Feed me (QR)", "Device", "Back"};
-const int MENU_N = 6;
+const char *MENU[] = {"Stats", "Battle", "Sleep", "Feed me (QR)", "Device", "New pet", "Back"};
+const int MENU_N = 7;
 int bMenu = 0, bSel = 0;   // battle menu: 0 = Fight/Defend/Dodge/Run, 1 = skills
 bool pairDeclined = false;
 String bubble;                  // reply or inbox text being shown
@@ -1386,8 +1402,8 @@ void renderFrame() {
   } else if (mode == M_MENU) {
     textCenter(g, "Menu", 12, 2, C_INK);
     for (int i = 0; i < MENU_N; i++) {
-      int y = 42 + i * 30;
-      if (i == menuSel) g.fillRoundRect(20, y - 6, 200, 26, 6, C_SPOT);
+      int y = 38 + i * 26;
+      if (i == menuSel) g.fillRoundRect(20, y - 4, 200, 22, 6, C_SPOT);
       textCenter(g, MENU[i], y, 2, i == menuSel ? C_WHITE : C_INK);
     }
     hintBar(g, "A up    C down    B select");
@@ -1414,6 +1430,16 @@ void renderFrame() {
     hintBar(g, "A back");
   } else if (mode == M_BATTLE) {
     renderBattle(g, p);
+  } else if (mode == M_NEWPET) {
+    textCenter(g, "New pet?", 16, 2, C_INK);
+    drawPetSprite(p, "sad", 72, 44, 3);
+    textCenter(g, "Unpair " + p.name + " from this device", 152, 1, C_INK);
+    textCenter(g, "and show a new hatch QR.", 164, 1, C_INK);
+    textCenter(g, p.name + " stays yours on the web.", 176, 1, C_INK);
+    uint32_t held = bB.down && bB.held ? millis() - bB.downAt : 0;
+    g.drawRect(40, 196, 160, 10, C_INK);
+    g.fillRect(41, 197, min(held, (uint32_t)APPROVE_HOLD_MS) * 158 / APPROVE_HOLD_MS, 8, C_RED);
+    hintBar(g, "hold B 2s = yes      A = no");
   } else if (mode == M_DEVICE) {
     textCenter(g, "Device", 10, 2, C_INK);
     g.setTextSize(1); g.setTextColor(C_INK);
@@ -1585,11 +1611,19 @@ void uiLoop() {
           case 2: enqueueCare("sleep"); sleepUntil = now + 20000; mode = M_PET; break;
           case 3: { Lock l; feedUrl = ""; } mode = M_FEEDQR; break;
           case 4: mode = M_DEVICE; break;
+          case 5: mode = M_NEWPET; break;
           default: mode = M_PET;
         }
       }
       break;
     case M_BATTLE: uiBattle(); break;
+    case M_NEWPET:
+      if (bA.shortPress) mode = M_MENU;
+      if (bB.down && bB.held && now - bB.downAt >= APPROVE_HOLD_MS) {
+        bB.consumed = true; mode = M_PET; chime();
+        Lock l; wantUnpair = true;
+      }
+      break;
     default:
       if (bA.shortPress || bB.shortPress) mode = M_PET;
   }
