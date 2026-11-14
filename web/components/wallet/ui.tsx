@@ -9,22 +9,25 @@ export function AppFrame({
   title,
   back,
   demo,
+  wide,
   children,
 }: {
   title: string;
   back?: string;
   demo?: boolean;
+  /** desktop: up to 1100 px for two-column pages */
+  wide?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <main className="mx-auto flex min-h-dvh max-w-[480px] flex-col gap-6 px-4 py-6">
+    <main className={`mx-auto flex min-h-dvh w-full max-w-[480px] flex-col gap-6 px-4 py-6 md:max-w-[760px] md:gap-8 md:px-6 md:py-10 ${wide ? "lg:max-w-[1100px]" : ""}`}>
       <header className="flex items-center gap-3">
         {back && (
           <Link href={back} aria-label="Go back" className="font-display text-2xl text-accent">
             &lt;
           </Link>
         )}
-        <h1 className="flex-1 font-display text-2xl">{title}</h1>
+        <h1 className="flex-1 font-display text-2xl md:text-3xl">{title}</h1>
         {demo && <DemoSpeedPill />}
       </header>
       {children}

@@ -86,7 +86,7 @@ export function createVoiceRoutes(deps: Deps, overrides: { tts?: TtsProvider | n
     const existing = liveKey(t.audio_key);
     if (existing) return c.json({ audio_url: `/audio/${existing}` });
 
-    if (!tts || (tts.name === "elevenlabs" && !voiceId)) return c.json(err("brain_resting", "Voice is off"), 503);
+    if (!tts || (tts.name !== "kokoro" && !voiceId)) return c.json(err("brain_resting", "Voice is off"), 503);
     if (overSpendCap(db, now(), cfg.GLOBAL_DAILY_SPEND_CAP_USD) || (await belowFloor())) {
       return c.json(err("brain_resting", "Voice is resting for today"), 503);
     }

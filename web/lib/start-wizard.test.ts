@@ -26,33 +26,28 @@ describe("start wizard: resume", () => {
     const s = with_({ device: "ble", account: ACC, walletConfirmed: true, petRef: "pets-v8.nearling.testnet:3" });
     const back = parseWizard(JSON.stringify(s));
     expect(back).toEqual(s);
-    expect(currentStep(back, signedIn)).toBe(4);
+    expect(currentStep(back, signedIn)).toBe(2); // pet hatched, not customised yet
   });
 
-  it("resumes at step 2 when the session is gone, even with a pet saved", () => {
+  it("resumes at step 1 when the session is gone, even with a pet saved", () => {
     const s = with_({ device: "qr", account: ACC, walletConfirmed: true, petRef: "pets-v8.nearling.testnet:3", customised: true });
-    expect(currentStep(s, out)).toBe(2);
+    expect(currentStep(s, out)).toBe(1);
   });
 });
 
 describe("start wizard: skip and completion", () => {
-  it("continuing in the browser completes step 1", () => {
-    expect(stepDone(with_({ device: "browser" }), out, 1)).toBe(true);
-    expect(currentStep(with_({ device: "browser" }), out)).toBe(2);
-  });
-
-  it("arriving from the QR link completes step 1 and keeps the token", () => {
+  it("arriving from the QR link keeps the token for the device step", () => {
     const s = applyFacts(EMPTY_WIZARD, { ...out, urlToken: "abc123" });
     expect(s.device).toBe("qr");
     expect(s.pairingToken).toBe("abc123");
-    expect(stepDone(s, out, 1)).toBe(true);
+    expect(currentStep(s, out)).toBe(1);
   });
 
-  it("step 2 needs a signed-in session and the owner's go-ahead", () => {
-    const s = applyFacts(with_({ device: "browser" }), signedIn);
-    expect(stepDone(s, signedIn, 2)).toBe(false);
-    expect(stepDone({ ...s, walletConfirmed: true }, signedIn, 2)).toBe(true);
-    expect(stepDone({ ...s, walletConfirmed: true }, { ...signedIn, signedIn: false }, 2)).toBe(false);
+  it("step 1 needs a signed-in session and the owner's go-ahead", () => {
+    const s = applyFacts(EMPTY_WIZARD, signedIn);
+    expect(stepDone(s, signedIn, 1)).toBe(false);
+    expect(stepDone({ ...s, walletConfirmed: true }, signedIn, 1)).toBe(true);
+    expect(stepDone({ ...s, walletConfirmed: true }, { ...signedIn, signedIn: false }, 1)).toBe(false);
   });
 
   it("a different account resets the wallet go-ahead and the pet", () => {
@@ -66,18 +61,19 @@ describe("start wizard: skip and completion", () => {
     expect(applyFacts(s, signedIn)).toBe(s);
   });
 
-  it("ends at step 5, which is never marked done", () => {
+  it("ends at step 3 (device or browser), which is never marked done", () => {
     const s = with_({ device: "ble", account: ACC, walletConfirmed: true, petRef: "pets-v8.nearling.testnet:3", customised: true });
-    expect(currentStep(s, signedIn)).toBe(5);
-    expect(stepDone(s, signedIn, 5)).toBe(false);
-    expect(progress(s, signedIn)).toBe(4);
+    expect(currentStep(s, signedIn)).toBe(3);
+    expect(stepDone(s, signedIn, 3)).toBe(false);
+    expect(progress(s, signedIn)).toBe(2);
   });
 
   it("cannot jump ahead, can reopen earlier steps", () => {
-    const s = with_({ device: "browser" });
-    expect(canOpen(s, out, 1)).toBe(true);
-    expect(canOpen(s, out, 2)).toBe(true);
-    expect(canOpen(s, out, 3)).toBe(false);
+    const s = with_({ account: ACC, walletConfirmed: true });
+    expect(canOpen(s, signedIn, 1)).toBe(true);
+    expect(canOpen(s, signedIn, 2)).toBe(true);
+    expect(canOpen(s, signedIn, 3)).toBe(false);
+    expect(stepDone({ ...s, petRef: "pets-v9.nearling.testnet:3" }, signedIn, 2)).toBe(false); // hatched but not customised
   });
 });
 

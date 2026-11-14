@@ -6,7 +6,7 @@ import type { Config } from "../config";
  * MP3 decoder. A TTS failure never fails a turn (the caller catches).
  */
 export interface TtsProvider {
-  name: "elevenlabs" | "kokoro";
+  name: "elevenlabs" | "fishaudio" | "kokoro";
   synth(text: string, voice: string): Promise<{ mime: string; bytes: Uint8Array }>;
   /** Remaining provider credits, or null if the provider does not report them. */
   credits?(): Promise<number | null>;
@@ -50,7 +50,8 @@ export function clipForVoice(text: string, max = TTS_MAX_CHARS): string {
 }
 
 export function createTts(
-  cfg: Pick<Config, "TTS_PROVIDER" | "TTS_MODEL" | "TTS_API_KEY" | "TTS_BASE_URL">,
+  cfg: Pick<Config, "TTS_PROVIDER" | "TTS_MODEL" | "TTS_API_KEY" | "TTS_BASE_URL"> &
+    Partial<Pick<Config, "FISH_AUDIO_API_KEY" | "FISH_AUDIO_MODEL">>,
   f: Fetch = fetch,
 ): TtsProvider | null {
   if (cfg.TTS_PROVIDER === "elevenlabs") {
@@ -84,6 +85,25 @@ export function createTts(
         const j = (await res.json()) as { character_count?: number; character_limit?: number };
         if (typeof j.character_count !== "number" || typeof j.character_limit !== "number") return null;
         return j.character_limit - j.character_count;
+      },
+    };
+  }
+  if (cfg.TTS_PROVIDER === "fishaudio") {
+    if (!cfg.FISH_AUDIO_API_KEY) return null;
+    const key = cfg.FISH_AUDIO_API_KEY;
+    const model = cfg.FISH_AUDIO_MODEL ?? "s2.1-pro-free";
+    return {
+      name: "fishaudio",
+      async synth(text, voice) {
+        // Fish Audio TTS: `reference_id` is the voice model id; raw 16 kHz PCM is wrapped as WAV for the device.
+        const res = await f("https://api.fish.audio/v1/tts", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", model },
+          body: JSON.stringify({ text, reference_id: voice, format: "pcm", sample_rate: 16_000, latency: "balanced" }),
+          signal: AbortSignal.timeout(15_000),
+        });
+        if (!res.ok) throw new Error(`tts_${res.status}`);
+        return { mime: "audio/wav", bytes: pcmToWav(new Uint8Array(await res.arrayBuffer()), 16_000) };
       },
     };
   }

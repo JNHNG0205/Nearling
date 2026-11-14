@@ -39,7 +39,7 @@ export default function RacePage() {
   };
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-[480px] flex-col gap-6 px-4 py-6">
+    <main className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col gap-6 px-4 py-6 md:max-w-[760px] md:gap-8 md:px-6 md:py-10">
       <header className="flex items-center gap-3">
         <Link href="/" aria-label="Back home" className="font-display text-2xl text-muted hover:text-ink">&lt;</Link>
         <h1 className="font-display text-2xl">Petto Run</h1>

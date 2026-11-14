@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PetState } from "@nearling/shared";
 import type { AnyAnim, CareEvent } from "@nearling/sprites";
 import { FuelMeter } from "@/components/FuelMeter";
@@ -17,7 +17,7 @@ import {
 import { authHeaders, useSession } from "@/lib/session";
 import { useStream } from "@/lib/useStream";
 import { useTalk } from "@/lib/useTalk";
-import { InboxPanel, InboxToast, notifyInBackground } from "./Inbox";
+import { notifyInBackground } from "./Inbox";
 import { DemoSpeedPill, StatePill, stateBanner } from "./Pills";
 import { talkAnim, turnFromTalk } from "./talkFlow";
 
@@ -29,13 +29,12 @@ export function PetHome({ initial }: { initial: PetState }) {
   const isOwner = !!session && session.account === pet.owner;
   const [entries, setEntries] = useState<ChatEntry[]>([]);
   const [inbox, setInbox] = useState<InboxItem[]>([]);
-  const [inboxOpen, setInboxOpen] = useState(false);
-  const [toast, setToast] = useState<InboxItem | null>(null);
   const [event, setEvent] = useState<{ anim: AnyAnim; key: number } | null>(null);
   const [bubble, setBubble] = useState<string | null>(null);
   const [careError, setCareError] = useState<string | null>(null);
   const [hatching, setHatching] = useState(false);
   const petRef = pet.pet_ref;
+  const chatRef = useRef<HTMLDivElement>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -67,6 +66,12 @@ export function PetHome({ initial }: { initial: PetState }) {
     };
   }, [isOwner, petRef]);
 
+  // desktop chat panel: always show the newest message; scroll up for older ones
+  useEffect(() => {
+    const el = chatRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [entries]);
+
   const play = (anim: AnyAnim) => setEvent({ anim, key: Date.now() });
 
   const patchTurn = (turnId: string, patch: (t: Turn) => Turn) =>
@@ -92,7 +97,6 @@ export function PetHome({ initial }: { initial: PetState }) {
       const item = normalizeInbox(d);
       if (!item) return;
       setInbox((list) => (list.some((i) => i.id === item.id) ? list : [...list, item]));
-      setToast(item);
       notifyInBackground(pet.name, item.text);
     },
     evolved: () => {
@@ -144,16 +148,15 @@ export function PetHome({ initial }: { initial: PetState }) {
     }
   };
 
-  const unread = inbox.filter((i) => i.read_at === null).length;
-  const openInbox = () => {
-    setInboxOpen((o) => !o);
-    const last = inbox.at(-1);
-    if (last && isOwner && unread > 0) {
-      const at = Date.now();
-      setInbox((list) => list.map((i) => (i.read_at === null ? { ...i, read_at: at } : i)));
-      void ackInbox(petRef, authHeaders(), last.id).catch(() => undefined);
+  // Messages the pet sent on its own (inbox) appear in the chat, in time order, after the turns they follow.
+  const chat = mergeInbox(entries, inbox);
+  // seeing the chat reads the inbox
+  const lastInbox = inbox.at(-1);
+  useEffect(() => {
+    if (isOwner && lastInbox && lastInbox.read_at === null) {
+      void ackInbox(petRef, authHeaders(), lastInbox.id).catch(() => undefined);
     }
-  };
+  }, [isOwner, petRef, lastInbox]);
 
   const lowFuel = pet.fuel.left === 0 || pet.display_state === "starving" || pet.display_state === "dormant";
   const banner = stateBanner(pet.display_state, pet.name, pet.fuel.left);
@@ -161,21 +164,12 @@ export function PetHome({ initial }: { initial: PetState }) {
   const m = pet.care.milestones;
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-[480px] flex-col gap-6 px-4 py-6">
+    <main className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col gap-6 px-4 py-6 md:max-w-[760px] md:px-6 lg:h-[calc(100dvh-66px)] lg:min-h-0 lg:max-w-[1200px] lg:gap-4 lg:overflow-hidden lg:py-5">
       <header className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3">
           <h1 className="font-display text-2xl">
             {pet.name} <span className="text-base text-muted">. {cap(pet.stage)}{pet.form === "winged" ? " . winged" : ""}</span>
           </h1>
-          {isOwner && (
-            <button type="button" className="pixel-btn pixel-btn--secondary px-3 text-sm" onClick={openInbox}
-              aria-expanded={inboxOpen}>
-              Inbox
-              {unread > 0 && (
-                <span className="ml-2 bg-accent px-1 font-mono text-bg" aria-label={`${unread} unread`}>{unread}</span>
-              )}
-            </button>
-          )}
         </div>
         <div className="flex flex-wrap gap-2">
           {pet.demo_speed && <DemoSpeedPill />}
@@ -183,7 +177,10 @@ export function PetHome({ initial }: { initial: PetState }) {
         </div>
       </header>
 
-      {inboxOpen && isOwner && <InboxPanel items={inbox} name={pet.name} />}
+      {/* phone: one column (pet, talk, links). desktop: pet and links left, talk and chat right */}
+      <div className="flex flex-col gap-6 lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,460px)_minmax(0,1fr)] lg:grid-rows-[auto_minmax(0,1fr)] lg:items-start lg:gap-x-10 lg:gap-y-4">
+      <div className="flex flex-col gap-6 lg:col-start-1 lg:row-start-1 lg:gap-3">
+
       {banner && <p className="border-2 border-line bg-surface px-3 py-2">{banner}</p>}
 
       <PetScreen
@@ -239,6 +236,11 @@ export function PetHome({ initial }: { initial: PetState }) {
         </p>
       </div>
 
+      </div>
+
+      <div className="flex flex-col gap-6 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-full lg:min-h-0 lg:gap-4 lg:self-stretch lg:border-l-2 lg:border-line lg:pl-10">
+      {/* desktop: messages scroll above, the talk box stays at the bottom like a chat app */}
+      <div className="lg:order-last">
       {isOwner ? (
         <TalkBar
           petRef={petRef}
@@ -266,8 +268,14 @@ export function PetHome({ initial }: { initial: PetState }) {
           <Link href={`/feed/${ref}`} className="pixel-btn self-start">Feed {pet.name}</Link>
         </div>
       )}
+      </div>
 
-      <ChatLog entries={entries} name={pet.name} readOnly={!isOwner} petRef={petRef} />
+      <div ref={chatRef} className="chat-scroll max-h-[60dvh] overflow-y-auto pr-2 lg:max-h-none lg:min-h-0 lg:flex-1 lg:pr-3">
+        <ChatLog entries={chat} name={pet.name} readOnly={!isOwner} petRef={petRef} />
+      </div>
+      </div>
+
+      <div className="chat-scroll flex flex-col gap-6 lg:col-start-1 lg:row-start-2 lg:max-h-full lg:min-h-0 lg:gap-3 lg:overflow-y-auto">
 
       <PantryCard compact contract={pet.contract} tokenId={pet.token_id} name={pet.name} />
       <nav aria-label={`${pet.name} pages`} className="flex flex-wrap gap-2 border-t-2 border-line pt-4">
@@ -285,10 +293,21 @@ export function PetHome({ initial }: { initial: PetState }) {
           <Link key={href} href={href!} className="pixel-btn pixel-btn--secondary px-3 text-sm">{label}</Link>
         ))}
       </nav>
+      </div>
+      </div>
 
-      {toast && <InboxToast item={toast} name={pet.name} onClose={() => setToast(null)} />}
     </main>
   );
 }
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** Chat turns plus the pet's own messages, oldest first; pending turns (no time yet) stay last. */
+function mergeInbox(entries: ChatEntry[], inbox: InboxItem[]): ChatEntry[] {
+  // a message the pet sent first also exists as a turn with no owner line; show it once, as the note
+  const noteTurns = new Set(inbox.map((i) => i.turn_id).filter(Boolean));
+  const turns = entries.filter((e) => !(e.turn && noteTurns.has(e.turn.turn_id)));
+  const notes: ChatEntry[] = inbox.map((i) => ({ key: `inbox-${i.id}`, user: null, turn: null, error: null, note: { text: i.text, at: i.created_at } }));
+  const at = (e: ChatEntry) => e.note?.at ?? e.turn?.at ?? Number.POSITIVE_INFINITY;
+  return [...turns, ...notes].sort((a, b) => at(a) - at(b));
+}

@@ -9,10 +9,12 @@ import { usePet, type PetData } from "./usePet";
 export function PetPage({
   title,
   back = "home",
+  wide,
   children,
 }: {
   title: (name: string) => string;
   back?: "home" | "none";
+  wide?: boolean;
   children: (pet: PetData) => React.ReactNode;
 }) {
   const params = useParams<{ petRef: string }>();
@@ -26,8 +28,9 @@ export function PetPage({
     );
   }
   const name = pet.chain?.name ?? "your pet";
+  const home = back === "home" ? petPath(pet.contract, pet.tokenId) : undefined;
   return (
-    <AppFrame title={title(name)} back={back === "home" ? petPath(pet.contract, pet.tokenId) : undefined} demo={pet.demo}>
+    <AppFrame title={title(name)} back={home} demo={pet.demo} wide={wide}>
       {pet.loading ? <Spinner /> : pet.chain ? children(pet) : <ErrorText>{pet.error}</ErrorText>}
     </AppFrame>
   );

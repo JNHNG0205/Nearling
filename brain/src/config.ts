@@ -53,10 +53,13 @@ const Env = z.object({
   // Talk, NEAR AI, TTS, charging (AI-brain 03, 04 section 2)
   NEARAI_CHAT_MODEL: z.string().default("z-ai/glm-5.3-flash"),
   NEARAI_STT_MODEL: z.string().default("openai/whisper-large-v3"),
-  TTS_PROVIDER: z.enum(["elevenlabs", "kokoro", "none"]).default("none"),
+  TTS_PROVIDER: z.enum(["elevenlabs", "fishaudio", "kokoro", "none"]).default("none"),
   TTS_MODEL: z.string().default("eleven_flash_v2_5"),
   TTS_API_KEY: z.string().optional(),
   TTS_VOICE_ID: z.string().optional(),
+  /** Fish Audio only: API key (fish.audio, API keys) and model (sent as the `model` header). TTS_VOICE_ID is the voice model id. */
+  FISH_AUDIO_API_KEY: z.string().optional(),
+  FISH_AUDIO_MODEL: z.string().default("s2.1-pro-free"),
   /** Kokoro only: OpenAI-compatible base URL of the self-hosted container. */
   TTS_BASE_URL: z.string().default("http://localhost:8880/v1"),
   BRAIN_ACCOUNT_ID: z.string().default("brain.nearling.testnet"),

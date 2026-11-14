@@ -12,6 +12,8 @@ export interface ChatEntry {
   user: string | null; // null = voice message without transcript yet
   turn: Turn | null; // null while thinking
   error: string | null;
+  /** a message the pet sent first (proactive inbox), shown as a pet bubble with no owner line */
+  note?: { text: string; at: number };
 }
 
 const EMOTION_ICON: Record<string, string> = {
@@ -74,11 +76,6 @@ function ReplyBubble({ turn, name, petRef }: { turn: Turn; name: string; petRef?
 
 /** `petRef` turns on "Hear it" for the owner's saved replies. */
 export function ChatLog({ entries, name, readOnly, petRef }: { entries: ChatEntry[]; name: string; readOnly?: boolean; petRef?: string }) {
-  const end = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    end.current?.scrollIntoView({ block: "nearest" });
-  }, [entries.length]);
-
   if (entries.length === 0) {
     return (
       <p className="text-muted">
@@ -90,6 +87,13 @@ export function ChatLog({ entries, name, readOnly, petRef }: { entries: ChatEntr
     <section aria-label="Chat" className="flex flex-col gap-4">
       {entries.map((e) => (
         <div key={e.key} className="flex flex-col gap-2">
+          {e.note ? (
+            <p className="max-w-[90%] border-2 border-line border-l-accent bg-surface px-3 py-2">
+              <span className="mr-2 font-display text-accent">{name}</span>
+              <span className="font-display text-[18px] leading-6">{e.note.text}</span>
+            </p>
+          ) : (
+          <>
           <p className="self-end max-w-[85%] border-2 border-accent px-3 py-2">
             <span className="sr-only">You: </span>
             {e.user ?? <span className="text-muted">Voice message</span>}
@@ -101,9 +105,10 @@ export function ChatLog({ entries, name, readOnly, petRef }: { entries: ChatEntr
           ) : (
             <p className="font-display text-muted">{name} is thinking...</p>
           )}
+          </>
+          )}
         </div>
       ))}
-      <div ref={end} />
     </section>
   );
 }
