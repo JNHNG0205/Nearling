@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PetState } from "@nearling/shared";
 import type { AnyAnim, CareEvent } from "@nearling/sprites";
 import { FuelMeter } from "@/components/FuelMeter";
@@ -36,6 +36,7 @@ export function PetHome({ initial }: { initial: PetState }) {
   const [careError, setCareError] = useState<string | null>(null);
   const [hatching, setHatching] = useState(false);
   const petRef = pet.pet_ref;
+  const chatRef = useRef<HTMLDivElement>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -66,6 +67,12 @@ export function PetHome({ initial }: { initial: PetState }) {
       live = false;
     };
   }, [isOwner, petRef]);
+
+  // desktop chat panel: always show the newest message; scroll up for older ones
+  useEffect(() => {
+    const el = chatRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [entries]);
 
   const play = (anim: AnyAnim) => setEvent({ anim, key: Date.now() });
 
@@ -184,7 +191,7 @@ export function PetHome({ initial }: { initial: PetState }) {
       </header>
 
       {/* phone: one column (pet, talk, links). desktop: pet and links left, talk and chat right */}
-      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,460px)_minmax(0,1fr)] lg:items-start lg:gap-x-10">
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,460px)_minmax(0,1fr)] lg:grid-rows-[auto_1fr] lg:items-start lg:gap-x-10">
       <div className="flex flex-col gap-6 lg:col-start-1 lg:row-start-1">
 
       {inboxOpen && isOwner && <InboxPanel items={inbox} name={pet.name} />}
@@ -245,7 +252,9 @@ export function PetHome({ initial }: { initial: PetState }) {
 
       </div>
 
-      <div className="flex flex-col gap-6 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:border-l-2 lg:border-line lg:pl-10">
+      <div className="flex flex-col gap-6 lg:sticky lg:top-6 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-[calc(100dvh-14rem)] lg:min-h-[420px] lg:border-l-2 lg:border-line lg:pl-10">
+      {/* desktop: messages scroll above, the talk box stays at the bottom like a chat app */}
+      <div className="lg:order-last">
       {isOwner ? (
         <TalkBar
           petRef={petRef}
@@ -273,8 +282,11 @@ export function PetHome({ initial }: { initial: PetState }) {
           <Link href={`/feed/${ref}`} className="pixel-btn self-start">Feed {pet.name}</Link>
         </div>
       )}
+      </div>
 
-      <ChatLog entries={entries} name={pet.name} readOnly={!isOwner} petRef={petRef} />
+      <div ref={chatRef} className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-2">
+        <ChatLog entries={entries} name={pet.name} readOnly={!isOwner} petRef={petRef} />
+      </div>
       </div>
 
       <div className="flex flex-col gap-6 lg:col-start-1 lg:row-start-2">
