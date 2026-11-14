@@ -278,7 +278,7 @@ export function PetHome({ initial }: { initial: PetState }) {
             : undefined}
         />
         <PantryCard compact contract={pet.contract} tokenId={pet.token_id} name={pet.name} />
-        <BattleLine contract={pet.contract} tokenId={pet.token_id} isOwner={isOwner} />
+        <BattleLine contract={pet.contract} tokenId={pet.token_id} isOwner={isOwner} traits={pet.traits} />
       </div>
 
       </div>
