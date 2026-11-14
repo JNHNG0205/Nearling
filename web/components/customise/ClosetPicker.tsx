@@ -15,7 +15,8 @@ import { brainErrorCopy } from "@/lib/errors";
 
 // The Closet: the owner's shirt and costumes (shirts contract NFTs), and the costume shop
 // (`buy(costume)`, 0.05 NEAR each). Trying on is local; wearing goes through the brain.
-export function Closet({ pet }: { pet: PetData }) {
+/** `inSetup`: shown inside /start, which never navigates away mid-step, so no link out to /shop. */
+export function Closet({ pet, inSetup = false }: { pet: PetData; inSetup?: boolean }) {
   const owner = pet.chain!.owner;
   const name = pet.chain!.name;
   const [items, setItems] = useState<ClosetItem[] | null>(null);
@@ -139,9 +140,11 @@ export function Closet({ pet }: { pet: PetData }) {
         <section aria-labelledby="shop-title" className="flex flex-col gap-3">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 id="shop-title" className="font-display text-lg">Costume shop</h2>
-            <Link href={`/shop?pet=${encodeURIComponent(pet.ref)}`} className="font-display text-sm text-accent hover:underline">
-              Open the Shop &gt;
-            </Link>
+            {!inSetup && (
+              <Link href={`/shop?pet=${encodeURIComponent(pet.ref)}`} className="font-display text-sm text-accent hover:underline">
+                Open the Shop &gt;
+              </Link>
+            )}
           </div>
           <TxStatus state={buyTx.state} doneText="Bought" />
           <CostumeGrid model={model} keys={shop} trying={trying} busyKey={buying} disabled={buyTx.busy || saving}

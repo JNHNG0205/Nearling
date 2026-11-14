@@ -416,7 +416,7 @@ function CustomiseStep({ petRef, onNext }: { petRef: string; onNext: () => void 
   const b = pet.brain;
   const sections: { title: string; body: React.ReactNode }[] = [
     { title: "Write its Soul", body: <Soul pet={pet} /> },
-    { title: "Pick a shirt", body: <Closet pet={pet} /> },
+    { title: "Pick a shirt", body: <Closet pet={pet} inSetup /> },
     { title: "Nickname and time zone", body: <ProfileForm pet={pet} /> },
   ];
   return (
