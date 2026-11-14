@@ -21,7 +21,8 @@ export type BattleServerMsg =
   | { type: "room"; you: 0 | 1; code: string; pets: [BattlePet | null, BattlePet | null]; ready: [boolean, boolean] }
   | { type: "start"; state: BattleState; turnEndsAt: number }
   | { type: "turn"; events: TurnEvent[]; state: BattleState; turnEndsAt: number }
-  | { type: "end"; winner: 0 | 1 | null; reason: EndReason; battleId: string; xp: [number, number] }
+  /** `xp`: what record_battle will add (daily cap applied); `levels`: [before, after] per pet */
+  | { type: "end"; winner: 0 | 1 | null; reason: EndReason; battleId: string; xp: [number, number]; levels: [[number, number], [number, number]] }
   | { type: "saved"; tx: string }
   | { type: "save_failed" }
   | { type: "error"; code: "illegal_move" | "already_moved" | "bad_message" | "not_started" };

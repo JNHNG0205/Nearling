@@ -49,4 +49,28 @@ describe("battle record worker", () => {
     expect(deps.db.prepare("SELECT status FROM battle_job").get()).toEqual({ status: "failed" });
     expect(t).toBeLessThanOrEqual(150_000);
   });
+  it("keeps the first tx when a resend finds the battle already recorded (no battle event)", async () => {
+    const deps = testDeps();
+    seed(deps);
+    deps.db.prepare("UPDATE battle_job SET tx_hash = 'TX0'").run(); // sent before a crash, then requeued
+    const call = vi.fn(async () => ({ success: true, txHash: "TX2", events: [] }) as unknown as CallResult);
+    const notify = vi.fn();
+    await createBattleWorker(deps, signers(call), notify).tick();
+    expect(deps.db.prepare("SELECT status, tx_hash FROM battle_job").get()).toEqual({ status: "settled", tx_hash: "TX0" });
+    expect(notify).toHaveBeenCalledWith("b1", "TX0");
+  });
+
+  it("never runs two ticks at once", async () => {
+    const deps = testDeps();
+    seed(deps);
+    let release!: () => void;
+    const call = vi.fn(() => new Promise<CallResult>((ok) => { release = () => ok({ success: true, txHash: "TX1", events: [] } as unknown as CallResult); }));
+    const worker = createBattleWorker(deps, signers(call), vi.fn());
+    const first = worker.tick();
+    deps.db.prepare("UPDATE battle_job SET status = 'queued'").run(); // as if the row looked due again
+    await worker.tick();
+    release();
+    await first;
+    expect(call).toHaveBeenCalledTimes(1);
+  });
 });

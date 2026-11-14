@@ -302,6 +302,7 @@ export type BrainErrorCode =
   | "same_owner"
   | "same_pet"
   | "other_contract"
+  | "pet_busy"
   | "full"
   | "daily_limit"
   | "pet_unavailable"

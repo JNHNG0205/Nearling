@@ -43,9 +43,9 @@ describe("battle client", () => {
     s = reduce(s, { type: "turn", events: [{ kind: "move", side: 0, skill: "attack", damage: 5, crit: false, healed: 0 }], state: battle, turnEndsAt: 2 });
     expect(s.screen).toBe("playing");
     expect(s.queue).toHaveLength(1);
-    s = reduce(s, { type: "end", winner: 0, reason: "ko", battleId: "b1", xp: [20, 8] });
-    expect(s.result).toEqual({ won: true, xp: 20, saved: "pending" });
-    expect(reduce(s, { type: "saved", tx: "TX" }).result).toEqual({ won: true, xp: 20, saved: "saved", tx: "TX" });
+    s = reduce(s, { type: "end", winner: 0, reason: "ko", battleId: "b1", xp: [20, 8], levels: [[3, 4], [2, 2]] });
+    expect(s.result).toEqual({ won: true, xp: 20, levelUp: 4, saved: "pending" });
+    expect(reduce(s, { type: "saved", tx: "TX" }).result).toEqual({ won: true, xp: 20, levelUp: 4, saved: "saved", tx: "TX" });
     expect(reduce(s, { type: "save_failed" }).result?.saved).toBe("failed");
   });
 

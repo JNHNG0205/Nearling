@@ -1,5 +1,5 @@
 import { randomBytes, randomInt } from "node:crypto";
-import { isLegal, mulberry32, newBattle, resolveTurn, xpFor, type BattleState, type Move } from "@petto/battle";
+import { addXp, DAILY_XP_CAP, isLegal, mulberry32, newBattle, resolveTurn, xpFor, type BattleState, type Move } from "@petto/battle";
 import { GRACE_MS, TURN_MS, type BattlePet, type BattleServerMsg, type EndReason } from "@petto/battle/protocol";
 import { parsePetRef } from "@petto/shared";
 import type { Deps } from "../deps";
@@ -24,6 +24,10 @@ export interface Conn {
 export interface Entrant {
   account: string;
   pet: BattlePet;
+  /** from `get_battle` when the pet entered: XP toward the next level, XP earned on `day` (UTC day index) */
+  xp?: number;
+  xpToday?: number;
+  day?: number;
 }
 
 type Slot = 0 | 1;
@@ -54,6 +58,7 @@ interface Room {
 export type JoinResult = { slot: 1 } | { error: "not_found" | "full" | "same_owner" | "same_pet" | "other_contract" };
 
 const other = (s: Slot): Slot => (s === 0 ? 1 : 0);
+const DAY_MS = 86_400_000;
 
 export class BattleHub {
   private rooms = new Map<string, Room>();
@@ -169,6 +174,29 @@ export class BattleHub {
     if (room.moves[0] && room.moves[1]) this.resolve(room);
   }
 
+  /**
+   * Frees a pet for a new room: leaves any waiting room it sits in (a host's room closes, a
+   * guest's seat opens). False while it fights in a running battle. `exceptCode`: the room the
+   * pet is joining again.
+   */
+  release(petRef: string, exceptCode?: string): boolean {
+    const mine = [...this.rooms.values()].filter(
+      (r) => r.code !== exceptCode && !r.done && r.players.some((p) => p?.pet.petRef === petRef),
+    );
+    if (mine.some((r) => r.state)) return false;
+    for (const room of mine) {
+      if (room.players[0].pet.petRef === petRef) {
+        for (const p of room.players) p?.conn?.close(4004, "gone");
+        this.rooms.delete(room.code);
+      } else {
+        room.players[1]?.conn?.close(4004, "gone");
+        room.players[1] = null;
+        this.broadcastRoom(room);
+      }
+    }
+    return true;
+  }
+
   /** From the record worker: the battle's chain write landed (tx) or gave up (null). */
   notifySaved(battleId: string, tx: string | null): void {
     const room = this.byBattle.get(battleId);
@@ -223,10 +251,14 @@ export class BattleHub {
     const [a, b] = [room.players[0], room.players[1]!];
     const id = room.battleId!;
     const lv: [number, number] = [a.pet.level, b.pet.level];
+    const today = Math.floor(this.deps.now() / DAY_MS);
     const xpOf = (s: Slot): number => {
-      if (winner === null) return xpFor("draw", lv[s], lv[other(s)]);
-      if (s === winner) return xpFor("win", lv[s], lv[other(s)]);
-      return loserRan ? xpFor("ran", lv[s], lv[other(s)]) : xpFor("loss", lv[s], lv[other(s)]);
+      const gain = winner === null ? xpFor("draw", lv[s], lv[other(s)])
+        : s === winner ? xpFor("win", lv[s], lv[other(s)])
+        : xpFor(loserRan ? "ran" : "loss", lv[s], lv[other(s)]);
+      const p = room.players[s]!;
+      const used = p.day === today ? (p.xpToday ?? 0) : 0;
+      return Math.min(gain, Math.max(0, DAILY_XP_CAP - used)); // as record_battle will apply it
     };
     const w = winner ?? 0; // a draw records pet A as "winner" with draw = true
     const now = this.deps.now();
@@ -241,7 +273,9 @@ export class BattleHub {
         winner: winRef.tokenId, loser: loseRef.tokenId, draw: winner === null, loser_ran: loserRan, battle_id: id,
       }), now, now, now);
     })();
-    room.endMsg = { type: "end", winner, reason, battleId: id, xp: [xpOf(0), xpOf(1)] };
+    const xp: [number, number] = [xpOf(0), xpOf(1)];
+    const levelAfter = (s: Slot) => addXp(lv[s], room.players[s]!.xp ?? 0, xp[s]).level;
+    room.endMsg = { type: "end", winner, reason, battleId: id, xp, levels: [[lv[0], levelAfter(0)], [lv[1], levelAfter(1)]] };
     room.touchedAt = now;
     this.broadcast(room, room.endMsg);
     for (const s of [0, 1] as const) {

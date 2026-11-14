@@ -161,4 +161,56 @@ describe("BattleHub", () => {
     move(hub, code, 1, { kind: "attack" });
     expect(a.last()?.type).toBe("turn");
   });
+  it("caps the XP in the result by what the pet may still earn today", () => {
+    const today = Math.floor(1_800_000_000_000 / 86_400_000);
+    const deps = testDeps();
+    const hub = new BattleHub(deps, { newSeed: () => 42 });
+    const code = hub.createRoom({ ...alice, xpToday: 95, day: today })!;
+    hub.join(code, { ...bob, xpToday: 95, day: today - 1 }); // yesterday's XP does not count
+    const a = conn();
+    hub.open(code, 0, a);
+    hub.open(code, 1, conn());
+    hub.message(code, 0, JSON.stringify({ type: "ready" }));
+    hub.message(code, 1, JSON.stringify({ type: "ready" }));
+    move(hub, code, 1, { kind: "run" });
+    move(hub, code, 0, { kind: "attack" });
+    expect(a.sent.find((m) => m.type === "end")).toMatchObject({ winner: 0, xp: [5, 0] });
+  });
+
+  it("reports each pet's level before and after the battle", () => {
+    const deps = testDeps();
+    const hub = new BattleHub(deps, { newSeed: () => 42 });
+    const code = hub.createRoom({ ...alice, xp: 50 })!; // level 3 needs 60: a 20 XP win levels up
+    hub.join(code, { ...bob, xp: 0 });
+    const a = conn();
+    hub.open(code, 0, a);
+    hub.open(code, 1, conn());
+    hub.message(code, 0, JSON.stringify({ type: "ready" }));
+    hub.message(code, 1, JSON.stringify({ type: "ready" }));
+    move(hub, code, 1, { kind: "run" });
+    move(hub, code, 0, { kind: "attack" });
+    expect(a.sent.find((m) => m.type === "end")).toMatchObject({ levels: [[3, 4], [3, 3]] });
+  });
+
+  it("keeps a pet in one battle at a time", () => {
+    const { hub, code } = started();
+    expect(hub.release(alice.pet.petRef)).toBe(false); // fighting in `code`
+    expect(hub.release(bob.pet.petRef, code)).toBe(true); // the room being joined again does not count
+  });
+
+  it("drops a pet's waiting room when it starts or joins another", () => {
+    const deps = testDeps();
+    const hub = new BattleHub(deps);
+    const first = hub.createRoom(alice)!;
+    const b = conn();
+    hub.join(first, bob);
+    hub.open(first, 1, b);
+    expect(hub.release(alice.pet.petRef)).toBe(true);
+    expect(hub.slotOf(first, alice.account)).toBeNull(); // host left: room gone
+    expect(b.close).toHaveBeenCalledWith(4004, "gone");
+    const second = hub.createRoom({ account: "carol.testnet", pet: pet("pets.petto.testnet:3") })!;
+    hub.join(second, bob);
+    expect(hub.release(bob.pet.petRef)).toBe(true);
+    expect(hub.petsOf(second)?.[1]).toBeNull(); // guest left: seat free again
+  });
 });

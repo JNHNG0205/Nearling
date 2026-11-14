@@ -26,7 +26,7 @@ export function battleHubFor(deps: Deps): BattleHub {
   return hub;
 }
 
-type Entry = { ok: true; pet: BattlePet } | { ok: false; status: 400 | 403 | 404 | 422; code: BrainErrorCode; message: string };
+type Entry = { ok: true; pet: BattlePet; xp: number; xpToday: number; day: number } | { ok: false; status: 400 | 403 | 404 | 422; code: BrainErrorCode; message: string };
 
 /** The caller's pet as a battle entrant: owned, awake enough to fight, with its battle level. */
 async function entrant(deps: Deps, account: string, rawRef: unknown): Promise<Entry> {
@@ -38,9 +38,9 @@ async function entrant(deps: Deps, account: string, rawRef: unknown): Promise<En
   if (pet.life_state === "Starving" || pet.life_state === "Dormant") {
     return { ok: false, status: 422, code: "pet_unavailable", message: `${pet.name} is too hungry to battle. Feed it first.` };
   }
-  const record = await deps.chain.view<{ level: number }>(ref.contract, "get_battle", { pet_id: ref.tokenId });
+  const record = await deps.chain.view<{ level: number; xp: number; xp_today: number; day: number }>(ref.contract, "get_battle", { pet_id: ref.tokenId });
   return {
-    ok: true,
+    ok: true, xp: record.xp, xpToday: record.xp_today, day: record.day,
     pet: {
       petRef: ref.petRef, name: pet.name, traits: pet.traits, level: record.level, stageIndex: pet.stage,
       costume: getProfile(deps.db, ref.petRef)?.equipped_costume ?? null,
@@ -57,7 +57,8 @@ export function battleRoutes(deps: Deps) {
     const body = (await jsonBody(c)) as { pet_ref?: unknown } | null;
     const e = await entrant(deps, c.get("caller").account, body?.pet_ref);
     if (!e.ok) return fail(c, e.status, e.code, e.message);
-    const code = hub.createRoom({ account: c.get("caller").account, pet: e.pet });
+    if (!hub.release(e.pet.petRef)) return fail(c, 409, "pet_busy", `${e.pet.name} is already in a battle`);
+    const code = hub.createRoom({ account: c.get("caller").account, pet: e.pet, xp: e.xp, xpToday: e.xpToday, day: e.day });
     if (!code) return fail(c, 429, "rate_limited", "Too many battles right now");
     return c.json({ code });
   });
@@ -73,7 +74,8 @@ export function battleRoutes(deps: Deps) {
       ).get(host.petRef, e.pet.petRef, e.pet.petRef, host.petRef, deps.now() - DAY_MS) as { n: number };
       if (today.n >= PAIR_LIMIT_PER_DAY) return fail(c, 409, "daily_limit", "These two pets battled 3 times today. Try again tomorrow.");
     }
-    const r = hub.join(c.req.param("code"), { account: c.get("caller").account, pet: e.pet });
+    if (!hub.release(e.pet.petRef, c.req.param("code").toUpperCase())) return fail(c, 409, "pet_busy", `${e.pet.name} is already in a battle`);
+    const r = hub.join(c.req.param("code"), { account: c.get("caller").account, pet: e.pet, xp: e.xp, xpToday: e.xpToday, day: e.day });
     if ("error" in r) {
       const copy: Record<typeof r.error, [404 | 409, string]> = {
         not_found: [404, "No battle with that code"],

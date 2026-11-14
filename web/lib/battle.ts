@@ -17,7 +17,7 @@ export interface ClientState {
   /** events of the last turn, played back one by one by the screen */
   queue: TurnEvent[];
   message: string;
-  result: null | { won: boolean | null; xp: number; saved: "pending" | "saved" | "failed"; tx?: string };
+  result: null | { won: boolean | null; xp: number; levelUp: number | null; saved: "pending" | "saved" | "failed"; tx?: string };
   closedEarly: boolean;
   error: string | null;
 }
@@ -55,7 +55,10 @@ export function reduce(s: ClientState, e: ClientEvent): ClientState {
       const won = e.winner === null ? null : e.winner === s.you;
       const words = won === null ? "It's a draw!" : won ? `${nameOf(s, s.you!)} won!` : `${nameOf(s, s.you!)} lost.`;
       return {
-        ...s, result: { won, xp: s.you === null ? 0 : e.xp[s.you], saved: "pending" }, message: words,
+        ...s, message: words,
+        result: s.you === null
+          ? { won, xp: 0, levelUp: null, saved: "pending" }
+          : { won, xp: e.xp[s.you], levelUp: e.levels[s.you][1] > e.levels[s.you][0] ? e.levels[s.you][1] : null, saved: "pending" },
         screen: s.screen === "playing" && s.queue.length > 0 ? "playing" : "over",
       };
     }
@@ -109,6 +112,7 @@ export function eventText(e: TurnEvent, names: [string, string]): string {
 const JOIN_ERRORS: Record<string, string> = {
   same_owner: "You can't battle your own pet. Invite a friend.",
   same_pet: "A pet can't battle itself.",
+  pet_busy: "That pet is already in a battle. Finish it first.",
   other_contract: "Normal and demo speed pets can't battle each other. Pick a pet of the same kind.",
   full: "That battle already has two pets.",
   not_found: "No battle with that code.",

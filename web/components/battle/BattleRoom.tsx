@@ -2,14 +2,12 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
-import { addXp, type Move } from "@petto/battle";
-import { parsePetRef } from "@petto/shared";
+import type { Move } from "@petto/battle";
 import { PetSprite } from "@/components/PetSprite";
 import { EXPLORER_TX } from "@/lib/brain";
 import {
   BattleRequestError, battleSocketUrl, initialState, joinBattle, reduce, type ClientEvent,
 } from "@/lib/battle";
-import { getBattle } from "@/lib/chain";
 import { authHeaders, useSession } from "@/lib/session";
 import type { BattleServerMsg } from "@petto/battle/protocol";
 import { BattleScreen } from "./BattleScreen";
@@ -30,7 +28,6 @@ export function BattleRoom({ code }: { code: string }) {
   const [problem, setProblem] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [origin, setOrigin] = useState("");
-  const [levelUp, setLevelUp] = useState<number | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const gotRoom = useRef(false);
   const retries = useRef(0);
@@ -77,21 +74,6 @@ export function BattleRoom({ code }: { code: string }) {
     wsRef.current?.send(JSON.stringify(m === "ready" ? { type: "ready" } : { type: "move", move: m }));
   }, []);
   const stableDispatch = useCallback((e: ClientEvent) => dispatch(e), []);
-
-  // the result screen: does this battle's XP level the pet up? (read the record before it is saved)
-  const myPet = s.you === null ? null : s.pets[s.you];
-  const gain = s.result?.xp ?? 0;
-  useEffect(() => {
-    if (!myPet || gain === 0) return;
-    const ref = parsePetRef(myPet.petRef);
-    if (!ref) return;
-    getBattle(ref.contract, ref.tokenId)
-      .then((r) => {
-        const after = addXp(r.level, r.xp, Math.min(gain, Math.max(0, 100 - r.xp_today)));
-        if (after.levelsGained > 0) setLevelUp(after.level);
-      })
-      .catch(() => undefined);
-  }, [myPet, gain]);
 
   const join = async () => {
     if (!joinPet) return;
@@ -141,7 +123,7 @@ export function BattleRoom({ code }: { code: string }) {
       <section className="pixel-panel flex flex-col items-center gap-3 p-6 text-center">
         <h2 className="font-display text-2xl">{s.message}</h2>
         <p className="font-display">+{r.xp} battle XP</p>
-        {levelUp && <p className="font-display text-accent">Level up! Now Lv {levelUp}.</p>}
+        {r.levelUp && <p className="font-display text-accent">Level up! Now Lv {r.levelUp}.</p>}
         <p className="text-sm text-muted">
           {r.saved === "pending" && "Saving to NEAR..."}
           {r.saved === "saved" && r.tx && (

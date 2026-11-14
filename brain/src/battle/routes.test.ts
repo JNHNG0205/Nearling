@@ -3,6 +3,7 @@ import { createApp } from "../app";
 import { issueSession } from "../auth/guard";
 import type { Chain } from "../chain/near";
 import { TEST_PET, testDeps } from "../test/deps";
+import { battleHubFor } from "./routes";
 
 const P = (id: string) => `pets.petto.testnet:${id}`;
 
@@ -62,5 +63,27 @@ describe("battle routes", () => {
     const res = await post("alice.testnet", "/battle/rooms", { pet_ref: P("1") });
     expect(res.status).toBe(422);
     expect(((await res.json()) as { error: { code: string } }).error.code).toBe("pet_unavailable");
+  });
+  it("answers 502 when the battle record cannot be read", async () => {
+    const { deps, post } = setup();
+    deps.chain.view = (async () => { throw new Error("rpc down"); }) as Chain["view"];
+    const res = await post("alice.testnet", "/battle/rooms", { pet_ref: P("1") });
+    expect(res.status).toBe(502);
+    expect(((await res.json()) as { error: { code: string } }).error.code).toBe("upstream");
+  });
+
+  it("refuses a pet that is already in a battle", async () => {
+    const { deps, post } = setup({ "1": "alice.testnet", "2": "bob.testnet", "4": "carol.testnet" });
+    const { code } = (await (await post("alice.testnet", "/battle/rooms", { pet_ref: P("1") })).json()) as { code: string };
+    await post("bob.testnet", `/battle/rooms/${code}/join`, { pet_ref: P("2") });
+    const hub = battleHubFor(deps);
+    const fake = { send: () => undefined, close: () => undefined };
+    hub.open(code, 0, fake);
+    hub.open(code, 1, fake);
+    hub.message(code, 0, JSON.stringify({ type: "ready" }));
+    hub.message(code, 1, JSON.stringify({ type: "ready" }));
+    const res = await post("bob.testnet", "/battle/rooms", { pet_ref: P("2") });
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as { error: { code: string } }).error.code).toBe("pet_busy");
   });
 });
