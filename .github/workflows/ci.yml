@@ -3,13 +3,14 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:   # run by hand (Actions tab), e.g. to redeploy main
 
 permissions:
   contents: read
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}   # main deploys: never cut one off
 
 jobs:
   ts:
@@ -47,3 +48,22 @@ jobs:
           workspaces: ${{ matrix.crate }}
       - run: cargo test
       - run: cargo check --target wasm32-unknown-unknown
+
+  deploy-brain:
+    name: Deploy brain to the droplet
+    # main only, and only after every test above passed. The web deploys through Vercel's GitHub integration.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: [ts, rust]
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-brain
+      cancel-in-progress: false   # never stop a deploy half way
+    steps:
+      - uses: actions/checkout@v4
+      - name: SSH key for the droplet
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.DROPLET_SSH_KEY }}" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "${{ secrets.DROPLET_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+      # KEEP_ENV: the brain env (keys, secrets) stays on the server, never in GitHub
+      - run: KEEP_ENV=1 ./scripts/deploy-droplet.sh "${{ secrets.DROPLET_HOST }}" - api.mypetto.xyz
