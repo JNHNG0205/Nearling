@@ -158,8 +158,8 @@ ONECLICK_JWT=                     # optional, avoids 0.2% fee
 SETTLEMENT_ACCOUNT_MAINNET=
 MEMORY_MASTER_KEY=
 SESSION_JWT_SECRET=
-WEB_ORIGIN=https://nearling.vercel.app
-PUBLIC_WEB_URL=https://nearling.vercel.app   # used inside device QR codes
+WEB_ORIGIN=https://mypetto.xyz
+PUBLIC_WEB_URL=https://mypetto.xyz   # used inside device QR codes
 GLOBAL_DAILY_SPEND_CAP_USD=5
 MOCK_AI=0
 ```

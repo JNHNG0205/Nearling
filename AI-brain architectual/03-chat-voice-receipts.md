@@ -61,7 +61,7 @@ Response 200:
   "emotion": "happy",
   "fuel": { "left": 22, "charged": "pending" },
   "audio_url": "/audio/ab12...wav",
-  "receipt_url": "https://nearling.vercel.app/receipt/0193...",
+  "receipt_url": "https://mypetto.xyz/receipt/0193...",
   "soul_version": 2
 }
 ```

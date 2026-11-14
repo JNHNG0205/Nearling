@@ -60,12 +60,12 @@ describe("care mood on /state", () => {
 describe("CORS", () => {
   it("allows every origin listed in WEB_ORIGIN (comma separated) and no other", async () => {
     const deps = testDeps();
-    deps.cfg = { ...deps.cfg, WEB_ORIGIN: "https://mypetto.xyz, https://petto-umber.vercel.app" };
+    deps.cfg = { ...deps.cfg, WEB_ORIGIN: "https://mypetto.xyz, http://localhost:3000" };
     const app = createApp(deps);
     const allowed = async (origin: string) =>
       (await app.request("/health", { headers: { Origin: origin } })).headers.get("access-control-allow-origin");
     expect(await allowed("https://mypetto.xyz")).toBe("https://mypetto.xyz");
-    expect(await allowed("https://petto-umber.vercel.app")).toBe("https://petto-umber.vercel.app");
+    expect(await allowed("http://localhost:3000")).toBe("http://localhost:3000");
     expect(await allowed("https://evil.example")).toBeNull();
   });
 });

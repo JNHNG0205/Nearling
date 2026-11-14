@@ -106,13 +106,13 @@ The brain's CORS allows exactly one origin, and device QR codes point at the web
 
 | Variable | Set on | Value | Used for |
 |---|---|---|---|
-| `WEB_ORIGIN` | brain (Fly secret) | `https://<your-app>.vercel.app` (scheme + host, no path, no trailing slash) | CORS `Access-Control-Allow-Origin` |
+| `WEB_ORIGIN` | brain (Fly secret) | `https://mypetto.xyz` (scheme + host, no path, no trailing slash) | CORS `Access-Control-Allow-Origin` |
 | `PUBLIC_WEB_URL` | brain (Fly secret) | same production URL | Hatch & Pair QR (`${PUBLIC_WEB_URL}/hatch?t=...`), receipt and feed links |
 | `NEXT_PUBLIC_BRAIN_URL` | web (Vercel env) | `https://<brain-app>.fly.dev` | every brain call, SSE stream, race WebSocket (`wss://.../race/ws`) |
 
 ```bash
 fly secrets set --app nearling-brain \
-  WEB_ORIGIN=https://<your-app>.vercel.app PUBLIC_WEB_URL=https://<your-app>.vercel.app
+  WEB_ORIGIN=https://mypetto.xyz PUBLIC_WEB_URL=https://mypetto.xyz
 ```
 
 `fly secrets set` restarts the machine. Vercel preview URLs are a different origin, so the brain rejects their requests: test on the production URL (or temporarily point `WEB_ORIGIN` at a preview).
@@ -127,7 +127,7 @@ fly secrets set --app nearling-brain \
 
 ```bash
 B=https://nearling-brain.fly.dev
-W=https://<your-app>.vercel.app
+W=https://mypetto.xyz
 
 curl -s $B/health                                    # {"ok":true,"network":"testnet","pets":"pets.petto.testnet"}
 curl -s "$B/pets/$(printf 'pets.petto.testnet:1' | jq -sRr @uri)/state" | head -c 400   # seeded pet #1 state

@@ -133,7 +133,7 @@ NEARAI_CHAT_MODEL=openai/gpt-oss-120b
 NEARAI_STT_MODEL=openai/whisper-large-v3
 MEMORY_MASTER_KEY=<32 bytes base64>
 SESSION_JWT_SECRET=<32 bytes base64>
-WEB_ORIGIN=https://nearling.vercel.app
+WEB_ORIGIN=https://mypetto.xyz
 GLOBAL_DAILY_SPEND_CAP_USD=5
 MOCK_AI=0
 ```

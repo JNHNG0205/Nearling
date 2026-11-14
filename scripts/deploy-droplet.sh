@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Deploys the brain to a Linux server you can SSH into (e.g. a DigitalOcean droplet):
 # Docker container with a volume for SQLite, Caddy in front for HTTPS (WebSockets included).
-#   ./scripts/deploy-droplet.sh root@203.0.113.7 https://petto.vercel.app [domain]
+#   ./scripts/deploy-droplet.sh root@203.0.113.7 https://mypetto.xyz [domain]
 # domain defaults to <ip-with-dashes>.sslip.io, which needs no DNS setup.
 # KEEP_ENV=1 keeps the brain env already on the server (CI: no app secrets in GitHub); the
 # web-origin argument is then unused, pass "-".

@@ -9,7 +9,7 @@ import { MODULES } from "./modules";
 export function createApp(deps: Deps, modules: Module[] = MODULES) {
   const app = new Hono();
 
-  // WEB_ORIGIN may list several sites, comma separated (the domain and the vercel.app address)
+  // WEB_ORIGIN may list several sites, comma separated (for example the site and http://localhost:3000)
   app.use("*", cors({ origin: deps.cfg.WEB_ORIGIN.split(",").map((o) => o.trim()).filter(Boolean) }));
 
   app.get("/health", (c) => c.json({ ok: true, network: deps.cfg.NEAR_NETWORK, pets: deps.cfg.PETS_CONTRACT }));
