@@ -5,7 +5,7 @@ import { readCaller, requireCaller, type Caller } from "../auth/guard";
 import type { Deps, Module } from "../deps";
 import { fail, jsonBody, servedPetRef } from "../identity/common";
 import { log } from "../log";
-import { getProfile } from "../profiles";
+import { getProfile, shownStage } from "../profiles";
 import { upgradeWebSocket } from "../ws";
 import { BattleHub, type Conn } from "./hub";
 import { createBattleWorker } from "./record";
@@ -39,12 +39,13 @@ async function entrant(deps: Deps, account: string, rawRef: unknown): Promise<En
   if (pet.life_state === "Starving" || pet.life_state === "Dormant") {
     return { ok: false, status: 422, code: "pet_unavailable", message: `${pet.name} is too hungry to battle. Feed it first.` };
   }
+  const profile = getProfile(deps.db, ref.petRef);
   const record = await deps.chain.view<{ level: number; xp: number; xp_today: number; day: number }>(ref.contract, "get_battle", { pet_id: ref.tokenId });
   return {
     ok: true, xp: record.xp, xpToday: record.xp_today, day: record.day,
     pet: {
-      petRef: ref.petRef, name: pet.name, traits: pet.traits, level: record.level, stageIndex: pet.stage,
-      costume: getProfile(deps.db, ref.petRef)?.equipped_costume ?? null,
+      petRef: ref.petRef, name: pet.name, traits: pet.traits, level: record.level, stageIndex: shownStage(pet.stage, profile?.hatched_at ?? null),
+      costume: profile?.equipped_costume ?? null,
     },
   };
 }

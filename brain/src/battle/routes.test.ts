@@ -3,6 +3,7 @@ import { createApp } from "../app";
 import { issueSession, sha256 } from "../auth/guard";
 import type { Chain } from "../chain/near";
 import { TEST_PET, testDeps } from "../test/deps";
+import { markHatched } from "../identity/hatch";
 import { battleHubFor } from "./routes";
 
 const P = (id: string) => `pets.petto.testnet:${id}`;
@@ -120,5 +121,19 @@ describe("battle routes", () => {
     const res = await post("alice.testnet", `/battle/rooms/${theirs.code}/join`, { pet_ref: P("1") });
     expect(res.status).toBe(200);
     expect(mine.code).not.toBe(theirs.code);
+  });
+
+  it("shows a pet hatched in the app as a baby, even while the chain still says egg", async () => {
+    const { deps, post } = setup({ "1": "alice.testnet", "2": "bob.testnet" });
+    const pets = (deps as unknown as { pets: Record<string, typeof TEST_PET> }).pets;
+    pets["1"] = { ...TEST_PET, id: "1", owner: "alice.testnet", stage: 0 };
+    pets["2"] = { ...TEST_PET, id: "2", owner: "bob.testnet", stage: 0 };
+    markHatched(deps, P("1"), "alice.testnet");
+    const { code } = (await (await post("alice.testnet", "/battle/rooms", { pet_ref: P("1") })).json()) as { code: string };
+    await post("bob.testnet", `/battle/rooms/${code}/join`, { pet_ref: P("2") });
+    const sent: string[] = [];
+    battleHubFor(deps).open(code, 0, { send: (m: string) => void sent.push(m), close: () => undefined });
+    const room = sent.map((m) => JSON.parse(m) as { type: string; pets?: { stageIndex: number }[] }).find((m) => m.type === "room");
+    expect(room?.pets?.map((p) => p.stageIndex)).toEqual([1, 0]);
   });
 });

@@ -20,6 +20,14 @@ export interface PetProfile {
   created_at: number;
 }
 
+/**
+ * The stage everyone sees (Build Spec 1): an egg hatched in the app (brain `hatched_at`) shows as a
+ * baby even if the on-chain `hatch` never went through; teen and adult still come from chain xp.
+ */
+export function shownStage(chainStage: number, hatchedAt: number | null): number {
+  return chainStage === 0 && hatchedAt !== null ? 1 : chainStage;
+}
+
 export function getProfile(db: Db, petRef: string): PetProfile | null {
   return (db.prepare("SELECT * FROM pet_profile WHERE pet_ref = ?").get(petRef) as PetProfile | undefined) ?? null;
 }

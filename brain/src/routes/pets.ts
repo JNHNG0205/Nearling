@@ -13,7 +13,7 @@ import { decay } from "../identity/care";
 import { jsonBody } from "../identity/common";
 import { deviceStatus } from "../identity/devices";
 import { log } from "../log";
-import { ensureProfile } from "../profiles";
+import { ensureProfile, shownStage } from "../profiles";
 
 const LOW_FUEL = 5;
 const MAX_OWNED = 50;
@@ -29,8 +29,7 @@ export async function buildPetState({ chain, db, now }: Deps, contract: string, 
   // decay on read so a neglected pet does not look happy until its next care sync
   const careMood = p.care_mood_at === null ? p.care_mood : decay(p.care_mood, p.care_mood_at, now())[0];
   const left = fuelLeft(pet.budget_micro, config.fuel_price_micro);
-  // Build Spec 1: a hatched egg shows as at least a baby; teen and adult still come from chain xp.
-  const stageIndex = pet.stage === 0 && p.hatched_at !== null ? 1 : pet.stage;
+  const stageIndex = shownStage(pet.stage, p.hatched_at);
   return {
     pet_ref: petRef,
     contract,

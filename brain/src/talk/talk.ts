@@ -11,7 +11,7 @@ import { requirePetAccess, type AuthEnv, type Caller } from "../auth/guard";
 import type { PetsConfig } from "../chain/near";
 import type { Deps, Module } from "../deps";
 import { log } from "../log";
-import { ensureProfile } from "../profiles";
+import { ensureProfile, shownStage } from "../profiles";
 import { checkAudio, MAX_AUDIO_BYTES } from "./audio";
 import { loadMemory, maybeSummarise, noteTurn, SUMMARY_EVERY } from "./memory";
 import type { BilledTrigger, FollowUp } from "../proactive/rules";
@@ -162,7 +162,7 @@ export async function runTurn(deps: Deps, ai: NearAi, input: TurnInput): Promise
     soul: soul.version > 0 ? soul.prompt : null,
     state: {
       name: pet.name,
-      stage: STAGES[pet.stage] ?? "adult",
+      stage: STAGES[shownStage(pet.stage, profile.hatched_at)] ?? "adult",
       form: profile.form,
       shirt: profile.equipped_shirt,
       costume: profile.equipped_costume ?? null,

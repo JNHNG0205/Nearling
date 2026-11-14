@@ -10,6 +10,7 @@ import { pcmToWav } from "../ai/tts";
 import { dueFollowUps, maybeSummarise, loadMemory, SUMMARY_EVERY } from "./memory";
 import { buildMessages, parseEmotion, wrapSoul } from "./prompt";
 import { createTalk, LINES } from "./talk";
+import { markHatched } from "../identity/hatch";
 
 const PET = "pets.petto.testnet:1";
 const URL_ = `/pets/${PET}/talk`;
@@ -137,6 +138,14 @@ describe("parseEmotion", () => {
 });
 
 describe("POST /pets/:petRef/talk", () => {
+  it("tells a pet hatched in the app that it is a baby, even while the chain still says egg", async () => {
+    const s = await setup();
+    s.deps.pets["1"] = { ...TEST_PET, stage: 0 };
+    markHatched(s.deps, PET, "alice.testnet");
+    await s.send({ request_id: "req-hatched01", text: "hi" });
+    expect(s.calls.last[0]!.content).toContain("You are a baby.");
+  });
+
   it("answers, saves an encrypted turn and queues one charge job", async () => {
     const s = await setup();
     const r = await s.send({ request_id: "req-00000001", text: SECRET_USER });
