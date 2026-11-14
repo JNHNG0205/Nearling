@@ -77,9 +77,17 @@ export function reduce(s: ClientState, e: ClientEvent): ClientState {
 
 export interface MenuOption { id: string; label: string; mp?: number; disabled: boolean; reason?: string }
 
-/** The buttons on the menu screen ("menu": Fight/Run, "fight": Attack + skills + Back). */
+/** The buttons on the menu screen ("menu": Fight/Defend/Dodge/Run, "fight": Attack + skills + Back). */
 export function menuOptions(s: ClientState): MenuOption[] {
-  if (s.screen === "menu") return [{ id: "fight", label: "Fight", disabled: false }, { id: "run", label: "Run", disabled: false }];
+  if (s.screen === "menu") {
+    const rested = s.you !== null && s.battle ? s.battle.fighters[s.you].rested : null;
+    const stance = (id: "defend" | "dodge", label: string): MenuOption =>
+      rested === id ? { id, label, disabled: true, reason: "Catching its breath" } : { id, label, disabled: false };
+    return [
+      { id: "fight", label: "Fight", disabled: false }, stance("defend", "Defend"), stance("dodge", "Dodge"),
+      { id: "run", label: "Run", disabled: false },
+    ];
+  }
   if (s.screen !== "fight" || s.you === null || !s.battle || !s.pets[s.you]) return [];
   const me = s.battle.fighters[s.you];
   const pet = s.pets[s.you]!;
@@ -100,7 +108,12 @@ const SKILL_NAMES: Record<string, string> = Object.fromEntries(
 export function eventText(e: TurnEvent, names: [string, string]): string {
   if (e.kind === "faint") return `${names[e.side]} fainted!`;
   if (e.kind === "run") return `${names[e.side]} ran away!`;
+  if (e.skill === "defend") return `${names[e.side]} braced itself.`;
+  if (e.skill === "dodge") return `${names[e.side]} got ready to dodge.`;
+  const foe = names[e.side === 0 ? 1 : 0];
   const parts = [`${names[e.side]} used ${SKILL_NAMES[e.skill] ?? e.skill}!`];
+  if (e.dodge === "dodged") parts.push(`${foe} dodged the attack!`);
+  if (e.dodge === "failed") parts.push(`${foe} tried to dodge, but got hit hard!`);
   if (e.crit) parts.push("A critical hit!");
   if (e.healed > 0) parts.push(`${names[e.side]} healed ${e.healed} HP.`);
   return parts.join(" ");

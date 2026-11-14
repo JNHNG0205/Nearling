@@ -213,4 +213,15 @@ describe("BattleHub", () => {
     expect(hub.release(bob.pet.petRef)).toBe(true);
     expect(hub.petsOf(second)?.[1]).toBeNull(); // guest left: seat free again
   });
+  it("accepts Defend and Dodge, and refuses the same one two turns in a row", () => {
+    const { hub, code, a } = started();
+    move(hub, code, 0, { kind: "defend" });
+    move(hub, code, 1, { kind: "attack" });
+    expect(a.last()?.type).toBe("turn");
+    move(hub, code, 0, { kind: "defend" });
+    expect(a.last()).toEqual({ type: "error", code: "illegal_move" });
+    move(hub, code, 0, { kind: "dodge" });
+    move(hub, code, 1, { kind: "attack" });
+    expect(a.last()?.type).toBe("turn");
+  });
 });

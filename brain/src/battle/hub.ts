@@ -331,7 +331,7 @@ export class BattleHub {
 
 function parseMove(raw: unknown): Move | null {
   const m = raw as { kind?: unknown; skill?: unknown } | null;
-  if (m?.kind === "attack" || m?.kind === "run") return { kind: m.kind };
+  if (m?.kind === "attack" || m?.kind === "defend" || m?.kind === "dodge" || m?.kind === "run") return { kind: m.kind };
   if (m?.kind === "skill" && typeof m.skill === "string" && m.skill.length <= 32) return { kind: "skill", skill: m.skill };
   return null;
 }

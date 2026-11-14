@@ -55,9 +55,11 @@ A pet's **family** is its highest trait (ties: lower trait index, as in `persona
 
 | Level | Slot | playful | curious | calm | sassy | kind |
 |---|---|---|---|---|---|---|
-| 3 | Trait skill (4 MP) | Zoomies: power 16 | Spark: power 14, ignores half Defence | Shell Up: halve damage taken this turn | Taunt: target Attack −20% for 2 turns | Snack Break: heal 30% max HP + heal bonus |
+| 3 | Trait skill (4 MP) | Zoomies: power 16 | Spark: power 14, ignores half Defence | Shell Up: take 25% damage this turn (rules v2; was half) | Taunt: target Attack −20% for 2 turns | Snack Break: heal 30% max HP + heal bonus |
 | 6 | Big move (8 MP) | power 26 | power 24, ignores half Defence | power 22, then halve damage taken this turn | power 24, Taunt for 1 turn | power 20, heal 15% |
 | 10 | Finisher (14 MP) | power 38 | power 36, ignores half Defence | power 34 | power 36 | power 30, heal 20% |
+
+**Rules version 2 (2026-11-14): Defend and Dodge.** Every pet's first menu is Fight / Defend / Dodge / Run. Defend (no MP): take 70% damage this turn and restore 10% of max MP. Dodge (no MP): avoid the hit entirely with chance 30% + 2% per point of Speed over the opponent, clamped 15% to 60% (rolled at the start of the turn, side A first); a failed dodge takes 125% damage; it does not stop heals or Taunt. Neither can be used two turns in a row. Shell Up now takes 25% damage and Steady Slam 50%; protections never stack (one move per turn).
 
 Skill names for levels 6 and 10 are chosen in implementation (short, kid-friendly, original).
 

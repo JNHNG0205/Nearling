@@ -19,7 +19,11 @@ describe("battle client", () => {
     const s = inBattle();
     expect(s.screen).toBe("menu");
     expect(s.message).toBe("What will Mochi do?");
-    expect(menuOptions(s).map((o) => o.id)).toEqual(["fight", "run"]);
+    expect(menuOptions(s).map((o) => o.id)).toEqual(["fight", "defend", "dodge", "run"]);
+    const b = s.battle!;
+    const rested: ClientState = { ...s, battle: { ...b, fighters: [{ ...b.fighters[0], rested: "defend" }, b.fighters[1]] } };
+    expect(menuOptions(rested).find((o) => o.id === "defend")).toMatchObject({ disabled: true, reason: "Catching its breath" });
+    expect(menuOptions(rested).find((o) => o.id === "dodge")?.disabled).toBe(false);
   });
 
   it("Fight lists Attack, unlocked skills with MP, and locked skills disabled", () => {
@@ -61,5 +65,9 @@ describe("battle client", () => {
     expect(eventText({ kind: "move", side: 1, skill: "kind1", damage: 0, crit: false, healed: 12 }, names)).toBe("Bao used Snack Break! Bao healed 12 HP.");
     expect(eventText({ kind: "faint", side: 1 }, names)).toBe("Bao fainted!");
     expect(eventText({ kind: "run", side: 0 }, names)).toBe("Mochi ran away!");
+    expect(eventText({ kind: "move", side: 0, skill: "defend", damage: 0, crit: false, healed: 0 }, names)).toBe("Mochi braced itself.");
+    expect(eventText({ kind: "move", side: 1, skill: "dodge", damage: 0, crit: false, healed: 0 }, names)).toBe("Bao got ready to dodge.");
+    expect(eventText({ kind: "move", side: 0, skill: "attack", damage: 0, crit: false, healed: 0, dodge: "dodged" }, names)).toBe("Mochi used Attack! Bao dodged the attack!");
+    expect(eventText({ kind: "move", side: 0, skill: "attack", damage: 7, crit: false, healed: 0, dodge: "failed" }, names)).toBe("Mochi used Attack! Bao tried to dodge, but got hit hard!");
   });
 });

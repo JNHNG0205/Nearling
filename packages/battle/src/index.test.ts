@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  addXp, allSkillsFor, familyOf, isLegal, mulberry32, newBattle, resolveTurn, skillsFor, statsFor, xpFor,
+  addXp, allSkillsFor, dodgePermille, familyOf, isLegal, mulberry32, newBattle, resolveTurn, skillsFor, statsFor, xpFor,
   type BattleState, type Move,
 } from "./index";
 
@@ -77,12 +77,12 @@ describe("turns", () => {
     }
   });
 
-  it("Shell Up halves the damage taken in the same turn, even when slower", () => {
+  it("Shell Up blocks 75% of the damage taken in the same turn, even when slower", () => {
     const calm = { traits: [0, 0, 90, 0, 0], level: 3 };
     const hitter = { traits: [100, 100, 0, 0, 0], level: 3 };
     const plain = resolveTurn(newBattle(calm, hitter), [ATTACK, ATTACK], mulberry32(7)).events.find((e) => e.kind === "move" && e.side === 1);
     const guarded = resolveTurn(newBattle(calm, hitter), [{ kind: "skill", skill: "calm1" }, ATTACK], mulberry32(7)).events.find((e) => e.kind === "move" && e.side === 1);
-    expect(guarded && plain && guarded.kind === "move" && plain.kind === "move" && guarded.damage).toBe(Math.max(1, Math.floor((plain as { damage: number }).damage / 2)));
+    expect(guarded && plain && guarded.kind === "move" && plain.kind === "move" && guarded.damage).toBe(Math.max(1, Math.floor(((plain as { damage: number }).damage * 25) / 100)));
   });
 
   it("Snack Break heals 30% of max HP plus the heal bonus, never above max", () => {
@@ -108,6 +108,71 @@ describe("turns", () => {
   });
 });
 
+describe("defend and dodge", () => {
+  const hitter = { traits: [100, 100, 0, 0, 0], level: 5 };
+  const target = { traits: [50, 50, 50, 50, 50], level: 5 };
+  const hitOn = (events: ReturnType<typeof resolveTurn>["events"]) =>
+    events.find((e) => e.kind === "move" && e.side === 0) as Extract<(typeof events)[number], { kind: "move" }>;
+
+  it("Defend takes 70% of the damage and restores 10% of max MP", () => {
+    const s = newBattle(hitter, target);
+    const spent: BattleState = { ...s, fighters: [s.fighters[0], { ...s.fighters[1], mp: 0 }] };
+    const plain = hitOn(resolveTurn(spent, [ATTACK, ATTACK], mulberry32(9)).events);
+    const r = resolveTurn(spent, [ATTACK, { kind: "defend" }], mulberry32(9));
+    expect(hitOn(r.events).damage).toBe(Math.max(1, Math.floor((plain.damage * 70) / 100)));
+    expect(r.events).toContainEqual({ kind: "move", side: 1, skill: "defend", damage: 0, crit: false, healed: 0 });
+    expect(r.state.fighters[1].mp).toBe(Math.floor((s.fighters[1].stats.mp * 10) / 100));
+  });
+
+  it("Defend and Dodge cannot be used two turns in a row", () => {
+    let s = newBattle(hitter, target);
+    expect(isLegal(s, 1, { kind: "defend" })).toBe(true);
+    s = resolveTurn(s, [ATTACK, { kind: "defend" }], mulberry32(1)).state;
+    expect(isLegal(s, 1, { kind: "defend" })).toBe(false);
+    expect(isLegal(s, 1, { kind: "dodge" })).toBe(true);
+    s = resolveTurn(s, [ATTACK, { kind: "dodge" }], mulberry32(2)).state;
+    expect(isLegal(s, 1, { kind: "dodge" })).toBe(false);
+    expect(isLegal(s, 1, { kind: "defend" })).toBe(true);
+  });
+
+  it("dodge chance is 30% plus 2% per point of speed over the opponent, 15% to 60%", () => {
+    expect(dodgePermille(20, 20)).toBe(300);
+    expect(dodgePermille(25, 20)).toBe(400);
+    expect(dodgePermille(40, 20)).toBe(600);
+    expect(dodgePermille(10, 20)).toBe(150);
+  });
+
+  it("a dodge avoids the whole hit; a failed one takes 25% more", () => {
+    const s = newBattle(hitter, target);
+    let minPlain = Infinity;
+    for (let seed = 1; seed <= 400; seed++) minPlain = Math.min(minPlain, hitOn(resolveTurn(s, [ATTACK, ATTACK], mulberry32(seed)).events).damage);
+    let dodged = 0;
+    for (let seed = 1; seed <= 400; seed++) {
+      const r = resolveTurn(s, [ATTACK, { kind: "dodge" }], mulberry32(seed));
+      const hit = hitOn(r.events);
+      if (hit.dodge === "dodged") {
+        dodged++;
+        expect(hit.damage).toBe(0);
+        expect(r.state.fighters[1].hp).toBe(s.fighters[1].hp);
+      } else {
+        expect(hit.dodge).toBe("failed");
+        expect(hit.damage).toBeGreaterThanOrEqual(Math.floor((minPlain * 125) / 100)); // the dodge roll shifts the variance roll
+      }
+    }
+    const chance = dodgePermille(s.fighters[1].stats.spd, s.fighters[0].stats.spd) / 1000;
+    expect(dodged / 400).toBeGreaterThan(chance - 0.08);
+    expect(dodged / 400).toBeLessThan(chance + 0.08);
+  });
+
+  it("a dodge does not stop Taunt", () => {
+    const sassy = { traits: [0, 0, 0, 90, 0], level: 3 };
+    const s = newBattle(sassy, target);
+    for (let seed = 1; seed <= 20; seed++) {
+      expect(resolveTurn(s, [{ kind: "skill", skill: "sassy1" }, { kind: "dodge" }], mulberry32(seed)).state.fighters[1].tauntTurns).toBe(2);
+    }
+  });
+});
+
 describe("xp and levels", () => {
   it("rewards per spec 2.5", () => {
     expect(xpFor("win", 1, 1)).toBe(20);
@@ -130,7 +195,7 @@ describe("golden vectors (firmware must match)", () => {
     const vectors = JSON.parse(readFileSync(new URL("../vectors/turns.json", import.meta.url), "utf8")) as {
       a: { traits: number[]; level: number }; b: { traits: number[]; level: number }; seed: number; moves: [Move, Move][]; events: unknown[];
     }[];
-    expect(vectors.length).toBe(5);
+    expect(vectors.length).toBe(6);
     for (const v of vectors) {
       let s = newBattle(v.a, v.b);
       const rng = mulberry32(v.seed);

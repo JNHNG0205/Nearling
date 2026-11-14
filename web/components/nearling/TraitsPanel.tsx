@@ -52,6 +52,10 @@ export function TraitsPanel({ contract, tokenId, traits, name }: { contract: str
             </li>
           ))}
         </ul>
+        <p className="text-sm text-muted">
+          Every pet can also Defend (takes 70% damage, restores 10% MP) or Dodge (30% chance at equal speed, plus 2% per
+          point faster; a miss takes 25% more). Neither can be used two turns in a row.
+        </p>
       </section>
     </div>
   );

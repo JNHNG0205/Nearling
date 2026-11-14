@@ -47,7 +47,7 @@ export function BattleScreen({ s, dispatch, send }: { s: ClientState; dispatch: 
   const pick = (id: string) => {
     if (id === "fight") return dispatch({ type: "choose", screen: "fight" });
     if (id === "back") return dispatch({ type: "choose", screen: "menu" });
-    send(id === "run" ? { kind: "run" } : id === "attack" ? { kind: "attack" } : { kind: "skill", skill: id });
+    send(id === "run" || id === "attack" || id === "defend" || id === "dodge" ? { kind: id } : { kind: "skill", skill: id });
     dispatch({ type: "choose", screen: "waiting" });
   };
 

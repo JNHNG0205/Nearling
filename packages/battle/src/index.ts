@@ -3,7 +3,7 @@
 // Spec: docs/superpowers/specs/2026-11-14-pet-battle-design.md section 2. Changing anything here
 // bumps RULES_VERSION (and the contract's XP table must stay equal to xpFor/addXp).
 
-export const RULES_VERSION = 1;
+export const RULES_VERSION = 2;
 export const MAX_LEVEL = 20;
 export const MAX_TURNS = 30;
 export const DAILY_XP_CAP = 100;
@@ -12,12 +12,16 @@ export type Family = "playful" | "curious" | "calm" | "sassy" | "kind";
 const FAMILIES: Family[] = ["playful", "curious", "calm", "sassy", "kind"]; // trait order on chain
 
 export interface Stats { hp: number; mp: number; atk: number; def: number; spd: number; critPermille: number; healBonus: number }
-export interface Skill { id: string; name: string; level: number; mp: number; power: number; ignoreHalfDef?: boolean; guard?: boolean; tauntTurns?: number; healPct?: number }
-export type Move = { kind: "attack" } | { kind: "skill"; skill: string } | { kind: "run" };
-export interface Fighter { level: number; stats: Stats; hp: number; mp: number; guard: boolean; tauntTurns: number; skills: Skill[] }
+/** `guardPct`: share of damage the user takes this turn (Shell Up 25, Steady Slam 50). */
+export interface Skill { id: string; name: string; level: number; mp: number; power: number; ignoreHalfDef?: boolean; guardPct?: number; tauntTurns?: number; healPct?: number }
+/** Defend and Dodge: every pet, no MP, not twice in a row (rules version 2). */
+export type Move = { kind: "attack" } | { kind: "skill"; skill: string } | { kind: "defend" } | { kind: "dodge" } | { kind: "run" };
+/** `takePct`: share of damage taken this turn (100 = normal); `rested`: Defend or Dodge used last turn. */
+export interface Fighter { level: number; stats: Stats; hp: number; mp: number; takePct: number; rested: "defend" | "dodge" | null; tauntTurns: number; skills: Skill[] }
 export interface BattleState { turn: number; fighters: [Fighter, Fighter]; over: null | { winner: 0 | 1 | null; reason: "ko" | "run" | "turns" } }
 export type TurnEvent =
-  | { kind: "move"; side: 0 | 1; skill: string; damage: number; crit: boolean; healed: number }
+  /** `dodge`: set on a hit aimed at a dodging pet */
+  | { kind: "move"; side: 0 | 1; skill: string; damage: number; crit: boolean; healed: number; dodge?: "dodged" | "failed" }
   | { kind: "faint"; side: 0 | 1 }
   | { kind: "run"; side: 0 | 1 };
 
@@ -68,8 +72,8 @@ const FAMILY_SKILLS: Record<Family, [Omit<Skill, "id" | "level">, Omit<Skill, "i
     { name: "Brainstorm", mp: 14, power: 36, ignoreHalfDef: true },
   ],
   calm: [
-    { name: "Shell Up", mp: 4, power: 0, guard: true },
-    { name: "Steady Slam", mp: 8, power: 22, guard: true },
+    { name: "Shell Up", mp: 4, power: 0, guardPct: 25 },
+    { name: "Steady Slam", mp: 8, power: 22, guardPct: 50 },
     { name: "Still Water", mp: 14, power: 34 },
   ],
   sassy: [
@@ -96,7 +100,7 @@ export function skillsFor(traits: readonly number[], level: number): Skill[] {
 
 function fighter(p: { traits: readonly number[]; level: number }): Fighter {
   const stats = statsFor(p.traits, p.level);
-  return { level: p.level, stats, hp: stats.hp, mp: stats.mp, guard: false, tauntTurns: 0, skills: skillsFor(p.traits, p.level) };
+  return { level: p.level, stats, hp: stats.hp, mp: stats.mp, takePct: 100, rested: null, tauntTurns: 0, skills: skillsFor(p.traits, p.level) };
 }
 
 export function newBattle(a: { traits: readonly number[]; level: number }, b: { traits: readonly number[]; level: number }): BattleState {
@@ -109,16 +113,27 @@ function skillOf(f: Fighter, m: Move): Skill | null {
   return f.skills.find((s) => s.id === m.skill) ?? null;
 }
 
+export const DEFEND_TAKE_PCT = 70;
+export const DEFEND_MP_PCT = 10;
+export const DODGE_FAIL_PCT = 125;
+
+/** Chance to dodge a hit, per mille: 30% + 2% per point of speed over the opponent, 15% to 60%. */
+export function dodgePermille(spd: number, foeSpd: number): number {
+  return Math.min(600, Math.max(150, 300 + 20 * (spd - foeSpd)));
+}
+
 export function isLegal(s: BattleState, side: 0 | 1, m: Move): boolean {
   if (m.kind === "run" || m.kind === "attack") return true;
+  if (m.kind === "defend" || m.kind === "dodge") return s.fighters[side].rested !== m.kind;
   const skill = skillOf(s.fighters[side], m);
   return !!skill && skill.mp <= s.fighters[side].mp;
 }
 
 /**
- * One turn: both moves were chosen blind. Run ends the battle first; guard skills take effect
- * before any damage; then the faster pet acts (tie: coin flip). Each damaging move draws the
- * variance, then the crit, from `rng`. Pure: returns a new state.
+ * One turn: both moves were chosen blind. Run ends the battle first. Defend, Dodge and guard
+ * skills take effect before any damage (Defend also restores MP; each dodging pet rolls its dodge
+ * from `rng`, side 0 first). Then the faster pet acts (tie: coin flip). Each damaging move draws
+ * the variance, then the crit, from `rng`. Pure: returns a new state.
  */
 export function resolveTurn(s: BattleState, moves: [Move, Move], rng: () => number): { state: BattleState; events: TurnEvent[] } {
   if (s.over) return { state: s, events: [] };
@@ -133,13 +148,34 @@ export function resolveTurn(s: BattleState, moves: [Move, Move], rng: () => numb
     return { state: { turn, fighters: f, over: { winner, reason: "run" } }, events };
   }
 
+  // Defend and Dodge act before anything else; a repeat (illegal, the brain rejects it) is an Attack
+  const stance = (side: 0 | 1): "defend" | "dodge" | null => {
+    const k = moves[side].kind;
+    return (k === "defend" || k === "dodge") && f[side].rested !== k ? k : null;
+  };
+  const stances: ["defend" | "dodge" | null, "defend" | "dodge" | null] = [stance(0), stance(1)];
+  const dodged: [boolean | null, boolean | null] = [null, null];
+  for (const side of [0, 1] as const) {
+    const me = f[side];
+    if (stances[side] === "defend") {
+      me.mp = Math.min(me.stats.mp, me.mp + Math.floor((me.stats.mp * DEFEND_MP_PCT) / 100));
+      events.push({ kind: "move", side, skill: "defend", damage: 0, crit: false, healed: 0 });
+    } else if (stances[side] === "dodge") {
+      dodged[side] = rng() % 1000 < dodgePermille(me.stats.spd, f[side === 0 ? 1 : 0].stats.spd);
+      events.push({ kind: "move", side, skill: "dodge", damage: 0, crit: false, healed: 0 });
+    }
+  }
+
   // an unknown or unaffordable skill falls back to Attack (the brain rejects those before this)
-  const pick = (side: 0 | 1): Skill => {
+  const pick = (side: 0 | 1): Skill | null => {
+    if (stances[side]) return null;
     const skill = skillOf(f[side], moves[side]);
     return skill && skill.mp <= f[side].mp ? skill : ATTACK_SKILL;
   };
-  const skills: [Skill, Skill] = [pick(0), pick(1)];
-  for (const side of [0, 1] as const) f[side].guard = !!skills[side].guard;
+  const skills: [Skill | null, Skill | null] = [pick(0), pick(1)];
+  for (const side of [0, 1] as const) {
+    f[side].takePct = stances[side] === "defend" ? DEFEND_TAKE_PCT : skills[side]?.guardPct ?? 100;
+  }
 
   const first: 0 | 1 = f[0].stats.spd > f[1].stats.spd ? 0 : f[1].stats.spd > f[0].stats.spd ? 1 : ((rng() & 1) as 0 | 1);
   const taunted = new Set<number>();
@@ -147,9 +183,11 @@ export function resolveTurn(s: BattleState, moves: [Move, Move], rng: () => numb
 
   for (const side of [first, first === 0 ? 1 : 0] as const) {
     const me = f[side];
-    const foe = f[side === 0 ? 1 : 0];
+    const foeSide = side === 0 ? 1 : 0;
+    const foe = f[foeSide];
     if (me.hp <= 0 || foe.hp <= 0) continue;
     const skill = skills[side];
+    if (!skill) continue; // defended or dodged: already done
     me.mp -= skill.mp;
     let damage = 0;
     let crit = false;
@@ -160,8 +198,11 @@ export function resolveTurn(s: BattleState, moves: [Move, Move], rng: () => numb
       damage = Math.floor((skill.power * atk * v) / ((atk + def) * 100));
       crit = rng() % 1000 < me.stats.critPermille;
       if (crit) damage = Math.floor((damage * 3) / 2);
-      if (foe.guard) damage = Math.floor(damage / 2);
-      damage = Math.max(1, damage);
+      // one protection only: a pet that dodged had no guard this turn, so these never stack
+      if (foe.takePct !== 100) damage = Math.floor((damage * foe.takePct) / 100);
+      const foeDodge = dodged[foeSide];
+      if (foeDodge === false) damage = Math.floor((damage * DODGE_FAIL_PCT) / 100);
+      damage = foeDodge ? 0 : Math.max(1, damage);
       foe.hp = Math.max(0, foe.hp - damage);
     }
     let healed = 0;
@@ -173,16 +214,17 @@ export function resolveTurn(s: BattleState, moves: [Move, Move], rng: () => numb
       foe.tauntTurns = skill.tauntTurns;
       taunted.add(side === 0 ? 1 : 0);
     }
-    events.push({ kind: "move", side, skill: skill.id, damage, crit, healed });
+    const dodge = skill.power > 0 && dodged[foeSide] !== null ? (dodged[foeSide] ? "dodged" : "failed") : undefined;
+    events.push({ kind: "move", side, skill: skill.id, damage, crit, healed, ...(dodge ? { dodge } : {}) });
     if (foe.hp === 0) {
-      const foeSide = side === 0 ? 1 : 0;
       events.push({ kind: "faint", side: foeSide });
       over = { winner: side, reason: "ko" };
     }
   }
 
   for (const side of [0, 1] as const) {
-    f[side].guard = false;
+    f[side].takePct = 100;
+    f[side].rested = stances[side];
     if (f[side].tauntTurns > 0 && !taunted.has(side)) f[side].tauntTurns -= 1;
   }
   if (!over && turn >= MAX_TURNS) {

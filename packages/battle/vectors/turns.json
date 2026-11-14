@@ -1725,5 +1725,531 @@
    "winner": 1,
    "reason": "run"
   }
+ },
+ {
+  "a": {
+   "traits": [
+    20,
+    80,
+    30,
+    10,
+    10
+   ],
+   "level": 4
+  },
+  "b": {
+   "traits": [
+    10,
+    10,
+    90,
+    10,
+    10
+   ],
+   "level": 4
+  },
+  "seed": 1,
+  "moves": [
+   [
+    {
+     "kind": "attack"
+    },
+    {
+     "kind": "defend"
+    }
+   ],
+   [
+    {
+     "kind": "dodge"
+    },
+    {
+     "kind": "attack"
+    }
+   ],
+   [
+    {
+     "kind": "skill",
+     "skill": "curious1"
+    },
+    {
+     "kind": "skill",
+     "skill": "calm1"
+    }
+   ],
+   [
+    {
+     "kind": "dodge"
+    },
+    {
+     "kind": "defend"
+    }
+   ],
+   [
+    {
+     "kind": "attack"
+    },
+    {
+     "kind": "attack"
+    }
+   ],
+   [
+    {
+     "kind": "dodge"
+    },
+    {
+     "kind": "attack"
+    }
+   ],
+   [
+    {
+     "kind": "defend"
+    },
+    {
+     "kind": "attack"
+    }
+   ],
+   [
+    {
+     "kind": "attack"
+    },
+    {
+     "kind": "attack"
+    }
+   ],
+   [
+    {
+     "kind": "attack"
+    },
+    {
+     "kind": "attack"
+    }
+   ],
+   [
+    {
+     "kind": "attack"
+    },
+    {
+     "kind": "attack"
+    }
+   ],
+   [
+    {
+     "kind": "attack"
+    },
+    {
+     "kind": "attack"
+    }
+   ],
+   [
+    {
+     "kind": "attack"
+    },
+    {
+     "kind": "attack"
+    }
+   ],
+   [
+    {
+     "kind": "attack"
+    },
+    {
+     "kind": "attack"
+    }
+   ],
+   [
+    {
+     "kind": "attack"
+    },
+    {
+     "kind": "attack"
+    }
+   ],
+   [
+    {
+     "kind": "attack"
+    },
+    {
+     "kind": "attack"
+    }
+   ],
+   [
+    {
+     "kind": "attack"
+    },
+    {
+     "kind": "attack"
+    }
+   ],
+   [
+    {
+     "kind": "attack"
+    },
+    {
+     "kind": "attack"
+    }
+   ],
+   [
+    {
+     "kind": "attack"
+    },
+    {
+     "kind": "attack"
+    }
+   ],
+   [
+    {
+     "kind": "attack"
+    },
+    {
+     "kind": "attack"
+    }
+   ]
+  ],
+  "events": [
+   [
+    {
+     "kind": "move",
+     "side": 1,
+     "skill": "defend",
+     "damage": 0,
+     "crit": false,
+     "healed": 0
+    },
+    {
+     "kind": "move",
+     "side": 0,
+     "skill": "attack",
+     "damage": 2,
+     "crit": false,
+     "healed": 0
+    }
+   ],
+   [
+    {
+     "kind": "move",
+     "side": 0,
+     "skill": "dodge",
+     "damage": 0,
+     "crit": false,
+     "healed": 0
+    },
+    {
+     "kind": "move",
+     "side": 1,
+     "skill": "attack",
+     "damage": 5,
+     "crit": false,
+     "healed": 0,
+     "dodge": "failed"
+    }
+   ],
+   [
+    {
+     "kind": "move",
+     "side": 0,
+     "skill": "curious1",
+     "damage": 1,
+     "crit": false,
+     "healed": 0
+    },
+    {
+     "kind": "move",
+     "side": 1,
+     "skill": "calm1",
+     "damage": 0,
+     "crit": false,
+     "healed": 0
+    }
+   ],
+   [
+    {
+     "kind": "move",
+     "side": 0,
+     "skill": "dodge",
+     "damage": 0,
+     "crit": false,
+     "healed": 0
+    },
+    {
+     "kind": "move",
+     "side": 1,
+     "skill": "defend",
+     "damage": 0,
+     "crit": false,
+     "healed": 0
+    }
+   ],
+   [
+    {
+     "kind": "move",
+     "side": 0,
+     "skill": "attack",
+     "damage": 4,
+     "crit": true,
+     "healed": 0
+    },
+    {
+     "kind": "move",
+     "side": 1,
+     "skill": "attack",
+     "damage": 4,
+     "crit": false,
+     "healed": 0
+    }
+   ],
+   [
+    {
+     "kind": "move",
+     "side": 0,
+     "skill": "dodge",
+     "damage": 0,
+     "crit": false,
+     "healed": 0
+    },
+    {
+     "kind": "move",
+     "side": 1,
+     "skill": "attack",
+     "damage": 0,
+     "crit": true,
+     "healed": 0,
+     "dodge": "dodged"
+    }
+   ],
+   [
+    {
+     "kind": "move",
+     "side": 0,
+     "skill": "defend",
+     "damage": 0,
+     "crit": false,
+     "healed": 0
+    },
+    {
+     "kind": "move",
+     "side": 1,
+     "skill": "attack",
+     "damage": 4,
+     "crit": true,
+     "healed": 0
+    }
+   ],
+   [
+    {
+     "kind": "move",
+     "side": 0,
+     "skill": "attack",
+     "damage": 6,
+     "crit": true,
+     "healed": 0
+    },
+    {
+     "kind": "move",
+     "side": 1,
+     "skill": "attack",
+     "damage": 4,
+     "crit": false,
+     "healed": 0
+    }
+   ],
+   [
+    {
+     "kind": "move",
+     "side": 0,
+     "skill": "attack",
+     "damage": 3,
+     "crit": false,
+     "healed": 0
+    },
+    {
+     "kind": "move",
+     "side": 1,
+     "skill": "attack",
+     "damage": 4,
+     "crit": false,
+     "healed": 0
+    }
+   ],
+   [
+    {
+     "kind": "move",
+     "side": 0,
+     "skill": "attack",
+     "damage": 4,
+     "crit": false,
+     "healed": 0
+    },
+    {
+     "kind": "move",
+     "side": 1,
+     "skill": "attack",
+     "damage": 4,
+     "crit": false,
+     "healed": 0
+    }
+   ],
+   [
+    {
+     "kind": "move",
+     "side": 0,
+     "skill": "attack",
+     "damage": 4,
+     "crit": false,
+     "healed": 0
+    },
+    {
+     "kind": "move",
+     "side": 1,
+     "skill": "attack",
+     "damage": 4,
+     "crit": false,
+     "healed": 0
+    }
+   ],
+   [
+    {
+     "kind": "move",
+     "side": 0,
+     "skill": "attack",
+     "damage": 4,
+     "crit": false,
+     "healed": 0
+    },
+    {
+     "kind": "move",
+     "side": 1,
+     "skill": "attack",
+     "damage": 4,
+     "crit": false,
+     "healed": 0
+    }
+   ],
+   [
+    {
+     "kind": "move",
+     "side": 0,
+     "skill": "attack",
+     "damage": 4,
+     "crit": false,
+     "healed": 0
+    },
+    {
+     "kind": "move",
+     "side": 1,
+     "skill": "attack",
+     "damage": 4,
+     "crit": false,
+     "healed": 0
+    }
+   ],
+   [
+    {
+     "kind": "move",
+     "side": 0,
+     "skill": "attack",
+     "damage": 4,
+     "crit": false,
+     "healed": 0
+    },
+    {
+     "kind": "move",
+     "side": 1,
+     "skill": "attack",
+     "damage": 4,
+     "crit": false,
+     "healed": 0
+    }
+   ],
+   [
+    {
+     "kind": "move",
+     "side": 0,
+     "skill": "attack",
+     "damage": 4,
+     "crit": false,
+     "healed": 0
+    },
+    {
+     "kind": "move",
+     "side": 1,
+     "skill": "attack",
+     "damage": 4,
+     "crit": false,
+     "healed": 0
+    }
+   ],
+   [
+    {
+     "kind": "move",
+     "side": 0,
+     "skill": "attack",
+     "damage": 4,
+     "crit": false,
+     "healed": 0
+    },
+    {
+     "kind": "move",
+     "side": 1,
+     "skill": "attack",
+     "damage": 6,
+     "crit": true,
+     "healed": 0
+    }
+   ],
+   [
+    {
+     "kind": "move",
+     "side": 0,
+     "skill": "attack",
+     "damage": 4,
+     "crit": false,
+     "healed": 0
+    },
+    {
+     "kind": "move",
+     "side": 1,
+     "skill": "attack",
+     "damage": 4,
+     "crit": false,
+     "healed": 0
+    }
+   ],
+   [
+    {
+     "kind": "move",
+     "side": 0,
+     "skill": "attack",
+     "damage": 3,
+     "crit": false,
+     "healed": 0
+    },
+    {
+     "kind": "move",
+     "side": 1,
+     "skill": "attack",
+     "damage": 4,
+     "crit": false,
+     "healed": 0
+    }
+   ],
+   [
+    {
+     "kind": "move",
+     "side": 0,
+     "skill": "attack",
+     "damage": 4,
+     "crit": false,
+     "healed": 0
+    },
+    {
+     "kind": "move",
+     "side": 1,
+     "skill": "attack",
+     "damage": 4,
+     "crit": false,
+     "healed": 0
+    }
+   ]
+  ],
+  "over": null
  }
 ]

@@ -12,6 +12,8 @@ const cases: { a: { traits: number[]; level: number }; b: { traits: number[]; le
   { a: { traits: [10, 10, 90, 10, 10], level: 3 }, b: { traits: [10, 10, 10, 90, 10], level: 3 }, seed: 123456789, moves: [[S("calm1"), S("sassy1")], [A, A], [S("calm1"), A], ...Array.from({ length: 12 }, () => [A, A] as [Move, Move])] },
   { a: { traits: [10, 10, 10, 10, 95], level: 10 }, b: { traits: [95, 10, 10, 10, 10], level: 10 }, seed: 4294967295, moves: [[A, S("playful3")], [S("kind1"), S("playful2")], [S("kind3"), A], ...Array.from({ length: 12 }, () => [A, A] as [Move, Move])] },
   { a: { traits: [50, 50, 50, 50, 50], level: 4 }, b: { traits: [50, 50, 50, 50, 50], level: 4 }, seed: 7, moves: [[A, A], [{ kind: "run" }, A]] },
+  // rules v2: Defend, Dodge (one dodge hits, one misses at this seed) and Shell Up
+  { a: { traits: [20, 80, 30, 10, 10], level: 4 }, b: { traits: [10, 10, 90, 10, 10], level: 4 }, seed: 1, moves: [[A, { kind: "defend" }], [{ kind: "dodge" }, A], [S("curious1"), S("calm1")], [{ kind: "dodge" }, { kind: "defend" }], [A, A], [{ kind: "dodge" }, A], [{ kind: "defend" }, A], ...Array.from({ length: 12 }, () => [A, A] as [Move, Move])] },
 ];
 
 const out = cases.map((c) => {
