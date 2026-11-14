@@ -20,7 +20,7 @@ import { buildMessages, parseEmotion, PROACTIVE_NUDGE, proactiveTask, type Chann
 import { addSpend, overSpendCap, utcDay } from "./spend";
 import { resolveServer } from "../mcp/auth";
 import { callTool, McpError } from "../mcp/client";
-import { ownerTools, taskCard, tasksForTurn, type OwnerTools, type ServerRow, type TaskRow } from "../mcp/store";
+import { capabilityNote, ownerTools, taskCard, tasksForTurn, type OwnerTools, type ServerRow, type TaskRow } from "../mcp/store";
 
 /**
  * Soul & Verified Talk (AI-brain 03 sections 1, 2, 8). One press = one turn = one reply = one
@@ -115,6 +115,8 @@ export interface TurnInput {
   ask: { kind: "user"; text: string } | { kind: "proactive"; trigger: BilledTrigger; fact?: string };
   /** the owner's connected MCP tools (web /mcp); the model may propose calls, which wait for approval */
   tools?: OwnerTools | null;
+  /** owner chats: what the pet can and cannot do for real (capabilityNote) */
+  capabilities?: string;
 }
 
 export interface TurnOutput {
@@ -191,6 +193,7 @@ export async function runTurn(deps: Deps, ai: NearAi, input: TurnInput): Promise
   }
 
   const tools = input.tools ?? null;
+  if (input.capabilities) messages[0]!.content += `\n\n${input.capabilities}`;
   if (tools) messages[0]!.content += `\n\n${TOOLS_NOTE}`;
   const res = await ai.chat(messages, { model, ...(tools ? { tools: tools.specs } : {}) });
   // only calls to tools this owner really connected; anything else the model names is dropped
@@ -445,6 +448,7 @@ export function createTalk(deps: Deps, overrides: TalkOverrides = {}) {
         petRef, contract, tokenId, owner, channel, turnId, pet, config, at: t,
         ask: { kind: "user", text: input.prompt ?? userText },
         tools: input.followUp ? null : ownerTools(deps, owner),
+        ...(input.followUp ? {} : { capabilities: capabilityNote(deps, owner) }),
       });
 
       const key = input.voice ? await synth(turnId, reply) : null;

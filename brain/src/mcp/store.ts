@@ -77,3 +77,22 @@ export function taskCard(deps: Deps, row: TaskRow): McpTaskCard {
 
 export const tasksForTurn = (deps: Deps, turnId: string) =>
   (deps.db.prepare("SELECT * FROM mcp_task WHERE turn_id = ? ORDER BY created_at").all(turnId) as TaskRow[]).map((r) => taskCard(deps, r));
+
+/**
+ * Always in the system prompt of an owner chat: which tools the pet really has, and what to do when
+ * asked for a real-world task without one (say so plainly; never pretend or change the subject).
+ */
+export function capabilityNote(deps: Deps, owner: string): string {
+  const list = servers(deps, owner).map((s) => {
+    const n = (JSON.parse(s.tools_json) as McpTool[]).length;
+    return n ? `${s.name} (${n} actions)` : `${s.name} (connected, but no actions are enabled yet)`;
+  });
+  return [
+    "Real-world tasks (calendar, email, messages, documents, web pages): you can only do them with a connected tool.",
+    `- Connected tools: ${list.length ? list.join(", ") : "none"}.`,
+    "- If the owner asks for something none of your tools can do, do not pretend and do not change the subject. Reply in one or two short sentences:",
+    "  - if no tool for it is connected, say you can't do that yet and that they can connect it on the \"MCP\" page of the Petto app (not on the device);",
+    "  - if the tool is connected but has no actions enabled, say its actions are not turned on yet: they should turn them on in Zapier, then press Refresh on the MCP page.",
+    "- Never say you did something you did not do.",
+  ].join("\n");
+}

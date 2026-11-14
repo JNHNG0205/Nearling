@@ -44,6 +44,14 @@ const view = (s: ServerRow) => ({
   refreshed_at: s.refreshed_at,
 });
 
+/** Through Zapier one sign-in reaches every app the user allowed there: a card only gets its own app's tools. */
+function cardTools(catalogId: string, url: string, tools: McpTool[]): McpTool[] {
+  const listed = catalogEntry(catalogId);
+  if (url !== ZAPIER_MCP_URL || !listed?.viaZapier) return tools;
+  const p = listed.viaZapier.prefix.toLowerCase();
+  return tools.filter((x) => x.name.toLowerCase().startsWith(p));
+}
+
 export function mcpRoutes(deps: Deps) {
   const { cfg, db, sealer, now } = deps;
   const app = new Hono<AuthEnv>();
@@ -62,12 +70,7 @@ export function mcpRoutes(deps: Deps) {
     const e = effectiveEntry(cfg, listed);
     const probe = { id: 0, owner_account: account, name: e.name, url: e.url, token_enc: auth ? sealAuth(deps, account, auth) : null, tools_json: "[]", catalog_id: e.id, created_at: 0, refreshed_at: 0 };
     const { url, token } = await resolveServer(deps, account, probe);
-    let tools = await listTools(url, token);
-    // through Zapier one sign-in reaches every app the user allowed there: this card only gets its own app's tools
-    if (e.url === ZAPIER_MCP_URL && listed.viaZapier) {
-      const p = listed.viaZapier.prefix.toLowerCase();
-      tools = tools.filter((x) => x.name.toLowerCase().startsWith(p));
-    }
+    const tools = cardTools(listed.id, e.url, await listTools(url, token));
     const t = now();
     db.prepare("DELETE FROM mcp_server WHERE owner_account = ? AND catalog_id = ?").run(account, e.id);
     const newId = db
@@ -153,7 +156,7 @@ export function mcpRoutes(deps: Deps) {
     if (!s) return c.json({ error: { code: "not_found", message: "No such MCP server" } }, 404);
     try {
       const { url, token } = await resolveServer(deps, account, s);
-      const tools = await listTools(url, token);
+      const tools = s.catalog_id ? cardTools(s.catalog_id, s.url, await listTools(url, token)) : await listTools(url, token);
       db.prepare("UPDATE mcp_server SET tools_json = ?, refreshed_at = ? WHERE id = ?").run(JSON.stringify(tools), now(), s.id);
     } catch (err) {
       return c.json(fail(err), 400);

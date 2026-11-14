@@ -103,7 +103,8 @@ function Tools() {
   const card = (t: CatalogTool) => (
     <ToolCard key={t.id} tool={t} on={byTool.get(t.id)} busy={busy}
       onConnect={(key) => connect(t, key)}
-      onDisconnect={(id) => void run(t.id, () => removeMcp(authHeaders(), id))} />
+      onDisconnect={(id) => void run(t.id, () => removeMcp(authHeaders(), id))}
+      onRefresh={(id) => void run(t.id, () => refreshMcp(authHeaders(), id))} />
   );
 
   return (
@@ -156,12 +157,13 @@ function Tools() {
   );
 }
 
-function ToolCard({ tool, on, busy, onConnect, onDisconnect }: {
+function ToolCard({ tool, on, busy, onConnect, onDisconnect, onRefresh }: {
   tool: CatalogTool;
   on: McpServerView | undefined;
   busy: string | null;
   onConnect: (key?: string) => Promise<boolean>;
   onDisconnect: (serverId: number) => void;
+  onRefresh: (serverId: number) => void;
 }) {
   const [askKey, setAskKey] = useState(false);
   const [key, setKey] = useState("");
@@ -182,10 +184,20 @@ function ToolCard({ tool, on, busy, onConnect, onDisconnect }: {
 
       {on ? (
         <>
-          <p className="text-xs text-muted">{on.tools.length} tools . Try: <span className="text-ink">&quot;{tool.try}&quot;</span></p>
-          <button className="pixel-btn pixel-btn--secondary mt-auto self-start px-3 text-sm" disabled={busy !== null} onClick={() => onDisconnect(on.id)}>
-            {mine ? "..." : "Disconnect"}
-          </button>
+          {on.tools.length === 0 ? (
+            <p className="border-2 border-warn px-2 py-1 text-xs text-warn" role="status">
+              Connected, but no {tool.name} actions are turned on, so your pet can't use it yet.
+              {tool.via === "Zapier" ? <> Turn on {tool.name} actions at <a className="underline" href="https://mcp.zapier.com" target="_blank" rel="noreferrer">mcp.zapier.com</a>, then press Refresh.</> : " Press Refresh to check again."}
+            </p>
+          ) : (
+            <p className="text-xs text-muted">{on.tools.length} actions . Try: <span className="text-ink">&quot;{tool.try}&quot;</span></p>
+          )}
+          <div className="mt-auto flex gap-2">
+            <button className="pixel-btn pixel-btn--secondary px-3 text-sm" disabled={busy !== null} onClick={() => onRefresh(on.id)}>Refresh</button>
+            <button className="pixel-btn pixel-btn--secondary px-3 text-sm" disabled={busy !== null} onClick={() => onDisconnect(on.id)}>
+              {mine ? "..." : "Disconnect"}
+            </button>
+          </div>
         </>
       ) : tool.auth === "local" ? (
         <p className="mt-auto text-xs text-muted">{tool.help}</p>
