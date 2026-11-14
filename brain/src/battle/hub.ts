@@ -36,7 +36,8 @@ interface Player extends Entrant {
 
 interface Room {
   code: string;
-  createdAt: number;
+  /** created, started or finished: rooms idle past ROOM_TTL_MS are dropped (never a running battle) */
+  touchedAt: number;
   players: [Player, Player | null];
   state: BattleState | null;
   rng: () => number;
@@ -45,6 +46,9 @@ interface Room {
   turnEndsAt: number;
   battleId: string | null;
   done: boolean;
+  /** resent to a player who reconnects after the end */
+  endMsg: BattleServerMsg | null;
+  savedMsg: BattleServerMsg | null;
 }
 
 export type JoinResult = { slot: 1 } | { error: "not_found" | "full" | "same_owner" | "same_pet" | "other_contract" };
@@ -67,8 +71,9 @@ export class BattleHub {
     do code = Array.from({ length: 6 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join("");
     while (this.rooms.has(code));
     this.rooms.set(code, {
-      code, createdAt: this.deps.now(), players: [this.player(host), null], state: null,
+      code, touchedAt: this.deps.now(), players: [this.player(host), null], state: null,
       rng: () => 0, moves: [null, null], turnTimer: null, turnEndsAt: 0, battleId: null, done: false,
+      endMsg: null, savedMsg: null,
     });
     return code;
   }
@@ -81,8 +86,15 @@ export class BattleHub {
     if (host.account === guest.account) return { error: "same_owner" };
     // record_battle scores both pets on one contract, so both must live on it (normal or demo speed)
     if (parsePetRef(host.pet.petRef)?.contract !== parsePetRef(guest.pet.petRef)?.contract) return { error: "other_contract" };
-    if (room.players[1] && room.players[1].account !== guest.account) return { error: "full" };
-    room.players[1] = this.player(guest);
+    const seated = room.players[1];
+    if (seated && seated.account !== guest.account) return { error: "full" };
+    if (seated && seated.pet.petRef === guest.pet.petRef) {
+      this.broadcastRoom(room); // joined again with the same pet: keep the seat and socket
+      return { slot: 1 };
+    }
+    if (room.state) return { error: "full" }; // no swapping pets once the battle started
+    // a new guest, or the same guest picking another pet before the start (keeps their socket)
+    room.players[1] = seated ? { ...seated, pet: guest.pet, ready: false } : this.player(guest);
     this.broadcastRoom(room);
     return { slot: 1 };
   }
@@ -111,6 +123,8 @@ export class BattleHub {
     p.goneTimer = null;
     this.send(p, this.roomMsg(room, slot));
     if (room.state && !room.done) this.send(p, { type: "start", state: room.state, turnEndsAt: room.turnEndsAt });
+    if (room.endMsg) this.send(p, room.endMsg);
+    if (room.savedMsg) this.send(p, room.savedMsg);
   }
 
   close(rawCode: string, slot: Slot, conn: Conn): void {
@@ -159,7 +173,8 @@ export class BattleHub {
   notifySaved(battleId: string, tx: string | null): void {
     const room = this.byBattle.get(battleId);
     if (!room) return;
-    for (const p of room.players) if (p) this.send(p, tx ? { type: "saved", tx } : { type: "save_failed" });
+    room.savedMsg = tx ? { type: "saved", tx } : { type: "save_failed" };
+    for (const p of room.players) if (p) this.send(p, room.savedMsg);
   }
 
   private start(room: Room): void {
@@ -167,6 +182,7 @@ export class BattleHub {
     room.state = newBattle(a.pet, b.pet);
     room.rng = mulberry32(this.newSeed());
     room.battleId = uuidv7(this.deps.now());
+    room.touchedAt = this.deps.now();
     this.byBattle.set(room.battleId, room);
     this.armTurn(room);
     this.broadcast(room, { type: "start", state: room.state, turnEndsAt: room.turnEndsAt });
@@ -225,7 +241,9 @@ export class BattleHub {
         winner: winRef.tokenId, loser: loseRef.tokenId, draw: winner === null, loser_ran: loserRan, battle_id: id,
       }), now, now, now);
     })();
-    this.broadcast(room, { type: "end", winner, reason, battleId: id, xp: [xpOf(0), xpOf(1)] });
+    room.endMsg = { type: "end", winner, reason, battleId: id, xp: [xpOf(0), xpOf(1)] };
+    room.touchedAt = now;
+    this.broadcast(room, room.endMsg);
     for (const s of [0, 1] as const) {
       publish(room.players[s]!.pet.petRef, "battle_result", { battle_id: id, won: winner === s, draw: winner === null });
     }
@@ -269,7 +287,7 @@ export class BattleHub {
   private sweep(): void {
     const cutoff = this.deps.now() - ROOM_TTL_MS;
     for (const [code, room] of this.rooms) {
-      if (room.createdAt >= cutoff) continue;
+      if (room.touchedAt >= cutoff || (room.state && !room.done)) continue;
       if (room.turnTimer) clearTimeout(room.turnTimer);
       this.rooms.delete(code);
       if (room.battleId) this.byBattle.delete(room.battleId);

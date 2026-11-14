@@ -118,4 +118,47 @@ describe("BattleHub", () => {
     expect(a.last()).toEqual({ type: "saved", tx: "TX123" });
     expect(b.last()).toEqual({ type: "saved", tx: "TX123" });
   });
+  it("refuses a guest who rejoins a started battle with another pet", () => {
+    const { hub, code } = started();
+    expect(hub.join(code, { account: bob.account, pet: pet("pets.petto.testnet:7") })).toEqual({ error: "full" });
+  });
+
+  it("keeps the guest's socket when they join again with the same pet before the start", () => {
+    const deps = testDeps();
+    const hub = new BattleHub(deps);
+    const code = hub.createRoom(alice)!;
+    hub.join(code, bob);
+    const b = conn();
+    hub.open(code, 1, b);
+    hub.join(code, bob);
+    expect(b.last()?.type).toBe("room");
+    expect(b.sent.length).toBe(2);
+  });
+
+  it("sends the result to a player who reconnects after the battle ended", () => {
+    const { hub, code } = started();
+    move(hub, code, 0, { kind: "run" });
+    move(hub, code, 1, { kind: "attack" });
+    const again = conn();
+    hub.open(code, 0, again);
+    expect(again.sent.map((m) => m.type)).toEqual(["room", "end"]);
+  });
+
+  it("keeps a running battle past the room lifetime", () => {
+    let t = 1_800_000_000_000;
+    const deps = testDeps({ now: () => t });
+    const hub = new BattleHub(deps, { newSeed: () => 42 });
+    const code = hub.createRoom(alice)!;
+    hub.join(code, bob);
+    const a = conn();
+    hub.open(code, 0, a);
+    hub.open(code, 1, conn());
+    hub.message(code, 0, JSON.stringify({ type: "ready" }));
+    hub.message(code, 1, JSON.stringify({ type: "ready" }));
+    t += 31 * 60_000;
+    hub.createRoom({ account: "carol.testnet", pet: pet("pets.petto.testnet:3") }); // runs the sweep
+    move(hub, code, 0, { kind: "attack" });
+    move(hub, code, 1, { kind: "attack" });
+    expect(a.last()?.type).toBe("turn");
+  });
 });

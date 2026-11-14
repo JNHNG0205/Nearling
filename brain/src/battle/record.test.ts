@@ -37,4 +37,16 @@ describe("battle record worker", () => {
     expect(deps.db.prepare("SELECT status, attempts FROM battle_job").get()).toEqual({ status: "failed", attempts: MAX_ATTEMPTS });
     expect(notify).toHaveBeenCalledWith("b1", null);
   });
+  it("gives up within about two minutes, while the players still watch the result screen", async () => {
+    let t = 0;
+    const deps = testDeps({ now: () => t });
+    seed(deps);
+    const worker = createBattleWorker(deps, signers(vi.fn(async () => { throw new Error("rpc down"); })), vi.fn());
+    for (let i = 0; i < MAX_ATTEMPTS; i++) {
+      t = (deps.db.prepare("SELECT next_attempt_at FROM battle_job").get() as { next_attempt_at: number }).next_attempt_at;
+      await worker.tick();
+    }
+    expect(deps.db.prepare("SELECT status FROM battle_job").get()).toEqual({ status: "failed" });
+    expect(t).toBeLessThanOrEqual(150_000);
+  });
 });

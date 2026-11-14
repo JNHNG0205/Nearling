@@ -119,10 +119,10 @@ nearling/
 | Role | People | Owns |
 |---|---|---|
 | 1. Contract | 1 | `contract/`, `shirts/`, `scripts/`, NEARON integration on chain, device key + on-chain approvals (kept in code) |
-| 2. Web + brain | 1 | **All server code:** `brain/` (talk, NEAR AI, receipts, fuel and charge queue, Feed the Brain, Garden sweep, pairing, care, Closet, wallet approvals, race server, proactive inbox), `web/`, `packages/` (`shared`, `race`, `sprites`), NEAR Connect login, deployment (`docs/DEPLOY.md`, CI) |
+| 2. Web + brain | 1 | **All server code:** `brain/` (talk, NEAR AI, receipts, fuel and charge queue, Feed the Brain, Garden sweep, pairing, care, Closet, wallet approvals, battle rooms, proactive inbox), `web/`, `packages/` (`shared`, `battle`, `sprites`), NEAR Connect login, deployment (`docs/DEPLOY.md`, CI) |
 | 3 + 4. Hardware | 2 | `firmware/` (C++, PlatformIO), 3D-printed case, soldering and wiring, screens, buttons and sensors, audio, Wi-Fi and pairing client, battle C++ port when the device joins battles (must match `packages/battle` golden vectors), `docs/hardware/` |
 
-Roles 3 and 4 are one hardware team of two; the brain routes the device calls (pairing, talk, care, Closet, approvals, race) are built by Role 2 and documented in `AI-brain architectual/08-api-reference.md`. Pets are procedural sprites from `packages/sprites` (no separate art owner).
+Roles 3 and 4 are one hardware team of two; the brain routes the device calls (pairing, talk, care, Closet, approvals) are built by Role 2 and documented in `AI-brain architectual/08-api-reference.md`. Pets are procedural sprites from `packages/sprites` (no separate art owner).
 
 ---
 
@@ -142,9 +142,9 @@ Hybrid scope as built [updated 2026-11-11]:
       │ wallet tx    │                  │                    NEAR AI Cloud org (staging)
    Phone web app ──HTTPS, SSE──► Brain service (Node 22, Hono, SQLite) ──► private TEE chat,
    (Next.js, NEAR Connect,       talk + receipts, memory, inbox,            whisper, attestation
-    Meteor signs value tx)       pairing, care, Closet, approvals, race
+    Meteor signs value tx)       pairing, care, Closet, approvals, battles
                                      ▲            │
-                    HTTPS + race WS  │            └──► NEAR Intents 1Click (mainnet; dry quotes
+                  HTTPS + battle WS  │            └──► NEAR Intents 1Click (mainnet; dry quotes
                                      │                 unless a human enables live)
                   Nearling device (ESP32-S3, 240x240 screen, buttons, touch pad,
                   motion + light sensors, speaker): hold to talk, offline care,
@@ -152,7 +152,7 @@ Hybrid scope as built [updated 2026-11-11]:
 ```
 
 - **On-chain is the source of truth** for ownership, fuel (food + staking credit), stake, Soul, stage and xp. Care (mood, milestones, winged form) is brain and device state (1.1).
-- **Brain service** owns conversation, memory, receipts, billing, proactive messages, pairing, race rooms and approval requests. It is the only account allowed to call `charge` and `credit`; its feeder account calls `feed` for settled orders.
+- **Brain service** owns conversation, memory, receipts, billing, proactive messages, pairing, battle rooms and approval requests. It is the only account allowed to call `charge` and `credit`; its feeder account calls `feed` for settled orders.
 - **Web and device are clients.** Neither talks to NEAR AI directly. The device holds no chain key in the demo path: value actions are approved on the device, then signed in Meteor on the phone.
 
 ---
@@ -510,7 +510,7 @@ Pixel art, 64×64 base sprite, 4 stages × about 12 states. One palette that rea
 5. Device (Build Spec): pairing, hold-to-talk, offline care, Closet, approve-on-device for Wallet actions.
 6. README with "do X, see Y" on testnet, demo video.
 
-**P1 (ship after must-haves work):** Wallet send and validator staking, approve pet transfer on the device, second physical racer.
+**P1 (ship after must-haves work):** Wallet send and validator staking, approve pet transfer on the device.
 
 **Kept in code, not in the demo:** on-device signing (`play`, `stake_from_food`, on-chain `approve_action`), `buy_item`, on-chain care stats.
 
