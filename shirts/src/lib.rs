@@ -69,7 +69,7 @@ impl Shirts {
         let id = self.next_id.to_string();
         self.next_id += 1;
         let metadata = TokenMetadata {
-            title: Some("Nearling Shirt".to_string()),
+            title: Some("Petto Shirt".to_string()),
             ..Default::default()
         };
         // Refunds the deposit beyond the token's storage and emits nft_mint.
@@ -159,8 +159,8 @@ impl NonFungibleTokenMetadataProvider for Shirts {
     fn nft_metadata(&self) -> NFTContractMetadata {
         NFTContractMetadata {
             spec: NFT_METADATA_SPEC.to_string(),
-            name: "Nearling Shirts".to_string(),
-            symbol: "NSHIRT".to_string(),
+            name: "Petto Shirts".to_string(),
+            symbol: "PSHIRT".to_string(),
             icon: None,
             base_uri: None,
             reference: None,
@@ -197,9 +197,18 @@ mod tests {
         assert_eq!(token.owner_id, accounts(1));
         assert_eq!(
             token.metadata.unwrap().title.as_deref(),
-            Some("Nearling Shirt")
+            Some("Petto Shirt")
         );
         assert!(get_logs().iter().any(|l| l.contains("nft_mint")));
+    }
+
+    #[test]
+    fn the_collection_is_named_petto_shirts() {
+        let m = setup().nft_metadata();
+        assert_eq!(
+            (m.name.as_str(), m.symbol.as_str()),
+            ("Petto Shirts", "PSHIRT")
+        );
     }
 
     #[test]

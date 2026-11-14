@@ -12,8 +12,10 @@ import {
   PETS_CONTRACT,
   returnValue,
   soulBytes,
+  spareThoughtsPerDay,
   tx,
   txHash,
+  withdrawTotal,
   type Outcome,
 } from "./chain";
 import { chainErrorCode, chainErrorCopy, friendlyChainError, isWalletRejection } from "./errors";
@@ -87,6 +89,25 @@ describe("pets-v9 builders", () => {
     expect(nearToThoughts(5n * 10n ** 23n, 200_000, 1_000)).toBe(100);
     expect(nearToThoughts("0", 200_000, 1_000)).toBe(0);
     expect(nearToThoughts(10n ** 24n, 200_000, 0)).toBe(0);
+  });
+});
+
+describe("brain garden numbers", () => {
+  it("counts only the thoughts left after metabolism", () => {
+    // Sprout: 2 NEAR staked = 1314 µ$/day, metabolism 1000, 1 fuel = 1000
+    expect(spareThoughtsPerDay(1314, 1000, 1000)).toBeCloseTo(0.314);
+    expect(spareThoughtsPerDay(6570, 1000, 1000)).toBeCloseTo(5.57);
+  });
+  it("never goes below zero and survives a zero fuel price", () => {
+    expect(spareThoughtsPerDay(500, 1000, 1000)).toBe(0);
+    expect(spareThoughtsPerDay(6570, 1000, 0)).toBe(0);
+  });
+  it("collects the unstaked amount plus the pool deposit", () => {
+    const amount = (5n * 10n ** 23n).toString();
+    expect(withdrawTotal({ amount, unlock_epoch: "5438", deposit: "7720000000000000000000" })).toBe(
+      5n * 10n ** 23n + 7_720_000_000_000_000_000_000n,
+    );
+    expect(withdrawTotal({ amount, unlock_epoch: "5438" })).toBe(5n * 10n ** 23n); // pets-v8: no deposit
   });
 });
 

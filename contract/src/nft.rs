@@ -133,8 +133,8 @@ impl NonFungibleTokenMetadataProvider for Contract {
     fn nft_metadata(&self) -> NFTContractMetadata {
         NFTContractMetadata {
             spec: NFT_METADATA_SPEC.to_string(),
-            name: "Nearling".to_string(),
-            symbol: "NEARLING".to_string(),
+            name: "Petto".to_string(),
+            symbol: "PETTO".to_string(),
             icon: None,
             base_uri: None,
             reference: None,
