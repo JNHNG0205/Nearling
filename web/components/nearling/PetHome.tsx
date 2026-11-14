@@ -156,7 +156,8 @@ export function PetHome({ initial }: { initial: PetState }) {
 
   useEffect(() => {
     if (talk.phase === "idle" && bubble) {
-      const t = setTimeout(() => setBubble(null), 4_000);
+      // typing time (SpeechBubble types 40 characters a second), then 4 s to read the end
+      const t = setTimeout(() => setBubble(null), (bubble.length / 40) * 1000 + 4_000);
       return () => clearTimeout(t);
     }
   }, [talk.phase, bubble]);

@@ -70,7 +70,7 @@ export function PetScreen(props: {
       <NearlingFrame label={`${props.name}'s screen`} buttons={props.buttons ?? null}>
         {props.bubble && (
           <div className="absolute inset-x-3 top-3">
-            <SpeechBubble text={props.bubble} className="max-h-[96px] overflow-hidden text-[14px] leading-4" />
+            <SpeechBubble text={props.bubble} compact />
           </div>
         )}
         <div
