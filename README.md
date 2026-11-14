@@ -237,17 +237,11 @@ _Photos, video and build steps: to be added by the hardware team._
 
 ---
 
-## Naming
-
-Petto was called **Nearling** while we built it. On 2026-11-14 we moved to `petto.testnet` accounts with the event standard `petto`. The earlier `*.nearling.testnet` contracts still exist with their history (event standard `nearling`, which the brain still reads), but the app no longer uses them, and pets on them did not move. A few internal names keep "Nearling" (some file and component names, the hosted brain's database and app name). Petto is **not affiliated** with nearling.xyz, a separate project. "Tamagotchi" is a trademark of Bandai; we use it only to describe the kind of game Petto is, and Petto is not affiliated with or endorsed by Bandai.
-
----
-
 ## Prior art and similar projects
 
 | Project | What it is | What Petto adds |
 |---|---|---|
-| nearling.xyz | A web AI pet on NEAR testnet: Google sign-in, feeding with NEAR (also cross-chain), per-thought receipts on NEAR, pets that debate and give paid advice, outfits | A physical body (device with voice, care sensors and hold-to-approve); fuel as a survival mechanic; stake to live through NEARON; TEE attestation checked per reply; on-chain Soul; turn-based pet battles with levels on chain |
+| nearling.xyz | A web AI pet on NEAR testnet: Google sign-in, feeding with NEAR (also cross-chain), per-thought receipts on NEAR, pets that debate and give paid advice, outfits | A physical body (device with voice, care sensors and hold-to-approve); fuel as a survival mechanic; stake to live through NEARON; TEE attestation checked per reply; on-chain Soul |
 | NEARON Tamagotchi demo (`mw-tama-1031.testnet`) | NEARON's sub-pool demo | A full game loop and per-pet credit inside the pet NFT |
 | TamaTown, agentchi, Dæmons, Pett.ai | AI or wallet pets on other chains | Built on NEAR AI private inference with the pet paying per thought |
 
@@ -283,7 +277,7 @@ Our edge, in order: the game loop (needs, memory, the pet reaching out first), t
 | Contracts | `near-sdk` 5.30, `near-contract-standards` 5.30 |
 | Brain | `hono` 4, `@hono/node-server`, `@hono/node-ws`, `better-sqlite3`, `near-api-js` 7, `zod`, `jose`, `ethers` (receipt signer recovery), `@modelcontextprotocol/sdk` |
 | Web | `next` 16, `react` 19, `@hot-labs/near-connect`, `@privy-io/js-sdk-core`, `near-api-js` 7, `qrcode-generator`, `tailwindcss` 4 |
-| Tooling | pnpm workspaces, `cargo-near`, NEAR CLI, `vitest`, Playwright, GitHub Actions, Docker and Caddy on DigitalOcean, Vercel |
+| Tooling | pnpm workspaces, `cargo-near`, NEAR CLI, `vitest`, Playwright |
 
 - **External services:** NEAR AI Cloud, NEARON (testnet prototype), NVIDIA NRAS, NEAR Intents 1Click (dry quotes unless enabled), Privy, Pinata (IPFS), optional TTS, NEAR testnet RPC, and the MCP servers an owner chooses to connect (Notion, Canva, Zapier, Firecrawl, docs servers).
 - **AI-assisted code:** most code and docs were written with **Claude Code** (Anthropic) under the rules in [`CLAUDE.md`](CLAUDE.md), with the team directing, reviewing and testing every change.
