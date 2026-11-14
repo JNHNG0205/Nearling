@@ -67,9 +67,9 @@ export function mcpRoutes(deps: Deps) {
   app.get("/mcp/catalog", (c) => c.json({ tools: catalogView(cfg) }));
 
   /** Saves a connected catalog tool: one row per owner and tool (connecting again replaces it). */
-  async function saveCatalogServer(account: string, id: string, auth: StoredAuth | null): Promise<ServerRow> {
+  async function saveCatalogServer(account: string, id: string, auth: StoredAuth | null, viaZapierKey = false): Promise<ServerRow> {
     const listed = catalogEntry(id)!;
-    const e = effectiveEntry(cfg, listed);
+    const e = viaZapierKey ? { ...listed, url: ZAPIER_MCP_URL } : effectiveEntry(cfg, listed);
     const probe = { id: 0, owner_account: account, name: e.name, url: e.url, token_enc: auth ? sealAuth(deps, account, auth) : null, tools_json: "[]", catalog_id: e.id, created_at: 0, refreshed_at: 0 };
     const { url, token } = await resolveServer(deps, account, probe);
     const tools = cardTools(listed.id, e.url, await listTools(url, token));
@@ -88,13 +88,15 @@ export function mcpRoutes(deps: Deps) {
    */
   app.post("/me/mcp/connect", owner, async (c) => {
     const account = c.get("caller").account;
-    const body = z.object({ id: z.string().max(40), key: z.string().trim().max(200).optional() }).safeParse(await jsonBody(c));
+    const body = z.object({ id: z.string().max(40), key: z.string().trim().max(400).optional() }).safeParse(await jsonBody(c));
     const e = body.success ? catalogEntry(body.data.id) : undefined;
     if (!body.success || !e || e.auth.kind === "local") return c.json({ error: { code: "invalid", message: "Unknown tool" } }, 400);
     if (servers(deps, account).filter((s) => s.catalog_id !== e.id).length >= MAX_SERVERS) {
       return c.json({ error: { code: "invalid", message: `Up to ${MAX_SERVERS} tools. Disconnect one first.` } }, 400);
     }
     try {
+      // Gmail, Calendar, Slack: the user's own Zapier API key instead of signing in (stored sealed, for this user only)
+      if (e.viaZapier && body.data.key) return c.json(view(await saveCatalogServer(account, e.id, { kind: "bearer", token: body.data.key }, true)), 201);
       if (e.auth.kind === "oauth") return c.json({ authorize_url: await startSignIn(deps, account, e) });
       if (e.auth.kind === "key" && !body.data.key) throw new McpError("needs_key");
       const s = await saveCatalogServer(account, e.id, e.auth.kind === "key" ? { kind: "path_key", key: body.data.key! } : null);

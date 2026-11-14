@@ -203,13 +203,13 @@ function ToolCard({ tool, on, busy, onConnect, onDisconnect, onRefresh }: {
         <p className="mt-auto text-xs text-muted">{tool.help}</p>
       ) : tool.auth === "oauth" && !tool.available ? (
         <p className="mt-auto text-xs text-muted">Sign-in for {tool.name} is not set up on this Petto yet.</p>
-      ) : tool.auth === "key" && askKey ? (
+      ) : (tool.auth === "key" || tool.via) && askKey ? (
         <form className="mt-auto flex flex-col gap-2" autoComplete="off"
           onSubmit={(e) => { e.preventDefault(); void onConnect(key.trim()).then((ok) => ok && setKey("")); }}>
           <input name={`${tool.id}-api-key`} type="password" autoComplete="new-password" required value={key} onChange={(e) => setKey(e.target.value)}
-            className="border-2 border-line bg-bg px-3 py-2 font-mono text-sm" placeholder={tool.key_name} />
+            className="border-2 border-line bg-bg px-3 py-2 font-mono text-sm" placeholder={tool.via ? "Zapier MCP API key" : tool.key_name} />
           <span className="text-xs text-muted">
-            Get one at <a className="text-accent underline" href={tool.key_url} target="_blank" rel="noreferrer">{tool.key_url?.replace(/^https:\/\//, "")}</a>
+            {tool.via ? <>From mcp.zapier.com: your server, Connect, API key. It stays encrypted and only works for you.</> : <>Get one at <a className="text-accent underline" href={tool.key_url} target="_blank" rel="noreferrer">{tool.key_url?.replace(/^https:\/\//, "")}</a></>}
           </span>
           <button className="pixel-btn self-start px-3 text-sm" disabled={busy !== null}>{mine ? "Connecting..." : "Connect"}</button>
         </form>
@@ -218,6 +218,9 @@ function ToolCard({ tool, on, busy, onConnect, onDisconnect, onRefresh }: {
           onClick={() => (tool.auth === "key" ? setAskKey(true) : void onConnect())}>
           {mine ? (tool.auth === "oauth" ? "Opening sign-in..." : "Connecting...") : tool.auth === "oauth" ? `Sign in with ${tool.via ?? tool.name.split(" ")[0]}` : "Connect"}
         </button>
+      )}
+      {!on && tool.via && !askKey && (
+        <button className="self-start text-xs text-muted underline" onClick={() => setAskKey(true)}>Use a Zapier API key instead</button>
       )}
     </article>
   );
