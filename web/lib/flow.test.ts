@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PETS_CONTRACT, petPath } from "./chain";
-import { homeRoute, needsYou, showDeviceNudge, startRedirect } from "./flow";
+import { homeRoute, inSetup, needsYou, showDeviceNudge, startRedirect } from "./flow";
 
 const pet = (tokenId: string, name = `Pet ${tokenId}`) => ({ contract: PETS_CONTRACT, tokenId, name });
 
@@ -78,5 +78,16 @@ describe("needsYou", () => {
 
   it("leaves out the device reminder the owner dismissed with Not now", () => {
     expect(needsYou([p("1", "Mochi", { paired: false })], new Set([`${PETS_CONTRACT}:1`]))).toEqual([]);
+  });
+});
+
+describe("inSetup", () => {
+  it("is true on the setup screens, where the app nav is hidden", () => {
+    for (const p of ["/start", "/hatch", "/login", "/go"]) expect(inSetup(p)).toBe(true);
+    expect(inSetup("/start/anything")).toBe(true);
+  });
+
+  it("is false in the app and on look-alike paths", () => {
+    for (const p of ["/", "/my", "/shop", "/race", "/pet/x:1", "/starter", "/adopt"]) expect(inSetup(p)).toBe(false);
   });
 });

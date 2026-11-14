@@ -25,6 +25,12 @@ export function startRedirect(o: { pets: FlowPet[]; hasDeviceLink: boolean; wiza
   return homeRoute(o.pets).href;
 }
 
+/** Setup screens (wallet, hatch, pairing): the header hides the app nav there, so setup is finished before the app opens. */
+const SETUP_ROUTES = ["/start", "/hatch", "/login", "/go"];
+export function inSetup(path: string): boolean {
+  return SETUP_ROUTES.some((r) => path === r || path.startsWith(`${r}/`));
+}
+
 /** "Connect your Petto" on the pet home: the owner, no device paired, not dismissed. */
 export function showDeviceNudge(o: { isOwner: boolean; paired: boolean; dismissed: boolean }): boolean {
   return o.isOwner && !o.paired && !o.dismissed;
