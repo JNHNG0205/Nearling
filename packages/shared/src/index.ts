@@ -177,6 +177,8 @@ export interface PetState {
   };
   soul_version: number;
   equipped_shirt: string | null;
+  /** costume key (`@nearling/sprites` COSTUME_KEYS) when the equipped Closet token is a costume */
+  equipped_costume: string | null;
   care: { mood: number; milestones: { pat: boolean; rock: boolean; sleep: boolean } };
   device: { paired: boolean; last_seen_at: number | null };
   as_of: number;
