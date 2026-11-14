@@ -12,8 +12,8 @@ export interface Session {
   expires_at: number;
 }
 
-const KEY = "nearling.session";
-const EVENT = "nearling-session";
+const KEY = "petto.session";
+const EVENT = "petto-session";
 
 function read(): Session | null {
   if (typeof window === "undefined") return null;

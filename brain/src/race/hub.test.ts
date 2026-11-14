@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { RULES_VERSION, simulate } from "@nearling/race";
+import { RULES_VERSION, simulate } from "@petto/race";
 import { testDeps } from "../test/deps";
 import { COUNTDOWN_MS, DISCONNECT_MS, RaceHub, REPORT_WAIT_MS, type Conn } from "./hub";
 import { validate } from "./validate";

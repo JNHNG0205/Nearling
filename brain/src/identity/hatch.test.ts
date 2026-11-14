@@ -1,10 +1,10 @@
-import type { PetState } from "@nearling/shared";
+import type { PetState } from "@petto/shared";
 import { describe, expect, it } from "vitest";
 import { createApp } from "../app";
 import { issueSession } from "../auth/guard";
 import { TEST_PET, testDeps } from "../test/deps";
 
-const REF = "pets-v8.nearling.testnet:1";
+const REF = "pets.petto.testnet:1";
 const egg = { ...TEST_PET, stage: 0 };
 
 async function setup() {
@@ -37,6 +37,12 @@ describe("hatch (Build Spec 1)", () => {
     const t = await setup();
     expect((await t.hatch(t.stranger)).status).toBe(403);
     expect((await t.state()).hatched).toBe(false);
+  });
+
+  it("the state carries the pet's on-chain XP (web growth bar)", async () => {
+    const t = await setup();
+    t.deps.pets["1"] = { ...egg, xp: 42 };
+    expect((await t.state()).xp).toBe(42);
   });
 
   it("chain stages above baby always win", async () => {

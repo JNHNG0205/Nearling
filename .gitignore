@@ -21,3 +21,6 @@ brain/data/
 web/e2e/screenshots/
 web/test-results/
 web/playwright-report/
+
+# Playwright MCP snapshots and screenshots (local testing)
+.playwright-mcp/

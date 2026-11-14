@@ -1,31 +1,53 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect } from "react";
+import { Logo } from "@/components/site/Logo";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
 import { putProfile } from "@/lib/brain";
+import { inSetup } from "@/lib/flow";
 import { loadMyPets } from "@/lib/myPets";
 import { authHeaders, useSession } from "@/lib/session";
 
-/** One header for every page (W10): wordmark, My pets, Race, wallet. */
+/**
+ * App header (W10): wordmark, Home, Shop, Race, wallet; setup screens (lib/flow.ts inSetup) get no nav. The landing page gets a light, static one
+ * (same for everyone): wordmark and "Open app" to /start, which routes by what the account owns.
+ */
 export function SiteHeader() {
   useTimezoneSync();
+  const path = usePathname();
+  if (path === "/") {
+    return (
+      <header className="border-b-2 border-line">
+        <div className="mx-auto flex min-h-16 max-w-[1200px] items-center justify-between gap-x-3 px-4 py-2 md:px-6">
+          <Link href="/" aria-label="Petto, home" className="pt-3"><Logo /></Link>
+          <Link href="/start" className="pixel-btn px-3 text-sm">Open app</Link>
+        </div>
+      </header>
+    );
+  }
   return (
     <header className="border-b-2 border-line">
       {/* one row at 390 px too: no wrap, tighter gaps and wordmark on phones */}
       <div className="mx-auto flex min-h-16 max-w-[1200px] items-center gap-x-3 px-4 py-2 md:gap-x-6 md:px-6">
-        <Link href="/" className="font-display text-xl leading-8 font-bold md:text-[32px]">Petto</Link>
-        <nav aria-label="Main" className="flex flex-1 gap-3 text-sm md:gap-6">
-          <Link href="/my" className="hover:text-accent">My pets</Link>
-          <Link href="/race" className="hover:text-accent">Race</Link>
-        </nav>
+        <Link href="/" aria-label="Petto, home" className="shrink-0 pt-3"><Logo /></Link>
+        {inSetup(path) ? (
+          <span className="flex-1" />
+        ) : (
+          <nav aria-label="Main" className="flex flex-1 gap-3 font-display text-sm md:gap-6">
+            <Link href="/my" className="hover:text-accent">Home</Link>
+            <Link href="/shop" className="hover:text-accent">Shop</Link>
+            <Link href="/race" className="hover:text-accent">Race</Link>
+          </nav>
+        )}
         <ConnectButton compact label="Connect wallet" />
       </div>
     </header>
   );
 }
 
-const TZ_KEY = "nearling.tz-sent.";
+const TZ_KEY = "petto.tz-sent.";
 let syncing: string | null = null;
 
 /**

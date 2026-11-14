@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { PetState, PetView } from "@nearling/shared";
+import type { PetState, PetView } from "@petto/shared";
 import { getPetState } from "@/lib/brain";
 import { getPet, isDemoContract, petFromRef } from "@/lib/chain";
 

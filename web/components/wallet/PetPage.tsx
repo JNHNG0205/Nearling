@@ -1,7 +1,9 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import { PetTabs } from "@/components/nearling/PetTabs";
 import { petPath } from "@/lib/chain";
+import { useSession } from "@/lib/session";
 import { AppFrame, ErrorText, Spinner } from "./ui";
 import { usePet, type PetData } from "./usePet";
 
@@ -19,6 +21,7 @@ export function PetPage({
 }) {
   const params = useParams<{ petRef: string }>();
   const pet = usePet(params.petRef ?? "");
+  const session = useSession();
 
   if ("invalid" in pet) {
     return (
@@ -28,9 +31,11 @@ export function PetPage({
     );
   }
   const name = pet.chain?.name ?? "your pet";
+  const isOwner = !!session && !!pet.chain && session.account === pet.chain.owner;
   const home = back === "home" ? petPath(pet.contract, pet.tokenId) : undefined;
   return (
     <AppFrame title={title(name)} back={home} demo={pet.demo} wide={wide}>
+      <PetTabs petRef={pet.ref} isOwner={isOwner} />
       {pet.loading ? <Spinner /> : pet.chain ? children(pet) : <ErrorText>{pet.error}</ErrorText>}
     </AppFrame>
   );

@@ -1,4 +1,4 @@
-import type { PetView } from "@nearling/shared";
+import type { PetView } from "@petto/shared";
 import type { Chain, PetsConfig } from "../chain/near";
 import { loadConfig } from "../config";
 import { createSealer } from "../crypto";

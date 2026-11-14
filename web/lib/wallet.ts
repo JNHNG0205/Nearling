@@ -4,7 +4,7 @@
 // The provider lives in components/wallet/WalletProvider.tsx; pages use `useWallet` and `useSignIn`.
 import { createContext, useCallback, useContext, useState } from "react";
 import type { NearConnector, SignedMessage } from "@hot-labs/near-connect";
-import { NEP413_MESSAGE, NEP413_RECIPIENT } from "@nearling/shared";
+import { NEP413_MESSAGE, NEP413_RECIPIENT } from "@petto/shared";
 import { BRAIN_URL, BrainRequestError } from "./brain";
 import type { Outcome, TxRequest } from "./chain";
 import { brainErrorCopy, CANCELLED, errorText, GENERIC_ERROR, isWalletRejection } from "./errors";
@@ -21,8 +21,8 @@ export interface WalletApi {
   ready: boolean;
   accountId: string | null;
   connector: NearConnector | null;
-  /** Opens the wallet picker. With `signMessage`, only wallets that sign in and sign in one step are listed. */
-  connect(opts?: { signMessage?: SignMessageInput }): Promise<{ accountId: string; signed: SignedMessage | null }>;
+  /** Opens the wallet picker, or `walletId` directly. With `signMessage`, only wallets that sign in and sign in one step are listed. */
+  connect(opts?: { signMessage?: SignMessageInput; walletId?: string }): Promise<{ accountId: string; signed: SignedMessage | null }>;
   disconnect(): Promise<void>;
   signMessage(input: SignMessageInput): Promise<SignedMessage>;
   signAndSendTransaction(req: TxRequest): Promise<Outcome>;
@@ -118,8 +118,8 @@ export interface SignInState {
   session: Session | null;
   busy: boolean;
   error: string | null;
-  /** Connect and sign in with one popup when the wallet supports it. `anyWallet` lists every wallet and signs after connect. */
-  signIn(opts?: { anyWallet?: boolean }): Promise<Session | null>;
+  /** Connect and sign in with one popup when the wallet supports it. `anyWallet` lists every wallet and signs after connect; `walletId` skips the picker. */
+  signIn(opts?: { anyWallet?: boolean; walletId?: string }): Promise<Session | null>;
   signOut(): Promise<void>;
 }
 
@@ -131,14 +131,16 @@ export function useSignIn(): SignInState {
   const session = stored && wallet.accountId && stored.account === wallet.accountId ? stored : null;
 
   const signIn = useCallback(
-    async (opts?: { anyWallet?: boolean }) => {
+    async (opts?: { anyWallet?: boolean; walletId?: string }) => {
       setBusy(true);
       setError(null);
       try {
         const nonce = await fetchNonce();
         let signed: SignedMessage | null = null;
         if (!wallet.accountId) {
-          const r = await wallet.connect(opts?.anyWallet ? undefined : { signMessage: nonce.input });
+          const r = await wallet.connect(
+            opts?.anyWallet ? undefined : { signMessage: nonce.input, ...(opts?.walletId ? { walletId: opts.walletId } : {}) },
+          );
           signed = r.signed;
           if (!signed) {
             // wallet connected without signing: second popup (02 section 1 fallback)

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { formatPetRef, parsePetRef, type ChainLifeState, type PetView, type TimelineItem } from "@nearling/shared";
+import { formatPetRef, parsePetRef, type ChainLifeState, type PetView, type TimelineItem } from "@petto/shared";
 import type { Deps, Module } from "../deps";
 import { log } from "../log";
 import { listPets } from "../proactive/pets";

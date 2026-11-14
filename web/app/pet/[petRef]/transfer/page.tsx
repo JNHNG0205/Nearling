@@ -191,7 +191,7 @@ function DevicePath({
       <h2 className="font-display text-lg">Approve on your Petto</h2>
       <p className="text-sm">
         For an extra check, your Petto shows {name} and the recipient. Hold Approve on the device, then sign in
-        Meteor.
+        your wallet.
       </p>
       {!session ? (
         <p className="text-sm text-muted">Sign in to Petto to use the device check.</p>
@@ -206,7 +206,7 @@ function DevicePath({
             : `${to} is saved on your Petto. On the device, open Wallet, choose Transfer ${name}, pick ${to} and hold Approve. Waiting for the device...`}
         </p>
       ) : (
-        <Link href={`/approve/${encodeURIComponent(s.approvalId)}`} className="pixel-btn self-start">Sign in Meteor</Link>
+        <Link href={`/approve/${encodeURIComponent(s.approvalId)}`} className="pixel-btn self-start">Sign in your wallet</Link>
       )}
       {s.step === "error" && <ErrorText>{s.message}</ErrorText>}
     </Panel>

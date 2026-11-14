@@ -1,5 +1,5 @@
 import type { Context, MiddlewareHandler } from "hono";
-import { parsePetRef, type BrainErrorCode } from "@nearling/shared";
+import { parsePetRef, type BrainErrorCode } from "@petto/shared";
 import type { Deps } from "../deps";
 
 type Status = 400 | 401 | 403 | 404 | 409 | 410;

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { TICKS_PER_SECOND, simulate } from "@nearling/race";
+import { TICKS_PER_SECOND, simulate } from "@petto/race";
 import { distinctFrames } from "./helpers";
 
 // Petto Run between two browser contexts over the brain's real WebSocket (LIMITATIONS W2).

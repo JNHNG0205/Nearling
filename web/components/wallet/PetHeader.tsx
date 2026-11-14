@@ -14,6 +14,7 @@ export function PetHeader({ pet, extra }: { pet: PetData; extra?: React.ReactNod
         traits={c.traits}
         stageIndex={pet.brain?.stage_index ?? c.stage}
         shirt={pet.brain?.equipped_shirt ?? null}
+        costume={pet.brain?.equipped_costume ?? null}
         winged={pet.brain?.form === "winged"}
         state={pet.brain?.display_state ?? "happy"}
         scale={2}

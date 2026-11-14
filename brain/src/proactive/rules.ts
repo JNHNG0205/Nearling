@@ -1,4 +1,4 @@
-import type { ChainLifeState } from "@nearling/shared";
+import type { ChainLifeState } from "@petto/shared";
 
 /** Proactive rules (AI-brain architectual/07 section 3, CLAUDE.md 5.5). Pure functions, no I/O. */
 

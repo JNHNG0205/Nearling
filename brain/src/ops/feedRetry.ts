@@ -40,7 +40,7 @@ export function createFeederNonce(rpcUrls: string[], accountId: string, f: Fetch
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
-            jsonrpc: "2.0", id: "nearling", method: "query",
+            jsonrpc: "2.0", id: "petto", method: "query",
             params: { request_type: "view_access_key_list", finality: "final", account_id: accountId },
           }),
           signal: AbortSignal.timeout(10_000),

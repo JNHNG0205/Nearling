@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { formatPetRef, type PetView } from "@nearling/shared";
+import { formatPetRef, type PetView } from "@petto/shared";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
 import { ErrorText, Panel, TxStatus } from "@/components/wallet/ui";
 import { useTx } from "@/components/wallet/useTx";

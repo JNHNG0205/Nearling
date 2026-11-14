@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { EXPLORER_TX } from "@/lib/chain";
+import { TX_BLOCKS, txProgress } from "@/lib/txProgress";
 import type { TxState } from "./useTx";
 
 /** Phone-first app frame: back arrow + Pixelify title, 480 px column, 16 px gutters (design.md 6.2). */
@@ -63,7 +65,7 @@ export function TxStatus({ state, doneText = "Done" }: { state: TxState; doneTex
     case "idle":
       return null;
     case "signing":
-      return <p className="font-mono text-sm text-muted">Waiting for your wallet...</p>;
+      return <TxProgress />;
     case "cancelled":
       return <p className="font-mono text-sm text-muted">Cancelled</p>;
     case "done":
@@ -87,4 +89,34 @@ export function Panel({ children, className = "" }: { children: React.ReactNode;
 
 export function Spinner({ label = "Loading..." }: { label?: string }) {
   return <p className="font-mono text-sm text-muted">{label}</p>;
+}
+
+/** Pending transaction: a pixel bar that keeps moving and a stage line, so it never looks stuck. */
+function TxProgress() {
+  const [start] = useState(() => Date.now());
+  const [now, setNow] = useState(start);
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(t);
+  }, []);
+  const { filled, label } = txProgress(now - start);
+  const secs = Math.floor((now - start) / 1_000);
+  return (
+    <div role="status" aria-live="polite" className="flex flex-col gap-2">
+      <div className="flex items-center gap-1" aria-hidden="true">
+        {Array.from({ length: TX_BLOCKS }, (_, i) => (
+          <span
+            key={i}
+            className={`h-3 flex-1 border-2 ${
+              i < filled ? `border-accent bg-accent ${i === filled - 1 ? "motion-safe:animate-pulse" : ""}` : "border-line"
+            }`}
+          />
+        ))}
+      </div>
+      <p className="flex justify-between gap-3 font-mono text-sm text-muted">
+        <span>{label}</span>
+        <span>{secs}s</span>
+      </p>
+    </div>
+  );
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { KeyPair, KeyPairSigner, baseEncode, type Provider } from "near-api-js";
-import { NEP413_MESSAGE, NEP413_RECIPIENT } from "@nearling/shared";
+import { NEP413_MESSAGE, NEP413_RECIPIENT } from "@petto/shared";
 import { createApp } from "../app";
 import { testDeps } from "../test/deps";
 import { authRoutes, decodeSignature, nep413Verifier, type Nep413Verifier } from "./auth";
@@ -101,6 +101,38 @@ describe("nep413Verifier", () => {
     expect(decodeSignature("not base64!")).toBeNull();
     expect(decodeSignature("ed25519:0OIl")).toBeNull(); // not base58
     expect(decodeSignature("ab".repeat(64))).toHaveLength(64);
+  });
+
+  // Privy social login gives an implicit account (hex of its ed25519 key) that has no on-chain
+  // record until funded, so viewAccessKey fails; the key itself proves control of the account.
+  const implicitId = () => Buffer.from(key.getPublicKey().data).toString("hex");
+  const missing = { viewAccessKey: async () => { throw new Error("account does not exist"); } } as unknown as Provider;
+  async function signAs(accountId: string, message = NEP413_MESSAGE) {
+    return new KeyPairSigner(key).signNep413Message(accountId, { message, recipient: NEP413_RECIPIENT, nonce });
+  }
+
+  it("accepts an unfunded implicit account signed by its own key", async () => {
+    const id = implicitId();
+    const signed = await signAs(id);
+    await expect(
+      nep413Verifier(missing)({ accountId: id, publicKey: key.getPublicKey().toString(), signature: signed.signature, nonce }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("rejects an implicit account id that is not the signing key", async () => {
+    const other = Buffer.from(KeyPair.fromRandom("ed25519").getPublicKey().data).toString("hex");
+    const signed = await signAs(other);
+    await expect(
+      nep413Verifier(missing)({ accountId: other, publicKey: key.getPublicKey().toString(), signature: signed.signature, nonce }),
+    ).rejects.toThrow();
+  });
+
+  it("rejects a bad signature for an implicit account", async () => {
+    const id = implicitId();
+    const wrong = await signAs(id, "Send all my NEAR");
+    await expect(
+      nep413Verifier(missing)({ accountId: id, publicKey: key.getPublicKey().toString(), signature: wrong.signature, nonce }),
+    ).rejects.toThrow();
   });
 
   it("rejects another message and a function-call key", async () => {

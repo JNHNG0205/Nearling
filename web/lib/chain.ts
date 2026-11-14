@@ -1,15 +1,15 @@
 // Chain access for the web: contract ids, view helpers, transaction builders and outcome parsing.
 // Deposits and gas follow docs/CONTRACT_INTERFACE.md. Pure module (no React), safe on the server.
 import { JsonRpcProvider, nearToYocto, yoctoToNear } from "near-api-js";
-import { formatPetRef, parsePetRef, type ContractAction, type PendingAction, type PetView, type SoulView } from "@nearling/shared";
+import { formatPetRef, parsePetRef, type ContractAction, type PendingAction, type PetView, type SoulView } from "@petto/shared";
 
 // ---------- ids ----------
 
 export const NETWORK = "testnet" as const;
 export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL ?? "https://test.rpc.fastnear.com";
-export const PETS_CONTRACT = process.env.NEXT_PUBLIC_PETS_CONTRACT ?? "pets-v9.nearling.testnet";
-export const DEMO_PETS_CONTRACT = process.env.NEXT_PUBLIC_DEMO_PETS_CONTRACT ?? "pets-demo-v9.nearling.testnet";
-export const SHIRTS_CONTRACT = process.env.NEXT_PUBLIC_SHIRTS_CONTRACT ?? "shirts.nearling.testnet";
+export const PETS_CONTRACT = process.env.NEXT_PUBLIC_PETS_CONTRACT ?? "pets.petto.testnet";
+export const DEMO_PETS_CONTRACT = process.env.NEXT_PUBLIC_DEMO_PETS_CONTRACT ?? "pets-demo.petto.testnet";
+export const SHIRTS_CONTRACT = process.env.NEXT_PUBLIC_SHIRTS_CONTRACT ?? "shirts.petto.testnet";
 export const EXPLORER_TX = "https://testnet.nearblocks.io/txns/";
 
 export const PET_CONTRACTS = [PETS_CONTRACT, DEMO_PETS_CONTRACT] as const;
@@ -47,7 +47,7 @@ export const GAS = {
   soul: 30n * TGAS,
   feed: 30n * TGAS,
   garden: 450n * TGAS, // stake, unstake, withdraw: NEARON call + callback (S6)
-  claimShirt: 30n * TGAS,
+  claimShirt: 30n * TGAS, // also the costume shop's `buy`
   nftTransfer: 30n * TGAS,
   validatorStake: 100n * TGAS,
   pantry: 30n * TGAS, // stock_pantry, feed_from_pantry, empty_pantry (pets-v9)
@@ -61,6 +61,8 @@ export const DEVICE_KEY_ALLOWANCE = nearToYocto("1");
 
 export const ONE_YOCTO = 1n;
 export const SHIRT_DEPOSIT = nearToYocto("0.01");
+/** Shirts contract `buy(costume)` price (shirts/src/lib.rs COSTUME_PRICE); the contract keeps it all. */
+export const COSTUME_PRICE = nearToYocto("0.05");
 export const MIN_STAKE = nearToYocto("1");
 export const SOUL_MAX_BYTES = 1024;
 
@@ -142,6 +144,12 @@ export function getConfig(contract: string): Promise<PetsConfig> {
   return hit;
 }
 
+/** Body colour (index into @petto/sprites BODY_PALETTES) and pattern (into PATTERNS), picked at hatch. */
+export interface PetLook {
+  colour: number;
+  pattern: number;
+}
+
 /** Mint price = config.mint_storage + config.starter_food (0.2 NEAR on pets-v8, 0.105 on pets-demo). */
 export async function getMintPrice(contract: string): Promise<bigint> {
   const c = await getConfig(contract);
@@ -169,7 +177,7 @@ export function getSoul(contract: string, tokenId: string): Promise<SoulView> {
 export interface NftToken {
   token_id: string;
   owner_id: string;
-  metadata?: { title?: string | null } | null;
+  metadata?: { title?: string | null; extra?: string | null } | null;
 }
 
 export function nftTokensForOwner(contract: string, accountId: string): Promise<NftToken[]> {
@@ -236,10 +244,13 @@ function call(receiverId: string, methodName: string, args: object, gas: bigint,
 }
 
 export const tx = {
-  mintPet: (contract: string, name: string, soul: string | null, price: bigint) =>
-    call(contract, "nft_mint_pet", soul ? { name, soul } : { name }, GAS.mint, price),
+  /** `look` picks the body colour and pattern (contract `PetLook`); without it the traits decide. */
+  mintPet: (contract: string, name: string, soul: string | null, price: bigint, look?: PetLook) =>
+    call(contract, "nft_mint_pet", { name, ...(soul ? { soul } : {}), ...(look ? { look } : {}) }, GAS.mint, price),
   setSoul: (contract: string, petId: string, prompt: string) =>
     call(contract, "set_soul", { pet_id: petId, prompt }, GAS.soul),
+  /** Owner, once: the egg becomes a Baby on chain (no deposit, so the gas relay pays the gas). */
+  hatch: (contract: string, petId: string) => call(contract, "hatch", { pet_id: petId }, GAS.soul),
   feed: (contract: string, petId: string, amount: bigint) => call(contract, "feed", { pet_id: petId }, GAS.feed, amount),
   stake: (contract: string, petId: string, amount: bigint) =>
     call(contract, "stake", { pet_id: petId }, GAS.garden, amount),
@@ -255,6 +266,7 @@ export const tx = {
   emptyPantry: (contract: string, petId: string, amount: bigint) =>
     call(contract, "empty_pantry", { pet_id: petId, amount: amount.toString() }, GAS.pantry),
   claimShirt: () => call(SHIRTS_CONTRACT, "claim", {}, GAS.claimShirt, SHIRT_DEPOSIT),
+  buyCostume: (costume: string) => call(SHIRTS_CONTRACT, "buy", { costume }, GAS.claimShirt, COSTUME_PRICE),
   nftTransfer: (contract: string, receiverId: string, tokenId: string) =>
     call(contract, "nft_transfer", { receiver_id: receiverId, token_id: tokenId }, GAS.nftTransfer, ONE_YOCTO),
   transfer: (receiverId: string, amount: bigint): TxRequest => ({

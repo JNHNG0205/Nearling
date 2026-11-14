@@ -84,7 +84,7 @@ function Wallet() {
         ) : (
           !error && <Spinner />
         )}
-        <p className="text-sm text-muted">Send and stake start on your Petto. You approve there, then sign here in Meteor.</p>
+        <p className="text-sm text-muted">Send and stake start on your Petto. You approve there, then sign here in your wallet.</p>
       </Panel>
 
       <Panel>

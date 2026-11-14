@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { type NearRpc, type TxStatus, createRpc, isAccountId } from "../wallet/rpc";
 import { Hono, type Context } from "hono";
 import { z } from "zod";
-import { parsePetRef } from "@nearling/shared";
+import { isOurEvent, parsePetRef } from "@petto/shared";
 import type { TxSigner } from "../chain/signer";
 import type { Config } from "../config";
 import type { Deps, Module } from "../deps";
@@ -148,7 +148,7 @@ export function verifyFeedTx(tx: TxStatus, contract: string, tokenId: string, yo
   // [VERIFY] `fed` data shape; if it carries pet_id it must match.
   const fed = tx.events.some(
     (e) =>
-      e.standard === "nearling" &&
+      isOurEvent(e.standard) &&
       e.event === "fed" &&
       e.executor === contract &&
       eventPetIds(e.data).every((p) => p === undefined || p === tokenId),

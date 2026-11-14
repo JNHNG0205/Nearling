@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { RULES_VERSION, TICKS_PER_SECOND } from "@nearling/race";
+import { RULES_VERSION, TICKS_PER_SECOND } from "@petto/race";
 import { BrainRequestError } from "@/lib/brain";
 import {
   ClockSync, createRoom, joinRoom, raceSocketUrl, saveJoin, savedJoin, traitsFromName,
@@ -18,7 +18,7 @@ type Room = Extract<ServerMsg, { type: "room" }>;
 type Start = Extract<ServerMsg, { type: "start" }>;
 type End = Extract<ServerMsg, { type: "result" } | { type: "interrupted" }>;
 
-const NAME_KEY = "nearling.race.name";
+const NAME_KEY = "petto.race.name";
 const MAX_RETRIES = 5;
 
 export function readRaceName(): string {

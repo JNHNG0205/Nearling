@@ -1,4 +1,4 @@
-import type { DisplayState, Emotion } from "@nearling/shared";
+import type { DisplayState, Emotion } from "@petto/shared";
 import type { ChatMessage } from "../ai/nearai";
 
 /**
@@ -51,6 +51,8 @@ export interface PromptState {
   stage: string;
   form: "base" | "winged";
   shirt: string | null;
+  /** costume key (COSTUME_KEYS) when the worn Closet token is a costume */
+  costume: string | null;
   fuelLeft: number;
   displayState: DisplayState;
   nickname: string | null;
@@ -62,7 +64,7 @@ export function stateBlock(s: PromptState): string {
   return [
     "Right now:",
     `- Your name is ${s.name}. You are a ${s.stage}${s.form === "winged" ? " with little wings" : ""}.`,
-    `- You are wearing ${s.shirt ? `shirt #${s.shirt}` : "no shirt"}.`,
+    `- You are wearing ${s.costume ? `a ${s.costume.replace(/_/g, " ")} costume` : s.shirt ? "a Petto shirt" : "nothing special"}.`,
     `- You have about ${s.fuelLeft} thoughts of fuel left${s.fuelLeft < 5 ? " (you are getting hungry)" : ""}.`,
     `- You feel ${s.displayState}.`,
     `- Your owner${s.nickname ? ` likes to be called ${s.nickname}` : "'s name you do not know yet"}.`,

@@ -5,7 +5,7 @@ import { subscribe } from "../events";
 import { getProfile } from "../profiles";
 import { testDeps } from "../test/deps";
 
-const PET = "pets-v8.nearling.testnet:1";
+const PET = "pets.petto.testnet:1";
 const HOUR = 3_600_000;
 
 function setup() {

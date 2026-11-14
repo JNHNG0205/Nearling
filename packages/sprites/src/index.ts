@@ -1,6 +1,7 @@
-// @nearling/sprites: procedural pixel pets. Look comes from on-chain traits,
+// @petto/sprites: procedural pixel pets. Look comes from on-chain traits,
 // motion from the animation table. Spec: "web-app architectual/07-pet-animation.md".
 import { EGG_ANIMS, PERSONALITY_ANIMS, PET_ANIMS, type AnimDef, type EggAnim, type PetAnim } from "./animations";
+import { COSTUME_RGB, drawCostume, isCostume, type CostumeLayers } from "./costumes";
 import { buildPalette, type PetPalette } from "./palette";
 import type { Personality } from "./personality";
 import { drawEgg, drawPet, type BodyStage } from "./pet";
@@ -12,6 +13,7 @@ export {
   buildPalette, lookFromTraits, shirtColourIndex, BODY_PALETTES, PATTERNS, SHIRT_COLOURS,
   type PetPalette, type Pattern,
 } from "./palette";
+export { COSTUME_KEYS, COSTUME_RGB, isCostume, type CostumeKey, type CostumeLayers } from "./costumes";
 export { PERSONALITIES, personalityFromTraits, type Personality } from "./personality";
 export type { BodyStage } from "./pet";
 
@@ -25,6 +27,8 @@ export interface Look {
   shirt?: string | null;
   /** From `personalityFromTraits(traits)`; picks a personality variant where one exists. */
   personality?: Personality | null;
+  /** Equipped costume key (shirts contract `buy(costume)`, `COSTUME_KEYS`); unknown keys draw nothing. */
+  costume?: string | null;
 }
 
 export interface Clip {
@@ -38,6 +42,8 @@ export interface Clip {
   frames: Bitmap[];
   /** Shirt overlay per frame (draw over the frame where non-zero); null without a shirt and on an egg. */
   shirt: Bitmap[] | null;
+  /** Costume layers per frame (COSTUME_RGB indices); null without a costume and on an egg. */
+  costume: CostumeLayers[] | null;
 }
 
 const cache = new Map<string, Clip>();
@@ -49,13 +55,14 @@ export function clip(anim: AnyAnim, look: Look): Clip {
   const variant = !egg && look.personality ? PERSONALITY_ANIMS[look.personality][name as PetAnim] : undefined;
   const personality = variant ? (look.personality ?? null) : null;
   const shirted = !egg && look.shirt != null;
-  const key = `${name}|${look.stage}|${look.winged ? 1 : 0}|${personality ?? ""}|${shirted ? 1 : 0}`;
+  const costume = !egg && isCostume(look.costume) ? look.costume : null;
+  const key = `${name}|${look.stage}|${look.winged ? 1 : 0}|${personality ?? ""}|${shirted ? 1 : 0}|${costume ?? ""}`;
   const hit = cache.get(key);
   if (hit) return hit;
   let made: Clip;
   if (name === "egg_idle" || name === "egg_hatch") {
     const def = EGG_ANIMS[name];
-    made = { name, ...meta(def), personality: null, frames: def.poses.map(drawEgg), shirt: null };
+    made = { name, ...meta(def), personality: null, frames: def.poses.map(drawEgg), shirt: null, costume: null };
   } else {
     const stage = look.stage === "egg" ? "baby" : look.stage;
     const def = variant ?? PET_ANIMS[name as PetAnim];
@@ -66,6 +73,7 @@ export function clip(anim: AnyAnim, look: Look): Clip {
       name, ...meta(def), personality,
       frames: layers.map((l) => l.frame),
       shirt: shirted ? layers.map((l) => l.shirt) : null,
+      costume: costume ? layers.map((l) => drawCostume(costume, l.geom)!) : null,
     };
   }
   cache.set(key, made);
@@ -76,14 +84,19 @@ function meta<P>(def: AnimDef<P>) {
   return { fps: def.fps, loop: def.loop, palette: def.palette, then: def.then };
 }
 
-/** RGBA pixels for a canvas ImageData or a PNG. Pass the frame's shirt layer to draw the shirt over it. */
-export function toRgba(frame: Bitmap, palette: PetPalette, shirt?: Bitmap | null): Uint8ClampedArray {
+/**
+ * RGBA pixels for a canvas ImageData or a PNG. Pass the frame's shirt layer to draw the shirt over it,
+ * and its costume layers: back where the pet is clear, front over everything.
+ */
+export function toRgba(frame: Bitmap, palette: PetPalette, shirt?: Bitmap | null, costume?: CostumeLayers | null): Uint8ClampedArray {
   const out = new Uint8ClampedArray(SIZE * SIZE * 4);
   for (let i = 0; i < frame.length; i++) {
     const s = shirt && palette.shirt ? (shirt[i] ?? 0) : 0;
     const idx = frame[i] ?? 0;
-    if (idx === 0 && s === 0) continue;
-    const [r, g, b] = (s ? palette.shirt?.[s] : palette.rgb[idx]) ?? [255, 0, 255];
+    const front = costume?.front[i] ?? 0;
+    const back = idx === 0 && s === 0 ? (costume?.back[i] ?? 0) : 0;
+    if (idx === 0 && s === 0 && front === 0 && back === 0) continue;
+    const [r, g, b] = (front || back ? COSTUME_RGB[front || back] : s ? palette.shirt?.[s] : palette.rgb[idx]) ?? [255, 0, 255];
     out[i * 4] = r;
     out[i * 4 + 1] = g;
     out[i * 4 + 2] = b;

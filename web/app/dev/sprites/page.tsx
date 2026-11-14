@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BODY_PALETTES, EGG_ANIMS, PATTERNS, PET_ANIMS, type AnyAnim } from "@nearling/sprites";
+import { BODY_PALETTES, COSTUME_KEYS, EGG_ANIMS, PATTERNS, PET_ANIMS, type AnyAnim } from "@petto/sprites";
 import { PetSprite } from "@/components/PetSprite";
 
 // Team review page: every animation for any traits, stage and form. Not linked from the app.
@@ -10,6 +10,7 @@ export default function SpriteGallery() {
   const [pattern, setPattern] = useState(1);
   const [stageIndex, setStageIndex] = useState(3);
   const [winged, setWinged] = useState(false);
+  const [costume, setCostume] = useState("");
   const traits = [body, 0, pattern, 0, 0];
   const anims = (stageIndex === 0 ? Object.keys(EGG_ANIMS) : Object.keys(PET_ANIMS)) as AnyAnim[];
 
@@ -33,6 +34,12 @@ export default function SpriteGallery() {
             {["egg", "baby", "teen", "adult"].map((s, i) => <option key={s} value={i}>{s}</option>)}
           </select>
         </label>
+        <label className="flex items-center gap-2">Costume
+          <select className="bg-surface px-2 py-1" value={costume} onChange={(e) => setCostume(e.target.value)}>
+            <option value="">none</option>
+            {COSTUME_KEYS.map((k) => <option key={k} value={k}>{k}</option>)}
+          </select>
+        </label>
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={winged} onChange={(e) => setWinged(e.target.checked)} /> Winged
         </label>
@@ -40,7 +47,7 @@ export default function SpriteGallery() {
       <ul className="mt-8 grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-5">
         {anims.map((a) => (
           <li key={a} className="pixel-panel flex flex-col items-center gap-2 p-3">
-            <PetSprite traits={traits} stageIndex={stageIndex} winged={winged} state="happy" play={a} scale={3} label={a} />
+            <PetSprite traits={traits} stageIndex={stageIndex} winged={winged} costume={costume || null} state="happy" play={a} scale={3} label={a} />
             <span className="font-mono text-sm">{a}</span>
           </li>
         ))}

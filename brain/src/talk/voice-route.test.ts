@@ -5,7 +5,7 @@ import { testDeps } from "../test/deps";
 import { addSpend } from "./spend";
 import { createVoiceRoutes, TTS_CREDIT_FLOOR } from "./voice-route";
 
-const PET = "pets-v8.nearling.testnet:1";
+const PET = "pets.petto.testnet:1";
 const REPLY = "I love the garden today.";
 
 async function setup(opts: { tts?: TtsProvider | null; owner?: string; status?: string } = {}) {

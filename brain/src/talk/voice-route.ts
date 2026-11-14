@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { Hono } from "hono";
-import { parsePetRef } from "@nearling/shared";
+import { parsePetRef } from "@petto/shared";
 import { clipForVoice, createTts, type TtsProvider } from "../ai/tts";
 import { requirePetAccess, type AuthEnv } from "../auth/guard";
 import type { Deps, Module } from "../deps";

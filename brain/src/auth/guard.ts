@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Context, MiddlewareHandler } from "hono";
 import { SignJWT, jwtVerify } from "jose";
-import { parsePetRef } from "@nearling/shared";
+import { parsePetRef } from "@petto/shared";
 import type { Deps } from "../deps";
 
 /**

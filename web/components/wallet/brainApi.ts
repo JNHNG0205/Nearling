@@ -99,12 +99,12 @@ export const reportDirectTx = (id: string, txHash: string) => req<Order>(`/order
 // ---------- closet ----------
 
 export interface Closet {
-  shirts: { token_id: string; title: string }[];
+  shirts: { token_id: string; title: string; costume: string | null }[];
   equipped: string | null;
 }
 export const getCloset = (petRef: string) => req<Closet>(`/pets/${enc(petRef)}/closet`, { auth: true });
 export const equipShirt = (petRef: string, tokenId: string | null) =>
-  req<{ equipped: string | null }>(`/pets/${enc(petRef)}/closet/equip`, { ...post({ token_id: tokenId }), auth: true });
+  req<{ equipped: string | null; costume: string | null }>(`/pets/${enc(petRef)}/closet/equip`, { ...post({ token_id: tokenId }), auth: true });
 
 // ---------- timeline (Soul history) ----------
 

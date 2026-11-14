@@ -85,9 +85,9 @@ Vercel project rooted at `web/`. Env:
 
 ```
 NEXT_PUBLIC_NEAR_NETWORK=testnet
-NEXT_PUBLIC_PETS_CONTRACT=pets-v8.nearling.testnet
-NEXT_PUBLIC_DEMO_PETS_CONTRACT=pets-demo.nearling.testnet
-NEXT_PUBLIC_SHIRTS_CONTRACT=shirts.nearling.testnet
+NEXT_PUBLIC_PETS_CONTRACT=pets.petto.testnet
+NEXT_PUBLIC_DEMO_PETS_CONTRACT=pets-demo.petto.testnet
+NEXT_PUBLIC_SHIRTS_CONTRACT=shirts.petto.testnet
 NEXT_PUBLIC_BRAIN_URL=https://<brain-host>
 NEXT_PUBLIC_RPC_URL=https://test.rpc.fastnear.com
 NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=      # optional

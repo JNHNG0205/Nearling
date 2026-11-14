@@ -2,7 +2,7 @@
 //   art/nearling_sprites.h   C header for the ESP32 (4 bpp frame pool in flash, RGB565 palettes, clip table)
 //   art/sprites.json         clip metadata (names, fps, loop, frame counts) for any other tool
 //   art/sheets/*.png         review sheets
-// Usage: pnpm --filter @nearling/sprites export   (then `check-header` to compile and compare)
+// Usage: pnpm --filter @petto/sprites export   (then `check-header` to compile and compare)
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

@@ -6,7 +6,7 @@ import {
   fuelLeft,
   parsePetRef,
   type PetState,
-} from "@nearling/shared";
+} from "@petto/shared";
 import { type AuthEnv, requireCaller, requirePetAccess } from "../auth/guard";
 import type { Deps, Module } from "../deps";
 import { decay } from "../identity/care";
@@ -41,6 +41,7 @@ export async function buildPetState({ chain, db, now }: Deps, contract: string, 
     stage: STAGES[stageIndex] ?? "adult",
     stage_index: stageIndex,
     chain_stage_index: pet.stage,
+    xp: pet.xp,
     hatched: p.hatched_at !== null || pet.stage > 0,
     traits: pet.traits,
     form: p.form,
@@ -64,6 +65,7 @@ export async function buildPetState({ chain, db, now }: Deps, contract: string, 
     },
     soul_version: pet.soul_version,
     equipped_shirt: p.equipped_shirt,
+    equipped_costume: p.equipped_costume ?? null,
     care: { mood: careMood, milestones: { pat: !!p.care_pat, rock: !!p.care_rock, sleep: !!p.care_sleep } },
     device: deviceStatus(db, petRef),
     as_of: Date.now(),

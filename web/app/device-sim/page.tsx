@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DEVICE_GAS, deviceKey, sendDeviceTx, type DeviceKey, type DeviceTxResult,
-} from "@nearling/device";
-import type { PetState, PetView } from "@nearling/shared";
+} from "@petto/device";
+import type { PetState, PetView } from "@petto/shared";
 import { NearlingFrame } from "@/components/nearling/NearlingFrame";
 import { PetSprite } from "@/components/PetSprite";
 import { RoomQr } from "@/components/race/RoomQr";
@@ -18,7 +18,7 @@ import { errorText, friendlyChainError } from "@/lib/errors";
 // Real brain calls with a real device token, real testnet transactions signed in the browser by
 // a limited function-call key (packages/device). Nothing is mocked. Testnet only.
 
-const STORE = "nearling.devicesim.v1";
+const STORE = "petto.devicesim.v1";
 const HOLD_MS = 2000;
 const POLL_MS = 3000;
 const PANTRY_BITE = 50_000_000_000_000_000_000_000n; // 0.05 NEAR per feed_from_pantry
@@ -339,6 +339,7 @@ function Paired({ store }: { store: SimStore }) {
             stageIndex={pet.stage_index}
             winged={pet.form === "winged"}
             shirt={pet.equipped_shirt}
+            costume={pet.equipped_costume}
             state={pet.display_state}
             scale={6}
             label={`${pet.name}, ${pet.display_state}`}

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MAX_TICKS, TICKS_PER_SECOND, initState, mulberry32, step, type RaceState } from "@nearling/race";
-import { SIZE, clip, paletteFor, stageFromChain, toRgba, type Clip } from "@nearling/sprites";
+import { MAX_TICKS, TICKS_PER_SECOND, initState, mulberry32, step, type RaceState } from "@petto/race";
+import { SIZE, clip, paletteFor, stageFromChain, toRgba, type Clip } from "@petto/sprites";
 
 // RaceCanvas (web 04 section 6, design.md section 5): 240x240 logical, integer scale, two lanes.
 // The course comes from the same packages/race step() the brain replays, so what you dodge here is

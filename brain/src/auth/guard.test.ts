@@ -8,7 +8,7 @@ function app(deps: ReturnType<typeof testDeps>) {
   a.get("/pets/:petRef/x", requirePetAccess(deps), (c) => c.json(c.get("caller")));
   return a;
 }
-const PATH = "/pets/pets-v8.nearling.testnet:1/x";
+const PATH = "/pets/pets.petto.testnet:1/x";
 
 describe("auth guard", () => {
   it("accepts the owner's session and rejects others", async () => {
@@ -25,7 +25,7 @@ describe("auth guard", () => {
     const deps = testDeps();
     deps.db.prepare(
       "INSERT INTO device (id, hw_id, secret_hash, token_hash, pet_ref, owner_account, created_at) VALUES ('d1','hw','x',?,?,?,0)",
-    ).run(sha256("tok"), "pets-v8.nearling.testnet:1", "alice.testnet");
+    ).run(sha256("tok"), "pets.petto.testnet:1", "alice.testnet");
     const h = { headers: { Authorization: "Device tok" } };
     expect((await app(deps).request(PATH, h)).status).toBe(200);
     deps.pets["1"] = { ...deps.pets["1"]!, owner: "bob.testnet" };

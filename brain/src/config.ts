@@ -8,15 +8,15 @@ const Env = z.object({
     .string()
     .default("https://test.rpc.fastnear.com,https://rpc.testnet.near.org")
     .transform((s) => s.split(",").map((u) => u.trim()).filter(Boolean)),
-  PETS_CONTRACT: z.string().default("pets-v8.nearling.testnet"),
-  DEMO_PETS_CONTRACT: z.string().default("pets-demo.nearling.testnet"),
+  PETS_CONTRACT: z.string().default("pets.petto.testnet"),
+  DEMO_PETS_CONTRACT: z.string().default("pets-demo.petto.testnet"),
   PORT: z.coerce.number().int().default(8787),
   DB_PATH: z.string().default("./data/nearling.db"),
   /** 32 bytes, base64. Required outside tests; generate with `openssl rand -base64 32`. */
   MEMORY_MASTER_KEY: z.string().optional(),
   WEB_ORIGIN: z.string().default("http://localhost:3000"),
   PUBLIC_WEB_URL: z.string().default("http://localhost:3000"), // Hatch & Pair QR: `${PUBLIC_WEB_URL}/hatch?t=<token>`
-  SHIRTS_CONTRACT: z.string().default("shirts.nearling.testnet"),
+  SHIRTS_CONTRACT: z.string().default("shirts.petto.testnet"),
   /** HS256 secret for owner sessions, base64. Required outside tests. */
   SESSION_JWT_SECRET: z.string().default("dev-only-insecure-session-secret-change-me"),
   /** NEAR AI Cloud, OpenAI-compatible (CLAUDE.md 8.1). Staging for the hackathon. */
@@ -39,6 +39,10 @@ const Env = z.object({
   FEEDER_ACCOUNT_ID: z.string().default(""),
   FEEDER_KEY: z.string().default(""),
   FEEDER_DAILY_CAP_NEAR: z.coerce.number().positive().default(10),
+  /** Gas relay (NEP-366, relay/relay.ts): a funded account with a full access key; empty = relay off. */
+  RELAYER_ACCOUNT_ID: z.string().default(""),
+  RELAYER_KEY: z.string().default(""),
+  RELAY_DAILY_PER_ACCOUNT: z.coerce.number().int().positive().default(100),
   NEARON_POOL: z.string().default("mw-pool-1024.testnet"),
   /**
    * Testnet validator pool for Wallet staking (`get_account_staked_balance`). Checked 2026-11-11:
@@ -58,7 +62,7 @@ const Env = z.object({
   FISH_AUDIO_MODEL: z.string().default("s2.1-pro-free"),
   /** Kokoro only: OpenAI-compatible base URL of the self-hosted container. */
   TTS_BASE_URL: z.string().default("http://localhost:8880/v1"),
-  BRAIN_ACCOUNT_ID: z.string().default("brain.nearling.testnet"),
+  BRAIN_ACCOUNT_ID: z.string().default("brain.petto.testnet"),
   BRAIN_KEYS: z
     .string()
     .default("")
@@ -98,7 +102,9 @@ const Env = z.object({
 export type Config = z.infer<typeof Env>;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
-  const parsed = Env.safeParse({ NEAR_NETWORK: "testnet", ...env });
+  // A blank `NAME=` line in .env means "not set": drop it so the default applies.
+  const set = Object.fromEntries(Object.entries(env).filter(([, v]) => v !== undefined && v.trim() !== ""));
+  const parsed = Env.safeParse({ NEAR_NETWORK: "testnet", ...set });
   if (!parsed.success) {
     throw new Error(`Bad brain config: ${parsed.error.issues.map((i) => i.path.join(".")).join(", ")}`);
   }

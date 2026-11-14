@@ -1,4 +1,4 @@
-// Types shared by brain and web. Chain shapes mirror docs/abi/nearling_pets_abi.json
+// Types shared by brain and web. Chain shapes mirror docs/abi/petto_pets_abi.json
 // (frozen interface, docs/CONTRACT_INTERFACE.md). Brain shapes mirror
 // "AI-brain architectual/08-api-reference.md".
 
@@ -149,6 +149,8 @@ export interface PetState {
   stage_index: number;
   /** the contract's own stage (0 egg until 10 xp from on-chain chats and check-ins) */
   chain_stage_index: number;
+  /** on-chain XP (chats +1, the owner's daily check-in +2); stages at 10, 100 and 500 */
+  xp: number;
   /** true once hatched off chain (adopt, pairing, hatch button) or grown on chain */
   hatched: boolean;
   traits: number[];
@@ -175,6 +177,8 @@ export interface PetState {
   };
   soul_version: number;
   equipped_shirt: string | null;
+  /** costume key (`@petto/sprites` COSTUME_KEYS) when the equipped Closet token is a costume */
+  equipped_costume: string | null;
   care: { mood: number; milestones: { pat: boolean; rock: boolean; sleep: boolean } };
   device: { paired: boolean; last_seen_at: number | null };
   as_of: number;
@@ -277,7 +281,11 @@ export type BrainErrorCode =
   | "expired"
   | "conflict"
   | "upstream"
-  | "invalid";
+  | "invalid"
+  // gas relay (brain/src/relay): refusals before anything is sent; the web then signs normally
+  | "not_relayable"
+  | "relay_limit"
+  | "relay_off";
 
 export interface BrainError {
   error: { code: BrainErrorCode; message: string; retry_after_s?: number };
@@ -285,4 +293,13 @@ export interface BrainError {
 
 // NEP-413 sign-in constants (brain and web must match).
 export const NEP413_MESSAGE = "Sign in to Petto";
-export const NEP413_RECIPIENT = "nearling";
+export const NEP413_RECIPIENT = "petto";
+
+/**
+ * NEP-297 standard of our contract events: `petto` on the petto.testnet contracts, `nearling` in the
+ * history of the earlier *.nearling.testnet ones (CLAUDE.md, naming).
+ */
+export const EVENT_STANDARD = "petto";
+export function isOurEvent(standard: string | undefined): boolean {
+  return standard === EVENT_STANDARD || standard === "nearling";
+}

@@ -1,6 +1,6 @@
 // Compiles art/nearling_sprites.h with g++ -Wall -Wextra -Werror and checks that the C side decodes
 // to exactly the TypeScript frames, shirt layers, palettes, shirt colours and personalities.
-// Usage: pnpm --filter @nearling/sprites check-header   (after `export`)
+// Usage: pnpm --filter @petto/sprites check-header   (after `export`)
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

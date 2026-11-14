@@ -10,7 +10,7 @@ import { metadataRoutes, startMetadataSync } from "./index";
 import { createPinata, gatewayBase, PINATA_UPLOAD_URL } from "./pinata";
 import { createDebouncer, createFeatureCheck, latestMetadata, syncPetMetadata, type Timers } from "./sync";
 
-const REF = "pets-v8.nearling.testnet:1";
+const REF = "pets.petto.testnet:1";
 const SOUL = "A cheerful pet who loves gardens.";
 
 /** Fake Pinata v3: CID = "bafk" + sha256 of the uploaded bytes, so identical content gives the same CID. */
@@ -55,7 +55,7 @@ function stubViews(deps: ReturnType<typeof testDeps>, opts: { hasSetMetadata: bo
 function fakeSigner() {
   const calls: { method: string; args: Record<string, unknown> }[] = [];
   const signer: TxSigner = {
-    accountId: "brain.nearling.testnet",
+    accountId: "brain.petto.testnet",
     call: async (_c, method, args) => {
       calls.push({ method, args });
       return { txHash: "tx1", events: [], logs: [] };
@@ -91,10 +91,10 @@ describe("buildPetMetadata", () => {
       stage: "baby",
       form: "winged",
       equipped_shirt: "3",
-      contract: "pets-v8.nearling.testnet",
+      contract: "pets.petto.testnet",
       token_id: "1",
       image: "ipfs://bafkpng",
-      external_url: "http://localhost:3000/p/pets-v8.nearling.testnet%3A1",
+      external_url: "http://localhost:3000/p/pets.petto.testnet%3A1",
     });
     expect(json.attributes).toContainEqual({ trait_type: "Playful", value: 62, display_type: "number" });
     expect(built.png.subarray(1, 4).toString("ascii")).toBe("PNG");

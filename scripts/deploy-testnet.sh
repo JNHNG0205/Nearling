@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Deploys the pets contract to a fresh pets-v$PETS_VERSION.$NEAR_PARENT_ACCOUNT (CLAUDE.md 7: no migrations).
-# DEMO_SPEED=1 deploys the same wasm to pets-demo-v$PETS_VERSION.$NEAR_PARENT_ACCOUNT with about
+# Deploys the pets contract to a fresh pets[-v$PETS_VERSION].$NEAR_PARENT_ACCOUNT (CLAUDE.md 7: no migrations;
+# leave PETS_VERSION empty for pets.petto.testnet, set it for a breaking redeploy).
+# DEMO_SPEED=1 deploys the same wasm to pets-demo[-v$PETS_VERSION].$NEAR_PARENT_ACCOUNT with about
 # 100x rates (CLAUDE.md 7). Both read NEARON's live unstake_deposit into config (pets-v9).
 # Needs: cargo-near, near CLI (near-cli-rs), parent account key in ~/.near-credentials (legacy keychain), .env.
 set -euo pipefail
@@ -9,9 +10,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 set -a; source "$ROOT/.env"; set +a
 
 if [ "${DEMO_SPEED:-0}" = 1 ]; then
-  CONTRACT="pets-demo-v${PETS_VERSION}.${NEAR_PARENT_ACCOUNT}"
+  CONTRACT="pets-demo${PETS_VERSION:+-v$PETS_VERSION}.${NEAR_PARENT_ACCOUNT}"
 else
-  CONTRACT="pets-v${PETS_VERSION}.${NEAR_PARENT_ACCOUNT}"
+  CONTRACT="pets${PETS_VERSION:+-v$PETS_VERSION}.${NEAR_PARENT_ACCOUNT}"
 fi
 FUND="${FUND:-4.5 NEAR}"   # wasm ~400 KB locks ~4.0 NEAR of storage
 HOUSE="${HOUSE:-0.2 NEAR}"  # register_pool: absorbs NEARON's one-time first-deposit fee
@@ -26,7 +27,7 @@ fi
 
 echo "Building..."
 (cd "$ROOT/contract" && cargo near build non-reproducible-wasm)
-WASM="$ROOT/contract/target/near/nearling_pets.wasm"
+WASM="$ROOT/contract/target/near/petto_pets.wasm"
 
 echo "Creating $CONTRACT (funded $FUND by $NEAR_PARENT_ACCOUNT)..."
 near account create-account fund-myself "$CONTRACT" "$FUND" \

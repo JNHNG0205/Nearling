@@ -20,7 +20,7 @@ test.describe("owner", () => {
 
   const open = async (page: Page, path: string) => {
     await page.goto("/");
-    await page.evaluate((s) => localStorage.setItem("nearling.session", JSON.stringify(s)), session);
+    await page.evaluate((s) => localStorage.setItem("petto.session", JSON.stringify(s)), session);
     await page.goto(path);
   };
   // The staging NEAR AI key in .env is rejected (401 invalid_api_key, 2026-11-11), so no real

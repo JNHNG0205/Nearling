@@ -1,7 +1,7 @@
 import { deflateSync } from "node:zlib";
 import {
   SIZE, clip, paletteFor, stageFromChain, stateAnim, toRgba, type DisplayState,
-} from "@nearling/sprites";
+} from "@petto/sprites";
 
 // Server-side render of a Petto to PNG (for the OG image). Same frames as the canvas and device.
 

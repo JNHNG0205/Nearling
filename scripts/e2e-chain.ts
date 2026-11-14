@@ -23,9 +23,9 @@ import { createRpc } from "../brain/src/wallet/rpc";
 import { eventData, parseEvents, returnValue, type Outcome } from "../web/lib/chain";
 
 const RPC = process.env.E2E_RPC ?? "https://test.rpc.fastnear.com"; // rpc.testnet.near.org rate-limits (429)
-const DEMO = "pets-demo-v9.nearling.testnet";
-const V8 = "pets-v9.nearling.testnet" // name kept; points at pets-v9;
-const SHIRTS = "shirts.nearling.testnet";
+const DEMO = "pets-demo.petto.testnet";
+const V8 = "pets.petto.testnet"; // name kept from v8
+const SHIRTS = "shirts.petto.testnet";
 const POOL = "mw-pool-1024.testnet";
 const NEAR = 10n ** 24n;
 const FEED = NEAR / 100n; // 0.01 NEAR
@@ -124,7 +124,7 @@ async function demo(player: TxSigner, feeder: TxSigner) {
   const before = BigInt((await view<Pet>(DEMO, "get_pet", { pet_id: tokenId })).food_yocto as string);
   const fr = await feeder.call(DEMO, "feed", { pet_id: tokenId }, { gasTgas: 30, depositYocto: FEED });
   console.log(`tx    ${DEMO} feed (feeder)  ${fr.txHash}`);
-  const ff = fr.events.find((e) => e.standard === "nearling" && e.event === "fed");
+  const ff = fr.events.find((e) => (e.standard === "petto" || e.standard === "nearling") && e.event === "fed");
   check("feeder signer sees the fed event (brain parseOutcome)", !!ff, JSON.stringify(ff?.data));
   // `final` views can lag the signer's result by a block or two: poll briefly.
   let after = before;

@@ -6,7 +6,7 @@ import { subscribe } from "../events";
 import { testDeps } from "../test/deps";
 import { BACKOFF_MS, createChargeWorker } from "./charge";
 
-const PET = "pets-v8.nearling.testnet:1";
+const PET = "pets.petto.testnet:1";
 
 function seed(deps: ReturnType<typeof testDeps>, turnId = "turn-1", createdAt = deps.now(), pet = PET) {
   deps.db.prepare(
@@ -20,7 +20,7 @@ function seed(deps: ReturnType<typeof testDeps>, turnId = "turn-1", createdAt = 
 function fakeSigner(impl: (args: Record<string, unknown>) => Promise<CallResult>) {
   const calls: { contract: string; method: string; args: Record<string, unknown>; gas?: number }[] = [];
   const signer: TxSigner = {
-    accountId: "brain.nearling.testnet",
+    accountId: "brain.petto.testnet",
     async call(contract, method, args, opts) {
       calls.push({ contract, method, args, gas: opts?.gasTgas });
       return impl(args);
@@ -49,7 +49,7 @@ describe("charge worker", () => {
     await createChargeWorker(deps, only(signer)).tick();
     off();
     expect(calls).toEqual([{
-      contract: "pets-v8.nearling.testnet", method: "charge", gas: 50,
+      contract: "pets.petto.testnet", method: "charge", gas: 50,
       args: { pet_id: "1", cost_micro_usd: 1000, usage_ref: "turn-1", trait_deltas: null, xp_gain: 1, mood_delta: 1 },
     }]);
     expect(job(deps)).toMatchObject({ status: "settled", tx_hash: "TX1", charged_micro: 1000, source: "food", attempts: 1 });
@@ -105,7 +105,7 @@ describe("charge worker", () => {
 });
 
 describe("brain signers per contract (B4)", () => {
-  const DEMO = "pets-demo.nearling.testnet";
+  const DEMO = "pets-demo.petto.testnet";
   const ok = async (): Promise<CallResult> => ({ txHash: "TX", logs: [], events: [] });
   const seedDemo = (deps: ReturnType<typeof testDeps>) => seed(deps, "turn-d", deps.now(), `${DEMO}:1`);
 
@@ -139,13 +139,13 @@ describe("brain signers per contract (B4)", () => {
     const demo = made.find((m) => m.keys.join() === "k-demo1,k-demo2")!;
     const pets = made.find((m) => m.keys.join() === "k-pets")!;
     expect(demo.calls).toEqual([{ contract: DEMO, method: "charge" }]);
-    expect(pets.calls).toEqual([{ contract: "pets-v8.nearling.testnet", method: "charge" }]);
+    expect(pets.calls).toEqual([{ contract: "pets.petto.testnet", method: "charge" }]);
     expect(made.some((m) => m.keys.includes("k-old"))).toBe(false);
   });
 
   it("falls back to BRAIN_KEYS for PETS only; demo jobs wait without keys", async () => {
     const { brain } = registry({ BRAIN_KEYS: "k-old" });
-    expect(brain.forContract("pets-v8.nearling.testnet")).not.toBeNull();
+    expect(brain.forContract("pets.petto.testnet")).not.toBeNull();
     expect(brain.forContract(DEMO)).toBeNull();
     expect(brain.forContract("other.testnet")).toBeNull();
 

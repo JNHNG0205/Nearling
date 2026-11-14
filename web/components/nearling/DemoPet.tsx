@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { PetState } from "@nearling/shared";
+import type { PetState } from "@petto/shared";
 import { FuelMeter } from "@/components/FuelMeter";
 import { PetSprite } from "@/components/PetSprite";
 import { DEMO_PET_REF, getPetState } from "@/lib/brain";

@@ -1,7 +1,7 @@
 import { serve } from "@hono/node-server";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { RULES_VERSION } from "@nearling/race";
+import { RULES_VERSION } from "@petto/race";
 import { createApp } from "../app";
 import { sha256 } from "../auth/guard";
 import { testDeps } from "../test/deps";
@@ -17,7 +17,7 @@ let server: ReturnType<typeof serve>;
 beforeAll(async () => {
   deps.db.prepare(
     "INSERT INTO device (id, hw_id, secret_hash, token_hash, pet_ref, owner_account, created_at) VALUES ('d1','hw','x',?,?,?,0)",
-  ).run(sha256("devtok"), "pets-v8.nearling.testnet:1", "alice.testnet");
+  ).run(sha256("devtok"), "pets.petto.testnet:1", "alice.testnet");
   await new Promise<void>((resolve) => {
     server = serve({ fetch: app.fetch, port: 0 }, () => resolve());
   });
@@ -79,7 +79,7 @@ describe("race routes", () => {
     const device = client(`ws://${base}/race/ws?code=${code}`, { Authorization: "Device devtok" });
     await Promise.all([browser.opened, device.opened]);
     browser.say({ type: "hello", rules_version: RULES_VERSION, name: "Tab" });
-    device.say({ type: "hello", rules_version: RULES_VERSION, name: "Mochi", pet_ref: "pets-v8.nearling.testnet:1" });
+    device.say({ type: "hello", rules_version: RULES_VERSION, name: "Mochi", pet_ref: "pets.petto.testnet:1" });
     browser.say({ type: "ready" });
     device.say({ type: "ready" });
     const start = await browser.next("start");
@@ -90,7 +90,7 @@ describe("race routes", () => {
     const result = await device.next("result");
     expect(result).toMatchObject({ valid: [false, true] });
     const match = await (await fetch(`http://${base}/race/matches/${String(result.match_id)}`)).json();
-    expect(match).toMatchObject({ status: "finished", players: [{ kind: "browser", name: "Tab" }, { kind: "device", pet_ref: "pets-v8.nearling.testnet:1" }] });
+    expect(match).toMatchObject({ status: "finished", players: [{ kind: "browser", name: "Tab" }, { kind: "device", pet_ref: "pets.petto.testnet:1" }] });
     browser.ws.close();
     device.ws.close();
   });

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { parsePetRef } from "@nearling/shared";
+import { parsePetRef } from "@petto/shared";
 import { readCaller } from "../auth/guard";
 import type { Deps, Module } from "../deps";
 import { subscribe } from "../events";

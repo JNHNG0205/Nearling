@@ -91,7 +91,7 @@ Priority when two things happen at once: talk flow > one-shot event > care > sta
 
 ## 6. Device (hardware teammates)
 
-`pnpm --filter @nearling/sprites export` writes:
+`pnpm --filter @petto/sprites export` writes:
 
 | File | Content |
 |---|---|
@@ -108,8 +108,8 @@ Drawing on the ST7789, **draw order per frame**:
 
 Each pixel is a 6×6 block at (24 + x·6, 24 + y·6) in a sprite buffer; push the buffer. Swap RGB565 bytes if the display library expects it. Advance frames with `millis()` at the clip's fps (no `delay()`, `CLAUDE.md` 16). The brain sends `traits`, `stage_index`, `form`, `equipped_shirt` and `display_state` in `/state`.
 
-Verified with `pnpm --filter @nearling/sprites check-header`: the header compiles with `g++ -std=c++17 -Wall -Wextra -Werror`, and a test program's per-clip checksums of the decoded frames and shirt layers, the body and shirt palettes, the personality rule and `nl_find_clip` fallback match the TypeScript renderer exactly (195 checks).
+Verified with `pnpm --filter @petto/sprites check-header`: the header compiles with `g++ -std=c++17 -Wall -Wextra -Werror`, and a test program's per-clip checksums of the decoded frames and shirt layers, the body and shirt palettes, the personality rule and `nl_find_clip` fallback match the TypeScript renderer exactly (195 checks).
 
 ## 7. Changing the art
 
-Edit poses in `packages/sprites/src/animations.ts` or drawing in `pet.ts`, run `pnpm --filter @nearling/sprites test` (frames non-empty, calm loops and personality variants never clipped at the frame edge, shirt on every frame inside the pet and under the face, egg rules, 4 bpp packing), then `export`, `check-header`, look at the sheets, and send the new header to the hardware teammates. Never edit the generated header by hand.
+Edit poses in `packages/sprites/src/animations.ts` or drawing in `pet.ts`, run `pnpm --filter @petto/sprites test` (frames non-empty, calm loops and personality variants never clipped at the frame edge, shirt on every frame inside the pet and under the face, egg rules, 4 bpp packing), then `export`, `check-header`, look at the sheets, and send the new header to the hardware teammates. Never edit the generated header by hand.

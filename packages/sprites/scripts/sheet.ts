@@ -1,5 +1,5 @@
 // Review sheet: every animation (rows) x frames (columns), scaled up, on the UI background.
-// Usage: pnpm --filter @nearling/sprites sheet [out.png] [stage] [winged] [traits csv] [shirt token id or -]
+// Usage: pnpm --filter @petto/sprites sheet [out.png] [stage] [winged] [traits csv] [shirt token id or -]
 // The personality variant comes from the traits (personalityFromTraits).
 import { writeFileSync } from "node:fs";
 import { EGG_ANIMS, PET_ANIMS, clip, personalityFromTraits, type AnyAnim, type Stage } from "../src/index";

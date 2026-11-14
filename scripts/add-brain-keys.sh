@@ -2,7 +2,7 @@
 # Adds the brain's function-call keys (CONTRACT_CHANGES_V9.md 6.3). The brain generates each
 # keypair and keeps the private key; Role 2 sends only the public keys.
 # A function-call key works for one receiver, so run once per pets contract:
-#   ./scripts/add-brain-keys.sh pets-v9.nearling.testnet ed25519:AAA ed25519:BBB ...
+#   ./scripts/add-brain-keys.sh pets.petto.testnet ed25519:AAA ed25519:BBB ...
 # Needs: near CLI, .env, the BRAIN_ACCOUNT full access key in ~/.near-credentials (legacy keychain).
 set -euo pipefail
 

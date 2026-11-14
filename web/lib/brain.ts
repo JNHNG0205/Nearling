@@ -1,9 +1,9 @@
-import type { BrainErrorCode, Emotion, PetState, TalkResponse } from "@nearling/shared";
+import type { BrainErrorCode, Emotion, PetState, TalkResponse } from "@petto/shared";
 
 export const BRAIN_URL = process.env.NEXT_PUBLIC_BRAIN_URL ?? "http://localhost:8787";
 /** The live demo pet on `pets-demo` (demo speed) shown on the landing page. */
 // Sprout: happy and self-sustaining (staked), a livelier first look than a dormant egg.
-export const DEMO_PET_REF = process.env.NEXT_PUBLIC_DEMO_PET_REF ?? "pets-v9.nearling.testnet:4";
+export const DEMO_PET_REF = process.env.NEXT_PUBLIC_DEMO_PET_REF ?? "pets.petto.testnet:3";
 export const EXPLORER_TX = "https://testnet.nearblocks.io/txns/";
 
 export class BrainRequestError extends Error {

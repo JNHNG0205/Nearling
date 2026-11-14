@@ -1,0 +1,184 @@
+// Social login (email, Google) through Privy, exposed to the app as one more NEAR Connect wallet
+// (NEAR docs "social login"). Privy holds the key of an implicit NEAR account. The wallet's
+// executor forwards to `window.pettoPrivy` (lib/privyHost.ts), which signs on this page behind a
+// confirm modal: no popup or tab. Login itself happens on /login.
+import type Privy from "@privy-io/js-sdk-core";
+import { BRAIN_URL } from "./brain";
+
+export const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID ?? "";
+export const PRIVY_CLIENT_ID = process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID ?? "";
+export const PRIVY_WALLET_ID = "petto-privy";
+
+/** Social login shows only when the Privy app is configured (the client id is optional). */
+export function privyEnabled(): boolean {
+  return PRIVY_APP_ID !== "";
+}
+
+/**
+ * NEAR Connect manifest entry. The executor (`public/privy-executor.js`, ours) only forwards to
+ * `window.pettoPrivy`, the one host object the sandbox may call (`external`).
+ */
+export function privyManifest(origin: string) {
+  return {
+    id: PRIVY_WALLET_ID,
+    name: "Email or Google",
+    icon: `${origin}/wallet-email.svg`,
+    description: "Sign in with email or Google. Petto makes you a NEAR testnet account.",
+    website: origin,
+    // NEAR Connect caches the executor per `id:version`: bump the suffix whenever public/privy-executor.js changes
+    version: "1.0.0-petto-inpage",
+    executor: `${origin}/privy-executor.js`,
+    type: "sandbox" as const,
+    platform: [] as string[],
+    features: {
+      signMessage: true,
+      signTransaction: false,
+      signAndSendTransaction: true,
+      signAndSendTransactions: true,
+      signInWithoutAddKey: true,
+      signInAndSignMessage: true,
+      signInWithFunctionCallKey: true,
+      signDelegateActions: true, // NEP-366 delegates for the gas relay (lib/relay.ts)
+      mainnet: false,
+      testnet: true,
+    },
+    permissions: { storage: true, external: ["pettoPrivy"] },
+  };
+}
+
+interface LinkedAccount {
+  type?: string;
+  chain_type?: string;
+  id?: string | null;
+  address?: string;
+}
+
+/** The user's Privy NEAR wallet (implicit account id = `address`), ignoring other chains. */
+export function findNearWallet(linked: readonly unknown[]): { id: string; address: string } | null {
+  for (const a of linked as LinkedAccount[]) {
+    if (a.type === "wallet" && a.chain_type === "near" && typeof a.id === "string" && typeof a.address === "string") {
+      return { id: a.id, address: a.address };
+    }
+  }
+  return null;
+}
+
+const OAUTH_PROVIDERS = ["google"] as const;
+type OAuthProvider = (typeof OAUTH_PROVIDERS)[number];
+
+/** Privy's OAuth redirect back to /login, or null for a normal visit. */
+export function oauthReturn(search: string): { code: string; state: string; provider: OAuthProvider } | null {
+  const q = new URLSearchParams(search);
+  const code = q.get("privy_oauth_code");
+  const state = q.get("privy_oauth_state");
+  const provider = q.get("privy_oauth_provider");
+  if (!code || !state || !OAUTH_PROVIDERS.includes(provider as OAuthProvider)) return null;
+  return { code, state, provider: provider as OAuthProvider };
+}
+
+// ---------- browser only ----------
+
+let client: Promise<Privy> | null = null;
+
+/** One Privy client per page (LocalStorage session shared by /login and the in-page signer). */
+export function getPrivy(): Promise<Privy> {
+  client ??= (async () => {
+    const { default: PrivyClient, LocalStorage } = await import("@privy-io/js-sdk-core");
+    const privy = new PrivyClient({
+      appId: PRIVY_APP_ID,
+      ...(PRIVY_CLIENT_ID ? { clientId: PRIVY_CLIENT_ID } : {}),
+      storage: new LocalStorage(),
+    });
+    await privy.initialize();
+    return privy;
+  })();
+  client.catch(() => (client = null));
+  return client;
+}
+
+/** True when this browser has a Privy session. */
+export async function privyLoggedIn(privy: Privy): Promise<boolean> {
+  try {
+    await privy.user.get();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Ends the Privy login in this browser, so the next "Email or Google" asks who you are again. */
+export async function privyLogout(): Promise<void> {
+  if (!privyEnabled()) return;
+  try {
+    const privy = await getPrivy();
+    const user = await privy.user.get().then((r) => r.user, () => null);
+    if (user) await privy.auth.logout({ userId: user.id });
+  } catch {
+    // already logged out or Privy unreachable: nothing to end
+  }
+}
+
+/** The user's NEAR wallet, created on first login (user-owned, signs through Privy). */
+export async function ensureNearWallet(privy: Privy): Promise<{ id: string; address: string }> {
+  const { user } = await privy.user.get();
+  const found = findNearWallet(user.linked_accounts);
+  if (found) return found;
+  const { create } = await import("@privy-io/js-sdk-core");
+  const w = await create(privy, { request: { chain_type: "near", owner: { user_id: user.id } } });
+  await privy.user.refreshUser().catch(() => undefined);
+  return { id: w.id, address: w.address };
+}
+
+// ---------- NEAR names (brain/src/identity/names.ts) ----------
+
+const nameKey = (implicit: string) => `petto.privy.name.${implicit}`;
+export const nameSkipKey = (implicit: string) => `petto.privy.name-skipped.${implicit}`;
+
+function readLocal(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeLocal(key: string, value: string): void {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // storage blocked: the brain still knows the name
+  }
+}
+
+/** The NEAR name (name.testnet) of an email/Google account, from this browser or the brain; null without one. */
+export async function nearNameFor(implicit: string): Promise<string | null> {
+  const cached = readLocal(nameKey(implicit));
+  if (cached) return cached;
+  try {
+    const res = await fetch(`${BRAIN_URL}/names/${implicit}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    const { name } = (await res.json()) as { name: string };
+    writeLocal(nameKey(implicit), name);
+    return name;
+  } catch {
+    return null;
+  }
+}
+
+/** The account an email/Google user acts as: their NEAR name once they have one, else the hex account. */
+export async function activeAccountFor(implicit: string): Promise<string> {
+  return (await nearNameFor(implicit)) ?? implicit;
+}
+
+/** Asks the brain to create `label.testnet` for the signed-in hex account (session headers). */
+export async function claimNearName(implicit: string, label: string, headers: Record<string, string>): Promise<string> {
+  const res = await fetch(`${BRAIN_URL}/names`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify({ name: label }),
+  });
+  const body = (await res.json().catch(() => null)) as { name?: string; error?: { message?: string } } | null;
+  if (!res.ok || !body?.name) throw new Error(body?.error?.message ?? "Couldn't create that name. Try again.");
+  writeLocal(nameKey(implicit), body.name);
+  return body.name;
+}

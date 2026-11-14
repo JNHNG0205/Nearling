@@ -1,4 +1,4 @@
-import { MAX_TICKS, simulate } from "@nearling/race";
+import { MAX_TICKS, simulate } from "@petto/race";
 
 /** A player's own account of the race: crash tick (null = still alive) and every lane switch tick. */
 export interface Report {

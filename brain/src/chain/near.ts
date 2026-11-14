@@ -1,5 +1,5 @@
 import { JsonRpcProvider } from "near-api-js";
-import type { PetView, SoulView } from "@nearling/shared";
+import type { PetView, SoulView } from "@petto/shared";
 
 /** Subset of the pets contract `config()` view the brain reads. */
 export interface PetsConfig {

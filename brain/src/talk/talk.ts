@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
-import { STAGES, displayState, fuelLeft, parsePetRef, type Emotion, type PetView, type TalkResponse } from "@nearling/shared";
+import { STAGES, displayState, fuelLeft, parsePetRef, type Emotion, type PetView, type TalkResponse } from "@petto/shared";
 import { createMockNearAi, createNearAi, costNano, NearAiError, type ChatResult, type NearAi } from "../ai/nearai";
 import { createTts, clipForVoice, type TtsProvider } from "../ai/tts";
 import { ensureAttestation } from "../ai/attestation";
@@ -148,6 +148,7 @@ export async function runTurn(deps: Deps, ai: NearAi, input: TurnInput): Promise
       stage: STAGES[pet.stage] ?? "adult",
       form: profile.form,
       shirt: profile.equipped_shirt,
+      costume: profile.equipped_costume ?? null,
       fuelLeft: left,
       displayState: displayState(pet.life_state, profile.care_mood, sleeping),
       nickname,

@@ -1,4 +1,4 @@
-import { formatPetRef, type PetState } from "@nearling/shared";
+import { formatPetRef, type PetState } from "@petto/shared";
 import { getMyPets, getPetState } from "./brain";
 import { isDemoContract, nftTokensForOwner, PET_CONTRACTS } from "./chain";
 

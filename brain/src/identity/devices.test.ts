@@ -5,7 +5,7 @@ import { subscribe } from "../events";
 import { TEST_PET, testDeps } from "../test/deps";
 import { deviceStatus, isEd25519Pk, pollPendingActions } from "./devices";
 
-const PET = "pets-v8.nearling.testnet:1";
+const PET = "pets.petto.testnet:1";
 const json = (method: string, body?: unknown, headers: Record<string, string> = {}) => ({
   method,
   headers: { "Content-Type": "application/json", ...headers },
@@ -187,7 +187,7 @@ describe("Device key and pending actions", () => {
     deps.chain.accessKeys = async (account) => {
       asked = account;
       return [
-        { public_key: PK, access_key: { permission: { FunctionCall: { receiver_id: "pets-v8.nearling.testnet", method_names: ["play"] } } } },
+        { public_key: PK, access_key: { permission: { FunctionCall: { receiver_id: "pets.petto.testnet", method_names: ["play"] } } } },
       ];
     };
     deps.pets["1"] = { ...TEST_PET, device_pk: PK, approval_mode: true, pantry_yocto: "0" };
@@ -221,7 +221,7 @@ describe("Device key and pending actions", () => {
     const res = await app.request("/devices/actions", { headers: { Authorization: `Device ${token}` } });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { actions: { id: string; summary: string; expires_at: number }[]; key_registered: boolean };
-    expect(asked).toEqual({ contract: "pets-v8.nearling.testnet", method: "get_pending_actions", args: { pet_id: "1" } });
+    expect(asked).toEqual({ contract: "pets.petto.testnet", method: "get_pending_actions", args: { pet_id: "1" } });
     expect(body.actions).toHaveLength(1);
     expect(body.actions[0]).toMatchObject({ id: "7", summary: "Stake 1 NEAR", expires_at: now + 60_000 });
     expect(body.key_registered).toBe(false);

@@ -11,6 +11,8 @@ const CHAIN: Record<string, (name: string) => string> = {
   // naming and Soul
   E_NAME: () => "Names need 1 to 32 characters.",
   E_SOUL_SIZE: () => "The Soul is too long (1 KB max).",
+  E_HATCHED: (n) => `${n} has already hatched.`,
+  E_LOOK: () => "Pick one of the colours and patterns shown.",
   // who may call
   E_NOT_OWNER: (n) => `Only ${n}'s owner can do that.`,
   E_NOT_ADMIN: () => "Only the Petto team can change this.",
@@ -42,6 +44,7 @@ const CHAIN: Record<string, (name: string) => string> = {
   E_TOO_MANY_ACTIONS: () => "Too many requests are waiting. Approve or cancel one first.",
   // shirts
   E_CLAIMED: () => "You already have your Petto shirt.",
+  E_COSTUME: () => "That costume isn't in the shop.",
 };
 
 const BRAIN: Record<string, (name: string) => string> = {

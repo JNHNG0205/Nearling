@@ -31,8 +31,8 @@ flowchart LR
     JOBS[Scheduler + workers]
     DB[(SQLite)]
   end
-  Pets[(pets-v8.nearling.testnet)]
-  Shirts[(shirts.nearling.testnet)]
+  Pets[(pets.petto.testnet)]
+  Shirts[(shirts.petto.testnet)]
   Pool[(NEARON pool)]
   AI[NEAR AI Cloud staging<br/>chat, whisper, attestation]
   NRAS[NVIDIA NRAS]
@@ -116,7 +116,7 @@ routes/              one file per route group, thin
 
 | Account | Network | Key on server | Used for |
 |---|---|---|---|
-| `brain.nearling.testnet` (= `config.brain`) | testnet | 4 function-call keys, receiver `pets-v8`, methods `charge`, `credit`, `sweep_credit` | Billing, corrections, sweeps |
+| `brain.petto.testnet` (= `config.brain`) | testnet | 4 function-call keys, receiver `pets-v8`, methods `charge`, `credit`, `sweep_credit` | Billing, corrections, sweeps |
 | `feeder.nearling.testnet` | testnet | 1 full access key, balance kept small (top up manually) | `feed(pet)` for settled orders |
 | Project settlement account (mainnet) | mainnet | **none** (receive only) | NEAR Intents destination; brain only reads status |
 | NEAR AI org | staging | API key | Chat, whisper, attestation, billing |
@@ -136,11 +136,11 @@ Contract upgrades (`pets-vN`) need new FC keys for the brain because FC keys are
 ```
 NEAR_NETWORK=testnet
 NEAR_RPC_URLS=https://test.rpc.fastnear.com,https://rpc.testnet.near.org
-PETS_CONTRACT=pets-v8.nearling.testnet
-SHIRTS_CONTRACT=shirts.nearling.testnet
-DEMO_PETS_CONTRACT=pets-demo.nearling.testnet
+PETS_CONTRACT=pets.petto.testnet
+SHIRTS_CONTRACT=shirts.petto.testnet
+DEMO_PETS_CONTRACT=pets-demo.petto.testnet
 NEARON_POOL=mw-pool-1024.testnet
-BRAIN_ACCOUNT_ID=brain.nearling.testnet
+BRAIN_ACCOUNT_ID=brain.petto.testnet
 BRAIN_KEYS=                       # comma-separated ed25519 FC keys
 FEEDER_ACCOUNT_ID=feeder.nearling.testnet
 FEEDER_KEY=
