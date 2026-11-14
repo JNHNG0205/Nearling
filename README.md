@@ -47,7 +47,7 @@ Most AI pets are a chat window with a cute skin, paid for by a company. In Petto
 |---|---|
 | Food is a number that refills for free | Food is NEAR in the pet's on-chain budget; one reply burns one fuel ($0.001), visible as a public `thought` event |
 | A hungry pet looks sad | A hungry pet literally cannot think: at zero fuel it stops calling the AI and says "zzz... my brain is out of fuel" for free |
-| Care is tapping buttons | Care is real: pat, rock and lights off on the device sensors grow its wings; chatting and daily visits grow it from Baby to Teen to Adult |
+| Care is tapping buttons | Care is real: pat it, rock it and put it to sleep (device buttons and motion sensor, or the web buttons) and it grows wings; chatting and daily visits grow it from Baby to Teen to Adult |
 | Wealth means a bigger number | Stake NEAR for it and the yield (NEARON CREDIT) pays for its thoughts: with enough stake it never goes hungry |
 
 It is Illia Polosukhin's "NFT pets each with a NEAR balance that pays for AI inference", turned into a game loop with a body you can hold.
@@ -65,7 +65,7 @@ Every reply comes from a private (TEE) model on NEAR AI Cloud, built from five i
 | **Remembers you** | "You said your exam was today. How did it go?" | Encrypted memory: a summary plus up to 30 facts, some with a follow-up date, rewritten every 20 turns |
 | **Speaks first** | A morning greeting, "I missed you", a follow-up, a low-fuel plea | Every 15 min the brain checks each pet (max 3 messages a day); chatty ones are real thoughts paid from fuel, alerts are free canned lines |
 | **Shows how it feels** | It bounces when excited, droops when sad, zzz when sleepy | Each reply starts with an emotion tag that drives the sprite on screen and on the device |
-| **Hears you and talks back** | Hold to talk on the phone or the device | Whisper on NEAR AI for speech; optional voice replies |
+| **Hears you and talks back** | Hold to talk on the phone or the device | Whisper on NEAR AI for speech to text; spoken replies through Fish Audio |
 | **Proves every thought** | A "Model verified" badge and a receipt per reply | GPU attestation with a fresh nonce, a signature over the exact request and response, and the on-chain `charge` for that turn |
 | **Does small jobs for you** | "What's on my calendar tomorrow?", "Draft a reply to that email" | MCP tools the owner connects on `/mcp` (Notion, Canva, Gmail, Google Calendar and Slack through Zapier, docs look-ups). A planner picks the tool; every tool call waits for the owner's **Approve** in chat (only Zapier's own discovery look-ups run by themselves) |
 
@@ -105,7 +105,7 @@ Editable source: [`docs/architecture.drawio`](docs/architecture.drawio) (open in
 |---|---|---|
 | **Verified talk** | Short in-character replies with a "Model verified" badge | Private model `z-ai/glm-5.3-flash` on NEAR AI Cloud; fresh GPU attestation (NVIDIA NRAS) and a signature over the exact request and response hashes |
 | **Receipts** | `/receipt/<turnId>`: model, Soul version, checks passed and not passed, fuel transaction | Opt-in publishing; logs hold ids and costs, never chat content |
-| **Voice** | Hold to talk; the pet can answer out loud | Whisper on NEAR AI for speech to text; optional TTS, disclosed on the receipt |
+| **Voice** | Hold to talk; the pet answers out loud ("Hear it" on the web, the speaker on the device) | Whisper on NEAR AI for speech to text; Fish Audio for the spoken reply, disclosed on the receipt |
 | **Memory** | The pet remembers what you told it | Encrypted per pet (AES-256-GCM), summarised every 20 turns |
 | **It reaches out first** | "You said your exam was today. How did it go?" | Every 15 min the brain checks each pet: low fuel, missed you, morning greeting (max 3 a day) |
 | **Tools (MCP)** | Connect Notion, Canva, Gmail, Calendar or Slack once; then ask the pet in chat | The brain connects to the MCP server (OAuth or the user's own key, tokens sealed with AES-GCM); each proposed call shows as a card with Approve and Decline, and the result comes back as a normal reply (1 fuel) |
@@ -118,7 +118,7 @@ Editable source: [`docs/architecture.drawio`](docs/architecture.drawio) (open in
 | **Closet and Shop** | Claim a free shirt; tap any of 38 costumes to try it on your pet, buy it for 0.05 NEAR | Shirts contract `shirts.petto.testnet`: `claim()` (free shirt) and `buy(costume)` (0.05 NEAR); each item is a NEP-171 NFT you own and can gift |
 | **Battle** | Turn-based battle against a friend's pet: Fight (Attack or a skill), Defend, Dodge or Run; HP and MP bars, critical hits | Both players pick blind and the brain referees with shared, deterministic rules (`packages/battle`, golden vectors for the device). Defend takes 70% damage and restores MP; Dodge may avoid the hit, more often for faster pets. Battle level and XP are stored on chain (`record_battle`); levels raise HP and MP and unlock three skills |
 | **Traits** | A Traits tab with five bars (Playful, Curious, Calm, Sassy, Kind) and the stats each one raises | Five on-chain traits set at birth; they pick the pet's look, its battle stats and its battle style (the highest trait's three skills) |
-| **Care and evolution** | Pat, rock and lights off; the pet grows wings | Device sensors (touch, motion, light) or web buttons; care is local, no transaction |
+| **Care and evolution** | Pat, rock, shake and lights off; the pet grows wings | Device buttons and motion sensor, or the web buttons; care is local, no transaction |
 | **Public pet page** | `/p/<pet>`: timeline, receipts, "Feed this pet" | No wallet needed: the link to share |
 
 ### Onboarding and safety
@@ -128,7 +128,7 @@ Editable source: [`docs/architecture.drawio`](docs/architecture.drawio) (open in
 | **Email or Google login** | No wallet needed to start | Privy embedded NEAR wallet inside NEAR Connect; optional `name.testnet` account created for you |
 | **Gas-free actions** | Soul edits and hatching cost no gas | NEP-366 meta transactions through our relayer, only for calls with no NEAR attached |
 | **Capped brain** | A leaked brain key cannot drain a pet | Brain uses function-call keys only; `charge` is capped at $0.005 per call and $0.10 per pet per day |
-| **Device approvals** | Hold Approve on the device before a value action | Limited device key (can never send NEAR away); on-chain approve flow where one key cannot both propose and approve |
+| **Two-key approvals** | A value action proposed from the wallet runs only after a second key, the device key, approves it | Limited device key (can never send NEAR away); one key cannot both propose and approve. The contract flow is tested on testnet with CLI-signed keys; the shipped firmware does not sign it yet |
 
 ---
 
@@ -197,9 +197,20 @@ Each pet's NFT metadata points at its PNG and public JSON on IPFS (`set_metadata
 
 ## The device: the Tamagotchi on your desk
 
-The pet's own body: ESP32-S3 with a small screen, three buttons, a touch pad, motion and light sensors, a mic and a speaker, in a 3D-printed case. Hold a button to talk; pat, rock or darken the room to care for it offline; hold Approve before a wallet action. Wiring and pins: [`docs/hardware/`](docs/hardware/); device API: [`AI-brain architectual/08-api-reference.md`](AI-brain%20architectual/08-api-reference.md).
+<p align="center"><img src="web/public/petto-device.webp" alt="The Petto device: an egg-shaped 3D-printed case with a 240x240 screen and three red buttons" width="320" /></p>
 
-_Photos, video and build steps: to be added by the hardware team._
+The pet's own body: an ESP32-S3 with a 240x240 screen, three buttons, a motion sensor, a mic and a speaker, in a 3D-printed egg. It shows the same pet as the web app, driven by the same brain and the same on-chain fuel.
+
+| On the device | How |
+|---|---|
+| **Hatch and pair** | The device shows a QR; scan it with your phone, pick or mint a pet, press B on the device to hatch it there |
+| **Talk** | Hold B, speak; the reply appears in a speech bubble and plays on the speaker (1 fuel, same receipt as the web) |
+| **Care, offline** | Press C to pat, rock it gently and it gets sleepy, shake it and it gets dizzy, "Sleep" in the menu puts it to bed; care syncs and grows its wings |
+| **Feed** | Menu, "Feed me": a QR to the pet's feed page, so a phone pays and the fuel lands on chain |
+| **Battle** | Menu, "Battle": a room code and QR to join from the web; Fight, Defend, Dodge or Run with the same rules as the browser (`packages/battle` golden vectors) |
+| **Closet** | The costume you bought on the web is drawn on the pet |
+
+Build and flash: [`firmware/petto/README.md`](firmware/petto/README.md) (Arduino IDE, board settings, serial commands, buttons). Parts and pins as built: [`firmware/HARDWARE_HANDOFF.md`](firmware/HARDWARE_HANDOFF.md). Device API: [`docs/hardware/DEVICE_PROTOCOL.md`](docs/hardware/DEVICE_PROTOCOL.md).
 
 ---
 
@@ -211,7 +222,7 @@ _Photos, video and build steps: to be added by the hardware team._
 | `nfts` | Each pet is a **NEP-171 NFT that owns money**: fuel, stake and spending history live in the token's on-chain state; NEP-177 metadata points at the pet's live image on IPFS. Shirts and costumes are a second collection |
 | `agents` | The pet pays for its own compute: one on-chain `charge` per reply, funded by feeding or by its own staking yield (NEARON → CREDIT → NEAR AI org) |
 | `privacy` | Private (TEE) models on NEAR AI Cloud with per-reply receipts (attestation with a fresh nonce, signed hashes); memories encrypted at rest; logs never hold content |
-| `security` | Brain limited to capped function-call keys; device limited key that cannot move NEAR; on-chain approvals where one key cannot propose and approve; transfer blocked while staked; stable `E_` error codes; 210 contract tests |
+| `security` | Brain limited to capped function-call keys; device limited key that cannot move NEAR; on-chain approvals where one key cannot propose and approve; transfer blocked while staked; stable `E_` error codes; 213 contract tests |
 
 **NEARON:** the pets contract is the plain iNEAR holder of `mw-pool-1024.testnet`: `deposit_and_stake` per pet, `unstake` with the pool's unstake deposit (returned on withdraw), `withdraw`, and `sync_from_farm` + `claim_and_topup` to sweep CREDIT into the brain's NEAR AI org. Per-pet credit accrues lazily on chain at the measured farm rate (657 µ$ per NEAR per day). Spike results: [`CLAUDE.md`](CLAUDE.md) section 14.
 
@@ -221,14 +232,15 @@ _Photos, video and build steps: to be added by the hardware team._
 
 ---
 
-## Security model (contract)
+## Security model
 
 - **Only the brain can spend fuel, within caps:** $0.005 per call, $0.10 per pet per day; xp, mood and trait changes clamped. Only the admin can change config.
 - **Only the owner stakes, and stake only returns to the owner.** CREDIT sweeps can only go to the configured org.
 - **Transfer is blocked while a pet has stake, a pending unstake or a stake in flight**; it clears device access, pending approvals and refunds the pantry to the old owner.
 - **Every NEARON call is locked before and restored on failure**, so a failed pool call never loses or double-counts stake.
 - **The device key can never attach NEAR:** it can feed from a pantry the owner stocked (1 NEAR a day), stake the pet's own food (capped) and approve actions the wallet proposed.
-- **Tests:** 720 in total, all passing (pets contract 200, shirts 10, brain 298, web 154, battle 18, sprites 23, device 10, shared 7), plus each flow run on testnet. CI runs them all on every push and deploys main.
+- **The brain limits abuse:** per-address rate limits on every route (tighter on sign-in, pairing, orders, names, relay and battle rooms), 64 KB request bodies, daily totals on anything that spends NEAR (new names, relayed calls) and at most 10 live streams per account.
+- **Tests:** 747 in total, all passing (pets contract 203, shirts 10, brain 314, web 162, battle 18, sprites 23, device 10, shared 7), plus each flow run on testnet. CI runs them all on every push and deploys main.
 
 ---
 
@@ -243,9 +255,15 @@ _Photos, video and build steps: to be added by the hardware team._
 - **NEAR Intents has no testnet:** live cross-chain payments would be mainnet, so the brain requests dry quotes only unless a human enables it.
 - **Minting, feeding, staking and buying need testnet NEAR**; only no-deposit calls are gas-sponsored.
 - **One brain instance:** rate limits and battle rooms reset on restart (a battle in progress ends); data is in SQLite.
-- **Battles need two owners with pets on the same contract** (normal and demo-speed pets cannot meet); a pet can fight 3 battles a day against the same opponent and earn 100 battle XP a day.
+- **Battles need two owners with pets on the same contract** (normal and demo-speed pets cannot meet); two pets can battle each other 3 times in any 24 hours, and a pet earns at most 100 battle XP a day.
 - **Gmail, Google Calendar and Slack connect through Zapier** until the team registers its own Google and Slack apps; the Playwright tool is not hosted (it would let anyone reach the server's network).
 - **Costume NFTs have no image yet** in wallets; the app draws them.
+
+---
+
+## Roadmap
+
+A dedicated signing chip on the device, costume images in wallets, friend visits and postcards, a Dream Journal, pets earning on Agent Market, arena prizes, the brain inside OutLayer, then mainnet.
 
 ---
 
@@ -253,7 +271,7 @@ _Photos, video and build steps: to be added by the hardware team._
 
 | Project | What it is | What Petto adds |
 |---|---|---|
-| nearling.xyz | A web AI pet on NEAR testnet: Google sign-in, feeding with NEAR (also cross-chain), per-thought receipts on NEAR, pets that debate and give paid advice, outfits | A physical body (device with voice, care sensors and hold-to-approve); fuel as a survival mechanic; stake to live through NEARON; TEE attestation checked per reply; on-chain Soul; turn-based pet battles |
+| nearling.xyz | A web AI pet on NEAR testnet: Google sign-in, feeding with NEAR (also cross-chain), per-thought receipts on NEAR, pets that debate and give paid advice, outfits | A physical body (device with voice, motion-sensed care and battles); fuel as a survival mechanic; stake to live through NEARON; TEE attestation checked per reply; on-chain Soul; turn-based pet battles |
 | NEARON Tamagotchi demo (`mw-tama-1031.testnet`) | NEARON's sub-pool demo | A full game loop and per-pet credit inside the pet NFT |
 | TamaTown, agentchi, Dæmons, Pett.ai | AI or wallet pets on other chains | Built on NEAR AI private inference with the pet paying per thought |
 
@@ -291,15 +309,9 @@ Our edge, in order: the game loop (needs, memory, the pet reaching out first), t
 | Web | `next` 16, `react` 19, `@hot-labs/near-connect`, `@privy-io/js-sdk-core`, `near-api-js` 7, `qrcode-generator`, `tailwindcss` 4 |
 | Tooling | pnpm workspaces, `cargo-near`, NEAR CLI, `vitest`, Playwright |
 
-- **External services:** NEAR AI Cloud, NEARON (testnet prototype), NVIDIA NRAS, NEAR Intents 1Click (dry quotes unless enabled), Privy, Pinata (IPFS), optional TTS, NEAR testnet RPC, and the MCP servers an owner chooses to connect (Notion, Canva, Zapier, Firecrawl, docs servers).
+- **External services:** NEAR AI Cloud, NEARON (testnet prototype), NVIDIA NRAS, NEAR Intents 1Click (dry quotes unless enabled), Privy, Pinata (IPFS), Fish Audio (spoken replies), NEAR testnet RPC, and the MCP servers an owner chooses to connect (Notion, Canva, Zapier, Firecrawl, docs servers).
 - **AI-assisted code:** most code and docs were written with **Claude Code** (Anthropic) under the rules in [`CLAUDE.md`](CLAUDE.md), with the team directing, reviewing and testing every change.
 - **License:** [MIT](LICENSE).
-
----
-
-## Roadmap
-
-A dedicated signing chip on the device, costume images in wallets, friend visits and postcards, a Dream Journal, pets earning on Agent Market, arena prizes, the brain inside OutLayer, then mainnet.
 
 ---
 
