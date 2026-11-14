@@ -1,18 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
 import { putProfile } from "@/lib/brain";
 import { loadMyPets } from "@/lib/myPets";
 import { authHeaders, useSession } from "@/lib/session";
 
-/** One header for every page (W10): wordmark, My pets, Race, wallet. Not in the /sign popup. */
+/** One header for every page (W10): wordmark, My pets, Race, wallet. */
 export function SiteHeader() {
   useTimezoneSync();
-  const path = usePathname();
-  if (path === "/sign") return null;
   return (
     <header className="border-b-2 border-line">
       {/* one row at 390 px too: no wrap, tighter gaps and wordmark on phones */}

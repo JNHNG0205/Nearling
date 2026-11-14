@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { AccountWithSignedMessage, NearConnector, SignedMessage, WalletManifest } from "@hot-labs/near-connect";
 import { NETWORK, RPC_URL, type Outcome } from "@/lib/chain";
 import { privyEnabled, privyManifest } from "@/lib/privy";
+import { installPrivyHost } from "@/lib/privyHost";
+import { PrivyConfirm } from "./PrivyConfirm";
 import { tryRelay } from "@/lib/relay";
 import { WalletContext, type WalletApi } from "@/lib/wallet";
 
@@ -33,7 +35,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       });
       connectorRef.current = made;
       if (privyEnabled()) {
-        // social login (lib/privy.ts): one more sandbox wallet next to the default list
+        // social login (lib/privy.ts): one more sandbox wallet next to the default list; it signs
+        // on this page through window.pettoPrivy (lib/privyHost.ts)
+        installPrivyHost();
         await made.whenManifestLoaded.catch(() => undefined);
         await made.registerWallet(privyManifest(window.location.origin) as unknown as WalletManifest);
         if (cancelled) return;
@@ -108,5 +112,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     };
   }, [ready, accountId, connector]);
 
-  return <WalletContext.Provider value={api}>{children}</WalletContext.Provider>;
+  return (
+    <WalletContext.Provider value={api}>
+      {children}
+      {privyEnabled() && <PrivyConfirm />}
+    </WalletContext.Provider>
+  );
 }

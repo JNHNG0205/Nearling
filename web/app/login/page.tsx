@@ -17,8 +17,7 @@ import {
 import { useSignIn } from "@/lib/wallet";
 
 // /login: social login (email code or Google) through Privy, then the same NEP-413 sign-in as a
-// wallet, through the "Email or Google" NEAR Connect wallet. Login happens here, in the main
-// window, because the /sign popup must answer the wallet selector within 30 s.
+// wallet, through the "Email or Google" NEAR Connect wallet (it signs on the page, lib/privyHost.ts).
 
 export default function LoginPage() {
   return (

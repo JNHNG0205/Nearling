@@ -4,12 +4,11 @@ import { findNearWallet, oauthReturn, privyManifest, PRIVY_WALLET_ID } from "./p
 describe("privy wallet manifest", () => {
   const m = privyManifest("https://petto.example");
 
-  it("is a sandbox wallet on testnet whose executor and sign page are on our own origin", () => {
+  it("is a sandbox wallet on testnet that signs on the Petto page itself (no popup)", () => {
     expect(m.id).toBe(PRIVY_WALLET_ID);
     expect(m.type).toBe("sandbox");
     expect(m.executor).toBe("https://petto.example/privy-executor.js");
-    expect(m.metadata.signPageURL).toBe("https://petto.example/sign");
-    expect(m.permissions.allowsOpen).toEqual(["https://petto.example/sign"]);
+    expect(m.permissions).toEqual({ storage: true, external: ["pettoPrivy"] });
     expect(m.features.testnet).toBe(true);
   });
 
@@ -19,7 +18,6 @@ describe("privy wallet manifest", () => {
     expect(m.features.signAndSendTransaction).toBe(true);
     expect(m.features.signAndSendTransactions).toBe(true);
     expect(m.features.signDelegateActions).toBe(true); // gas relay
-    expect(m.metadata.debug).toBe(false);
   });
 });
 

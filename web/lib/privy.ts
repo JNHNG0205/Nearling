@@ -1,7 +1,7 @@
 // Social login (email, Google) through Privy, exposed to the app as one more NEAR Connect wallet
-// (@peerfolio/privy-near-connect, NEAR docs "social login", path A). Privy holds the key of an
-// implicit NEAR account; the /sign popup signs with it. Login itself happens on /login first,
-// because the executor closes a /sign popup that does not answer within 30 s.
+// (NEAR docs "social login"). Privy holds the key of an implicit NEAR account. The wallet's
+// executor forwards to `window.pettoPrivy` (lib/privyHost.ts), which signs on this page behind a
+// confirm modal: no popup or tab. Login itself happens on /login.
 import type Privy from "@privy-io/js-sdk-core";
 
 export const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID ?? "";
@@ -14,11 +14,10 @@ export function privyEnabled(): boolean {
 }
 
 /**
- * NEAR Connect manifest entry. The executor is the reviewed v0.0.8 build served from our own
- * origin (`public/privy-executor.js`), so no third-party URL decides what runs in the selector.
+ * NEAR Connect manifest entry. The executor (`public/privy-executor.js`, ours) only forwards to
+ * `window.pettoPrivy`, the one host object the sandbox may call (`external`).
  */
 export function privyManifest(origin: string) {
-  const sign = `${origin}/sign`;
   return {
     id: PRIVY_WALLET_ID,
     name: "Email or Google",
@@ -26,7 +25,7 @@ export function privyManifest(origin: string) {
     description: "Sign in with email or Google. Petto makes you a NEAR testnet account.",
     website: origin,
     // NEAR Connect caches the executor per `id:version`: bump the suffix whenever public/privy-executor.js changes
-    version: "0.0.8-petto.1",
+    version: "1.0.0-petto-inpage",
     executor: `${origin}/privy-executor.js`,
     type: "sandbox" as const,
     platform: [] as string[],
@@ -38,12 +37,11 @@ export function privyManifest(origin: string) {
       signInWithoutAddKey: true,
       signInAndSignMessage: true,
       signInWithFunctionCallKey: true,
-      signDelegateActions: true, // the plugin signs NEP-366 delegates: gas relay (lib/relay.ts)
+      signDelegateActions: true, // NEP-366 delegates for the gas relay (lib/relay.ts)
       mainnet: false,
       testnet: true,
     },
-    permissions: { storage: true, allowsOpen: [sign] },
-    metadata: { signPageURL: sign, debug: false },
+    permissions: { storage: true, external: ["pettoPrivy"] },
   };
 }
 
@@ -81,7 +79,7 @@ export function oauthReturn(search: string): { code: string; state: string; prov
 
 let client: Promise<Privy> | null = null;
 
-/** One Privy client per page, shared by /login and /sign (same LocalStorage session). */
+/** One Privy client per page (LocalStorage session shared by /login and the in-page signer). */
 export function getPrivy(): Promise<Privy> {
   client ??= (async () => {
     const { default: PrivyClient, LocalStorage } = await import("@privy-io/js-sdk-core");
