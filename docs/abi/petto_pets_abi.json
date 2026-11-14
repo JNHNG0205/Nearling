@@ -2,12 +2,7 @@
   "schema_version": "0.4.0",
   "metadata": {
     "name": "petto-pets",
-    "version": "0.1.0",
-    "build": {
-      "compiler": "rustc 1.99.1",
-      "builder": "cargo-near cargo-near-build 0.11.5"
-    },
-    "wasm_hash": "FLcsaMBQmL4pWkgnoWFXsM4kVcoBCU9ZAtKyrbQ8i841"
+    "version": "0.1.0"
   },
   "body": {
     "functions": [
@@ -427,6 +422,19 @@
                 "type": [
                   "string",
                   "null"
+                ]
+              }
+            },
+            {
+              "name": "look",
+              "type_schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/PetLook"
+                  },
+                  {
+                    "type": "null"
+                  }
                 ]
               }
             }
@@ -1694,6 +1702,26 @@
             },
             "unlock_epoch": {
               "type": "string"
+            }
+          }
+        },
+        "PetLook": {
+          "description": "Look picked at hatch: body colour and pattern, as `@petto/sprites` reads them from the traits (`traits[0] % 8` into BODY_PALETTES, `traits[2] % 3` into PATTERNS).",
+          "type": "object",
+          "required": [
+            "colour",
+            "pattern"
+          ],
+          "properties": {
+            "colour": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0.0
+            },
+            "pattern": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0.0
             }
           }
         },

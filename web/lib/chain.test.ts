@@ -62,6 +62,8 @@ describe("tx builders", () => {
     const claim = tx.claimShirt();
     expect(claim.actions[0]!.params).toMatchObject({ methodName: "claim", deposit: (10n ** 22n).toString(), gas: GAS.claimShirt.toString() });
     expect(tx.mintPet(PETS_CONTRACT, "Mochi", null, 2n).actions[0]!.params).toMatchObject({ args: { name: "Mochi" }, deposit: "2" });
+    expect(tx.mintPet(PETS_CONTRACT, "Mochi", "Shy.", 2n, { colour: 7, pattern: 1 }).actions[0]!.params)
+      .toMatchObject({ args: { name: "Mochi", soul: "Shy.", look: { colour: 7, pattern: 1 } } });
     expect(tx.unstake(PETS_CONTRACT, "1", 5n).actions[0]!.params).toMatchObject({ args: { pet_id: "1", amount: "5" }, deposit: "0" });
     expect(tx.nftTransfer(PETS_CONTRACT, "bob.testnet", "1").actions[0]!.params).toMatchObject({ deposit: "1" });
   });

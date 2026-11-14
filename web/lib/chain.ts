@@ -144,6 +144,12 @@ export function getConfig(contract: string): Promise<PetsConfig> {
   return hit;
 }
 
+/** Body colour (index into @petto/sprites BODY_PALETTES) and pattern (into PATTERNS), picked at hatch. */
+export interface PetLook {
+  colour: number;
+  pattern: number;
+}
+
 /** Mint price = config.mint_storage + config.starter_food (0.2 NEAR on pets-v8, 0.105 on pets-demo). */
 export async function getMintPrice(contract: string): Promise<bigint> {
   const c = await getConfig(contract);
@@ -238,8 +244,9 @@ function call(receiverId: string, methodName: string, args: object, gas: bigint,
 }
 
 export const tx = {
-  mintPet: (contract: string, name: string, soul: string | null, price: bigint) =>
-    call(contract, "nft_mint_pet", soul ? { name, soul } : { name }, GAS.mint, price),
+  /** `look` picks the body colour and pattern (contract `PetLook`); without it the traits decide. */
+  mintPet: (contract: string, name: string, soul: string | null, price: bigint, look?: PetLook) =>
+    call(contract, "nft_mint_pet", { name, ...(soul ? { soul } : {}), ...(look ? { look } : {}) }, GAS.mint, price),
   setSoul: (contract: string, petId: string, prompt: string) =>
     call(contract, "set_soul", { pet_id: petId, prompt }, GAS.soul),
   /** Owner, once: the egg becomes a Baby on chain (no deposit, so the gas relay pays the gas). */

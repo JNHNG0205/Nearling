@@ -28,9 +28,9 @@ Quick reference for the brain, web and device. Full rules: `CLAUDE.md` 6 and 7. 
 
 | Method | Deposit | Gas | Notes / events / errors |
 |---|---|---|---|
-| `nft_mint_pet(name, soul?)` | exactly `mint_storage + starter_food` (0.2 NEAR; 0.105 on demo) | 50 Tgas | Returns the token id. `nft_mint`, `soul_updated` if a soul is given. `E_DEPOSIT`, `E_NAME`, `E_SOUL_SIZE` |
+| `nft_mint_pet(name, soul?, look?)` | exactly `mint_storage + starter_food` (0.2 NEAR; 0.105 on demo) | 50 Tgas | Returns the token id. `nft_mint`, `soul_updated` if a soul is given. `E_DEPOSIT`, `E_NAME`, `E_SOUL_SIZE` `look: { colour: 0..7, pattern: 0..2 }` picks the body colour and pattern (`E_LOOK` otherwise): the contract moves `traits[0]` and `traits[2]` by a few points to land on them, the other traits stay random |
 | `set_soul(pet_id, prompt)` | 0 | 30 Tgas | ≤ 1 KB, bumps the version. `soul_updated`. `E_NOT_OWNER`, `E_SOUL_SIZE` |
-| `hatch(pet_id)` | 0 | 30 Tgas | Once: the egg becomes a Baby (stage 1) on chain; later stages still need XP (Teen 100, Adult 500). `stage_up`. `E_NOT_OWNER`, `E_HATCHED` |
+| `hatch(pet_id)` | 0 | 30 Tgas | Once: the egg becomes a Baby (stage 1) on chain; later stages still need XP (Teen 100, Adult 500). `stage_up`. `E_NOT_OWNER`, `E_HATCHED`, `E_LOOK` |
 | `stake(pet_id)` | ≥ 1 NEAR | **450 Tgas** | Brain Garden. `staked` (in the callback). `E_MIN_STAKE`, `E_GAS`, `E_POOL_NOT_READY`, `E_APPROVAL_MODE` |
 | `unstake(pet_id, amount)` | ≥ `config().pool_unstake_deposit` (0.00772 NEAR), excess refunded | 450 Tgas | NEARON's unstake deposit, returned with the withdrawal (`pending_unstake.deposit`). One pending per pet, unlocks at `pending_unstake.unlock_epoch` (12 to 24 h). `unstaked`. `E_DEPOSIT`, `E_UNSTAKE_PENDING`, `E_NO_STAKE` |
 | `withdraw(pet_id)` | 0 | 450 Tgas | After unlock; pays `amount + deposit`. May fail with the unstake still pending while NEARON collects it: show "processing, retry later". `unstake_withdrawn { amount, deposit }` |

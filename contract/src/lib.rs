@@ -26,6 +26,31 @@ use pet::{LifeState, PendingUnstake, Pet};
 
 const MINUTE_NS: u64 = 60 * 1_000_000_000;
 
+/// Look picked at hatch: body colour and pattern, as `@petto/sprites` reads them from the traits
+/// (`traits[0] % 8` into BODY_PALETTES, `traits[2] % 3` into PATTERNS).
+#[near(serializers = [json])]
+#[derive(Clone, Debug, PartialEq)]
+pub struct PetLook {
+    pub colour: u8,
+    pub pattern: u8,
+}
+const LOOK_COLOURS: u8 = 8;
+const LOOK_PATTERNS: u8 = 3;
+
+/// The trait value nearest `v` (0 to 100) whose remainder mod `m` is `k`: moves a random trait by
+/// less than `m` points, so a picked look barely touches the personality.
+fn snap(v: u8, m: u8, k: u8) -> u8 {
+    let (v, m, k) = (i16::from(v), i16::from(m), i16::from(k));
+    let down = v - (v - k).rem_euclid(m);
+    let up = down + m;
+    let pick = if down < 0 || (up <= 100 && up - v < v - down) {
+        up
+    } else {
+        down
+    };
+    pick as u8
+}
+
 #[near(serializers = [borsh, json])]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Item {
@@ -203,7 +228,12 @@ impl Contract {
     /// Attach exactly `mint_storage + starter_food`. `mint_storage` stays in the contract to pay
     /// for the pet's storage; `starter_food` becomes the pet's food.
     #[payable]
-    pub fn nft_mint_pet(&mut self, name: String, soul: Option<String>) -> TokenId {
+    pub fn nft_mint_pet(
+        &mut self,
+        name: String,
+        soul: Option<String>,
+        look: Option<PetLook>,
+    ) -> TokenId {
         let price = self
             .config
             .mint_storage
@@ -222,7 +252,15 @@ impl Contract {
         self.next_id += 1;
         let owner = env::predecessor_account_id();
         let seed = env::random_seed();
-        let traits = [0, 1, 2, 3, 4].map(|i| seed[i] % 101);
+        let mut traits = [0, 1, 2, 3, 4].map(|i| seed[i] % 101);
+        if let Some(l) = look {
+            require!(
+                l.colour < LOOK_COLOURS && l.pattern < LOOK_PATTERNS,
+                "E_LOOK: Colour 0 to 7, pattern 0 to 2"
+            );
+            traits[0] = snap(traits[0], LOOK_COLOURS, l.colour);
+            traits[2] = snap(traits[2], LOOK_PATTERNS, l.pattern);
+        }
         let mut pet = Pet::new(
             name.clone(),
             env::block_timestamp(),
@@ -432,7 +470,7 @@ mod tests {
     fn minted() -> (Contract, TokenId) {
         let mut contract = setup();
         ctx(accounts(3), MINT, DAY);
-        let id = contract.nft_mint_pet("Mochi".into(), None);
+        let id = contract.nft_mint_pet("Mochi".into(), None, None);
         (contract, id)
     }
 
@@ -460,6 +498,70 @@ mod tests {
     }
 
     #[test]
+    fn snap_lands_on_the_wanted_remainder_close_by_and_in_range() {
+        for m in [3u8, 8] {
+            for k in 0..m {
+                for v in 0..=100u8 {
+                    let s = snap(v, m, k);
+                    assert!(s <= 100 && s % m == k, "v {v} m {m} k {k} -> {s}");
+                    assert!(
+                        (i16::from(s) - i16::from(v)).abs() < i16::from(m),
+                        "v {v} m {m} k {k} -> {s}"
+                    );
+                }
+            }
+        }
+        assert_eq!(snap(42, 8, 2), 42); // already there: unchanged
+    }
+
+    #[test]
+    fn mint_with_a_look_sets_colour_and_pattern() {
+        let mut contract = setup();
+        ctx(accounts(3), MINT, DAY);
+        let id = contract.nft_mint_pet(
+            "Mochi".into(),
+            None,
+            Some(PetLook {
+                colour: 5,
+                pattern: 2,
+            }),
+        );
+        let t = contract.get_pet(id).traits;
+        assert_eq!((t[0] % 8, t[2] % 3), (5, 2));
+        assert!(t.iter().all(|&v| v <= 100));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_LOOK: Colour 0 to 7, pattern 0 to 2")]
+    fn mint_rejects_an_unknown_colour() {
+        let mut contract = setup();
+        ctx(accounts(3), MINT, DAY);
+        contract.nft_mint_pet(
+            "Mochi".into(),
+            None,
+            Some(PetLook {
+                colour: 8,
+                pattern: 0,
+            }),
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "E_LOOK: Colour 0 to 7, pattern 0 to 2")]
+    fn mint_rejects_an_unknown_pattern() {
+        let mut contract = setup();
+        ctx(accounts(3), MINT, DAY);
+        contract.nft_mint_pet(
+            "Mochi".into(),
+            None,
+            Some(PetLook {
+                colour: 0,
+                pattern: 3,
+            }),
+        );
+    }
+
+    #[test]
     fn the_collection_is_named_petto() {
         use near_contract_standards::non_fungible_token::metadata::NonFungibleTokenMetadataProvider;
         let m = setup().nft_metadata();
@@ -469,7 +571,7 @@ mod tests {
     #[test]
     fn mint_ids_increment() {
         let (mut contract, _) = minted();
-        assert_eq!(contract.nft_mint_pet("Bao".into(), None), "1");
+        assert_eq!(contract.nft_mint_pet("Bao".into(), None, None), "1");
     }
 
     #[test]
@@ -477,7 +579,7 @@ mod tests {
     fn mint_rejects_wrong_deposit() {
         let mut contract = setup();
         ctx(accounts(3), NearToken::from_millinear(199), DAY);
-        contract.nft_mint_pet("Mochi".into(), None);
+        contract.nft_mint_pet("Mochi".into(), None, None);
     }
 
     #[test]
@@ -485,7 +587,7 @@ mod tests {
     fn mint_rejects_long_name() {
         let mut contract = setup();
         ctx(accounts(3), MINT, DAY);
-        contract.nft_mint_pet("x".repeat(33), None);
+        contract.nft_mint_pet("x".repeat(33), None, None);
     }
 
     #[test]
@@ -493,7 +595,7 @@ mod tests {
         let mut contract = setup();
         ctx(accounts(3), MINT, DAY);
         let before = env::storage_usage();
-        contract.nft_mint_pet("x".repeat(32), None);
+        contract.nft_mint_pet("x".repeat(32), None, None);
         let cost = env::storage_byte_cost().saturating_mul((env::storage_usage() - before) as u128);
         assert!(
             cost <= contract.config().mint_storage,
@@ -1759,7 +1861,7 @@ mod tests {
     fn a_pet_can_be_minted_with_a_soul() {
         let mut contract = setup();
         ctx(accounts(3), MINT, DAY);
-        let id = contract.nft_mint_pet("Mochi".into(), Some("A shy, curious cat.".into()));
+        let id = contract.nft_mint_pet("Mochi".into(), Some("A shy, curious cat.".into()), None);
         let soul = contract.get_soul(id.clone());
         assert_eq!(
             (soul.version, soul.prompt.as_str()),
@@ -1808,7 +1910,7 @@ mod tests {
         let mut contract = setup();
         ctx(accounts(3), MINT, DAY);
         let before = env::storage_usage();
-        contract.nft_mint_pet("x".repeat(32), Some("y".repeat(1024)));
+        contract.nft_mint_pet("x".repeat(32), Some("y".repeat(1024)), None);
         let cost = env::storage_byte_cost().saturating_mul((env::storage_usage() - before) as u128);
         assert!(
             cost <= contract.config().mint_storage,
@@ -1820,7 +1922,7 @@ mod tests {
     fn the_soul_stays_with_the_pet_on_transfer() {
         let mut contract = setup();
         ctx(accounts(3), MINT, DAY);
-        let id = contract.nft_mint_pet("Mochi".into(), Some("Loyal.".into()));
+        let id = contract.nft_mint_pet("Mochi".into(), Some("Loyal.".into()), None);
         ctx(accounts(3), NearToken::from_yoctonear(1), DAY);
         contract.nft_transfer(accounts(4), id.clone(), None, None);
         assert_eq!(contract.get_soul(id).prompt, "Loyal.");
@@ -1849,7 +1951,7 @@ mod tests {
     fn the_brain_points_the_nft_at_the_pinned_image_and_json() {
         let mut contract = setup();
         ctx(accounts(3), MINT, DAY);
-        let id = contract.nft_mint_pet("Mochi".into(), Some("A shy cat.".into()));
+        let id = contract.nft_mint_pet("Mochi".into(), Some("A shy cat.".into()), None);
         as_brain(DAY);
         set_meta(&mut contract, &id, MEDIA, hash(1, 32));
         let m = contract.nft_token(id.clone()).unwrap().metadata.unwrap();
@@ -1964,7 +2066,7 @@ mod tests {
         ctx(accounts(3), MINT, DAY);
         // 199 ASCII bytes, then a 4-byte emoji that would cross byte 200.
         let soul = format!("{}\u{1F431} purr", "x".repeat(199));
-        let id = contract.nft_mint_pet("Mochi".into(), Some(soul));
+        let id = contract.nft_mint_pet("Mochi".into(), Some(soul), None);
         as_brain(DAY);
         set_meta(&mut contract, &id, MEDIA, hash(1, 32));
         let m = contract.nft_token(id).unwrap().metadata.unwrap();
@@ -2005,7 +2107,7 @@ mod tests {
         let mut contract = setup();
         ctx(accounts(3), MINT, DAY);
         let before = env::storage_usage();
-        let id = contract.nft_mint_pet("x".repeat(32), Some("y".repeat(1024)));
+        let id = contract.nft_mint_pet("x".repeat(32), Some("y".repeat(1024)), None);
         as_brain(DAY);
         let link = format!("ipfs://{}", "a".repeat(249));
         contract.set_metadata(id, link.clone(), hash(1, 32), link, hash(2, 32));
@@ -2298,7 +2400,7 @@ mod tests {
     fn staking_waits_for_pool_registration() {
         let mut contract = unregistered();
         ctx(accounts(3), MINT, DAY);
-        let id = contract.nft_mint_pet("Mochi".into(), None);
+        let id = contract.nft_mint_pet("Mochi".into(), None, None);
         ctx_full(accounts(3), NearToken::from_near(2), DAY, 10);
         let _ = contract.stake(id);
     }
@@ -2308,7 +2410,7 @@ mod tests {
     fn device_staking_waits_for_pool_registration() {
         let mut contract = unregistered();
         ctx(accounts(3), MINT, DAY);
-        let id = contract.nft_mint_pet("Mochi".into(), None);
+        let id = contract.nft_mint_pet("Mochi".into(), None, None);
         ctx(accounts(3), NearToken::from_near(3), DAY);
         contract.feed(id.clone());
         ctx(accounts(3), NearToken::from_yoctonear(0), DAY);
