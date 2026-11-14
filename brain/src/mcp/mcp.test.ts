@@ -119,7 +119,7 @@ describe("MCP servers and tasks", () => {
     const body = (await r.json()) as TalkResponse;
     expect(seen[0]!.tools?.map((x) => x.function.name)).toEqual([`s${srv.id}_book_event`, "just_chat"]); // decide step
     expect(seen[1]!.tools).toBeUndefined(); // the reply itself is plain words
-    expect(seen[0]!.messages[0]!.content).toContain("approves every tool call");
+    expect(seen[0]!.messages[0]!.content).toContain("task planner");
     expect(body.reply).toMatch(/approve/i);
     expect(body.tasks).toHaveLength(1);
     const task = body.tasks![0]!;
