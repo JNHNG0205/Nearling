@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PETS_CONTRACT, tx } from "./chain";
-import { describeRequest, toNearAction } from "./privyHost";
+import { autoApprove, describeRequest, toNearAction } from "./privyHost";
 
 describe("toNearAction", () => {
   it("maps a function call with its gas and deposit", () => {
@@ -43,5 +43,33 @@ describe("describeRequest", () => {
     });
     expect(d.lines).toEqual([`Add a limited key for ${PETS_CONTRACT} on alice.testnet`, `register_device on ${PETS_CONTRACT}`]);
     expect(d.gasless).toBe(false);
+  });
+});
+
+describe("autoApprove", () => {
+  const pk = "ed25519:6E8sCci9badyRkXb3JoRpBj5p8C6Tw41ELDZoiihKEtp";
+
+  it("skips the modal for connecting and the sign-in message", () => {
+    expect(autoApprove("signIn", {})).toBe(true);
+    expect(autoApprove("signInAndSignMessage", { messageParams: { message: "Sign in to Petto" } })).toBe(true);
+    expect(autoApprove("signMessage", { message: "Sign in to Petto" })).toBe(true);
+  });
+
+  it("skips it for zero-deposit calls to our contracts, relayed or not", () => {
+    expect(autoApprove("signDelegateActions", { delegateActions: [tx.setSoul(PETS_CONTRACT, "1", "Brave.")] })).toBe(true);
+    expect(autoApprove("signAndSendTransaction", tx.registerDevice(PETS_CONTRACT, "1", pk))).toBe(true);
+  });
+
+  it("asks when NEAR is attached (mint, feed, shirt) or the pet changes hands (1 yocto)", () => {
+    expect(autoApprove("signDelegateActions", { delegateActions: [tx.feed(PETS_CONTRACT, "1", 10n ** 23n)] })).toBe(false);
+    expect(autoApprove("signDelegateActions", { delegateActions: [tx.claimShirt()] })).toBe(false);
+    expect(autoApprove("signAndSendTransaction", tx.nftTransfer(PETS_CONTRACT, "bob.testnet", "1"))).toBe(false);
+  });
+
+  it("asks for keys, plain transfers and other contracts", () => {
+    const keyAndRegister = { transactions: [tx.addDeviceKey("alice.testnet", PETS_CONTRACT, pk, true), tx.registerDevice(PETS_CONTRACT, "1", pk)] };
+    expect(autoApprove("signAndSendTransactions", keyAndRegister)).toBe(false);
+    expect(autoApprove("signAndSendTransaction", tx.transfer("bob.testnet", 1n))).toBe(false);
+    expect(autoApprove("signAndSendTransaction", tx.validatorStake("pool.testnet", 0n))).toBe(false);
   });
 });

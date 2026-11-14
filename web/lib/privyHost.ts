@@ -5,7 +5,7 @@
 import type Privy from "@privy-io/js-sdk-core";
 import { Account, JsonRpcProvider, PublicKey, Signer, actions, baseEncode, encodeSignedDelegate, type Action } from "near-api-js";
 import { signMessage as signNep413 } from "near-api-js/nep413";
-import { formatNear, RPC_URL, type TxAction, type TxRequest } from "./chain";
+import { DEMO_PETS_CONTRACT, formatNear, PETS_CONTRACT, RPC_URL, SHIRTS_CONTRACT, type TxAction, type TxRequest } from "./chain";
 import { ensureNearWallet, getPrivy, privyLoggedIn, privyLogout } from "./privy";
 
 // ---------- pure helpers (tested) ----------
@@ -73,6 +73,35 @@ export function describeRequest(method: HostMethod, params: Record<string, unkno
   }
 }
 
+const OUR_CONTRACTS = [PETS_CONTRACT, DEMO_PETS_CONTRACT, SHIRTS_CONTRACT];
+
+/**
+ * No modal when nothing of value can leave the account: connecting, the sign-in message, and
+ * zero-deposit calls to our contracts (Soul, play, feed from the pantry, device, approvals).
+ * Anything attaching NEAR (even the 1 yocto of a pet transfer), keys, transfers or other
+ * contracts still asks.
+ */
+export function autoApprove(method: HostMethod, request: object): boolean {
+  const params = request as Record<string, unknown>;
+  const safe = (t: TxRequest) =>
+    OUR_CONTRACTS.includes(t.receiverId) &&
+    t.actions.every((a) => a.type === "FunctionCall" && BigInt(a.params.deposit) === 0n);
+  switch (method) {
+    case "signIn":
+    case "signInAndSignMessage":
+    case "signMessage":
+      return true;
+    case "signAndSendTransaction":
+      return safe(params as unknown as TxRequest);
+    case "signAndSendTransactions":
+      return ((params.transactions as TxRequest[]) ?? []).every(safe);
+    case "signDelegateActions":
+      return ((params.delegateActions as TxRequest[]) ?? []).every(safe);
+    default:
+      return false;
+  }
+}
+
 // ---------- confirm modal store (components/wallet/PrivyConfirm.tsx renders it) ----------
 
 export interface PendingConfirm extends ConfirmView {
@@ -103,6 +132,11 @@ function askUser(view: ConfirmView): Promise<void> {
     };
     notify();
   });
+}
+
+/** The modal, unless the request is one the user never needs to see (autoApprove). */
+function approve(method: HostMethod, params: Record<string, unknown>): Promise<void> {
+  return autoApprove(method, params) ? Promise.resolve() : askUser(describeRequest(method, params));
 }
 
 // ---------- signing (browser only) ----------
@@ -191,31 +225,31 @@ const host: Record<HostMethod, (p: Params) => Promise<unknown>> = {
   },
   async signIn(p) {
     const { signer, address } = await privyAccount();
-    await askUser(describeRequest("signIn", p));
+    await approve("signIn", p);
     window.localStorage.setItem(ACCOUNT_KEY, address);
     return [{ accountId: address, publicKey: (await signer.getPublicKey()).toString() }];
   },
   async signInAndSignMessage(p) {
     const { account, signer, address } = await privyAccount();
-    await askUser(describeRequest("signInAndSignMessage", p));
+    await approve("signInAndSignMessage", p);
     const signed = await signedMessage(account, p.messageParams as Parameters<typeof signedMessage>[1]);
     window.localStorage.setItem(ACCOUNT_KEY, address);
     return [{ accountId: address, publicKey: (await signer.getPublicKey()).toString(), signedMessage: signed }];
   },
   async signMessage(p) {
     const { account } = await privyAccount();
-    await askUser(describeRequest("signMessage", p));
+    await approve("signMessage", p);
     return signedMessage(account, p as unknown as Parameters<typeof signedMessage>[1]);
   },
   async signAndSendTransaction(p) {
     const { account } = await privyAccount();
-    await askUser(describeRequest("signAndSendTransaction", p));
+    await approve("signAndSendTransaction", p);
     const t = p as unknown as TxRequest;
     return account.signAndSendTransaction({ receiverId: t.receiverId, actions: t.actions.map(toNearAction), throwOnFailure: false });
   },
   async signAndSendTransactions(p) {
     const { account } = await privyAccount();
-    await askUser(describeRequest("signAndSendTransactions", p));
+    await approve("signAndSendTransactions", p);
     const out = [];
     for (const t of p.transactions as TxRequest[]) {
       out.push(await account.signAndSendTransaction({ receiverId: t.receiverId, actions: t.actions.map(toNearAction), throwOnFailure: false }));
@@ -224,7 +258,7 @@ const host: Record<HostMethod, (p: Params) => Promise<unknown>> = {
   },
   async signDelegateActions(p) {
     const { account } = await privyAccount();
-    await askUser(describeRequest("signDelegateActions", p));
+    await approve("signDelegateActions", p);
     const signedDelegateActions = [];
     for (const d of p.delegateActions as TxRequest[]) {
       // one at a time: each delegate takes the next access-key nonce
