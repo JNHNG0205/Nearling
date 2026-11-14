@@ -41,7 +41,7 @@
 #define BRAIN_URL "https://api.mypetto.xyz"   // live brain (web app: https://mypetto.xyz)
 #endif
 
-#define FW_VERSION "0.5.2"
+#define FW_VERSION "0.6.0"
 #define WEB_URL "https://mypetto.xyz"   // QR codes always point here, whatever web URL the brain is set to
 #define REC_MAX_SAMPLES (MIC_SAMPLE_HZ * REC_MAX_SECONDS)
 
@@ -58,7 +58,7 @@ struct Lock {
   ~Lock() { xSemaphoreGive(mtx); }
 };
 
-uint16_t C_BG, C_INK, C_EGG, C_EGG_HI, C_SPOT, C_LEAF, C_BODY, C_CHEEK, C_RED, C_GREY, C_WHITE, C_BLACK;
+uint16_t C_BG, C_INK, C_EGG, C_EGG_HI, C_SPOT, C_LEAF, C_BODY, C_CHEEK, C_RED, C_GREY, C_WHITE, C_BLACK, C_MP;
 
 // config (NVS namespace "nearling"; device-side names kept, CLAUDE.md)
 String cfgSsid, cfgPass, cfgBrain, cfgWeb, hwId, devSecret, devToken, petRef;
@@ -106,6 +106,34 @@ std::vector<CareEv> careQ;
 // declared up here so the Arduino-generated prototypes can see them
 enum Auth { AUTH_NONE, AUTH_SECRET, AUTH_TOKEN };
 struct Resp { int code; String body; };
+
+// ---- Pet Battle (packages/battle/src/protocol.ts): the brain referees, the device shows the state ----
+enum BPhase : uint8_t { B_OFF, B_STARTING, B_LOBBY, B_FIGHT, B_END, B_ERROR };
+struct BSkill { String id, name; int mp; };
+struct BFighter { int hp = 0, hpMax = 1, mp = 0, mpMax = 1; String rested; std::vector<BSkill> skills; };
+struct BPet { bool present = false; String name; uint8_t traits[5] = {50, 50, 50, 50, 50}; int level = 1, stage = 1; int8_t costume = -1; };
+struct Battle {
+  BPhase phase = B_OFF;
+  String code, err;
+  int you = 0;
+  BPet pets[2];
+  bool ready[2] = {false, false};
+  BFighter f[2];
+  int turn = 0;
+  int64_t turnEndsAt = 0;
+  std::vector<String> log;   // lines of the last turn, shown one after another
+  uint32_t logAt = 0;
+  int hitSide = -1;          // side that took damage last (screen shake)
+  bool moved = false;
+  int winner = -2;           // -2 not over, -1 draw, 0 / 1
+  String reason, tx;
+  bool saveFailed = false;
+  int xp = 0, lvBefore = 0, lvAfter = 0;
+};
+Battle bat;
+struct BItem { String label; bool ok; String move; int submenu; };   // submenu 1 = open skills, 2 = back
+bool wantBattle = false, battleLeave = false, battleReady = false;
+String battleMove;   // JSON message waiting to be sent
 
 // =====================================================================
 // small helpers
@@ -569,6 +597,269 @@ void doTalk() {
   wantStateNow = true;
 }
 
+// ---- minimal WebSocket client (RFC 6455): text frames, ping/pong, close; enough for /battle/ws ----
+String b64(const uint8_t *d, size_t n) {
+  static const char *T = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  String o;
+  for (size_t i = 0; i < n; i += 3) {
+    uint32_t v = d[i] << 16 | (i + 1 < n ? d[i + 1] << 8 : 0) | (i + 2 < n ? d[i + 2] : 0);
+    o += T[v >> 18 & 63]; o += T[v >> 12 & 63];
+    o += i + 1 < n ? T[v >> 6 & 63] : '=';
+    o += i + 2 < n ? T[v & 63] : '=';
+  }
+  return o;
+}
+struct Ws {
+  WiFiClientSecure tls;
+  WiFiClient plain;
+  Client *c = nullptr;
+  int lastStatus = 0;   // HTTP status of the last upgrade attempt (101 = ok)
+  String frag;
+  bool connected() { return c && c->connected(); }
+  void close() {
+    if (c) { if (c->connected()) sendFrame(0x8, nullptr, 0); c->stop(); }
+    c = nullptr; frag = "";
+  }
+  bool readN(uint8_t *b, size_t n) {
+    uint32_t t0 = millis();
+    size_t got = 0;
+    while (got < n && millis() - t0 < 4000) {
+      int k = c->read(b + got, n - got);
+      if (k > 0) { got += k; t0 = millis(); }
+      else if (!c->connected()) return false;
+      else vTaskDelay(2);
+    }
+    return got == n;
+  }
+  bool sendFrame(uint8_t op, const uint8_t *d, size_t n) {
+    if (!c) return false;
+    uint8_t h[8], m[4];
+    size_t hl = 0;
+    h[hl++] = 0x80 | op;
+    if (n < 126) h[hl++] = 0x80 | n;
+    else { h[hl++] = 0x80 | 126; h[hl++] = n >> 8; h[hl++] = n & 0xFF; }
+    for (int i = 0; i < 4; i++) m[i] = esp_random();
+    std::vector<uint8_t> buf(hl + 4 + n);
+    memcpy(buf.data(), h, hl); memcpy(buf.data() + hl, m, 4);
+    for (size_t i = 0; i < n; i++) buf[hl + 4 + i] = d[i] ^ m[i & 3];
+    return c->write(buf.data(), buf.size()) == buf.size();
+  }
+  bool send(const String &s) { return sendFrame(0x1, (const uint8_t *)s.c_str(), s.length()); }
+  bool open(const String &base, const String &path, const String &auth) {
+    close();
+    lastStatus = 0;
+    bool secure = base.startsWith("https://");
+    String host = base.substring(secure ? 8 : 7);
+    int sl = host.indexOf('/');
+    if (sl >= 0) host = host.substring(0, sl);
+    uint16_t port = secure ? 443 : 80;
+    int col = host.indexOf(':');
+    if (col >= 0) { port = host.substring(col + 1).toInt(); host = host.substring(0, col); }
+    if (secure) { tls.setInsecure(); c = &tls; } else c = &plain;   // TODO: CA bundle, as for HTTPS
+    if (!c->connect(host.c_str(), port)) { c = nullptr; return false; }
+    uint8_t k[16];
+    for (auto &b : k) b = esp_random();
+    c->print("GET " + path + " HTTP/1.1\r\nHost: " + host + "\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: " +
+             b64(k, 16) + "\r\nSec-WebSocket-Version: 13\r\nAuthorization: " + auth + "\r\n\r\n");
+    String line;
+    bool first = true;
+    uint32_t t0 = millis();
+    while (millis() - t0 < 8000) {
+      int ch = c->read();
+      if (ch < 0) { if (!c->connected()) break; vTaskDelay(5); continue; }
+      if (ch == '\n') {
+        line.trim();
+        if (first) { lastStatus = line.substring(9, 12).toInt(); first = false; }
+        else if (!line.length()) { if (lastStatus == 101) return true; break; }
+        line = "";
+      } else if (line.length() < 200) line += (char)ch;
+    }
+    c->stop(); c = nullptr;
+    return false;
+  }
+  // 1 = a text message in `out`, 0 = nothing yet, -1 = closed
+  int poll(String &out) {
+    if (!c) return -1;
+    if (c->available() < 2) return c->connected() ? 0 : -1;
+    uint8_t h[2];
+    if (!readN(h, 2)) { close(); return -1; }
+    uint8_t op = h[0] & 0x0F;
+    bool fin = h[0] & 0x80, masked = h[1] & 0x80;
+    uint64_t len = h[1] & 0x7F;
+    if (len == 126) { uint8_t e[2]; if (!readN(e, 2)) { close(); return -1; } len = e[0] << 8 | e[1]; }
+    else if (len == 127) { uint8_t e[8]; if (!readN(e, 8)) { close(); return -1; } len = 0; for (int i = 0; i < 8; i++) len = len << 8 | e[i]; }
+    uint8_t m[4] = {0};
+    if (masked && !readN(m, 4)) { close(); return -1; }
+    if (len > 32768) { close(); return -1; }
+    std::vector<uint8_t> d(len);
+    if (len && !readN(d.data(), len)) { close(); return -1; }
+    if (masked) for (size_t i = 0; i < len; i++) d[i] ^= m[i & 3];
+    if (op == 0x8) { close(); return -1; }
+    if (op == 0x9) { sendFrame(0xA, d.data(), len); return 0; }
+    if (op != 0x1 && op != 0x0) return 0;
+    frag.concat((const char *)d.data(), len);
+    if (!fin) return 0;
+    out = frag; frag = "";
+    return 1;
+  }
+};
+Ws ws;
+
+void parseFighters(JsonObject st) {   // caller holds the Lock
+  bat.turn = st["turn"] | 0;
+  JsonArray fs = st["fighters"].as<JsonArray>();
+  for (int i = 0; i < 2; i++) {
+    JsonObject f = fs[i];
+    BFighter &b = bat.f[i];
+    b.hp = f["hp"] | 0; b.mp = f["mp"] | 0;
+    b.hpMax = max(1, (int)(f["stats"]["hp"] | 1)); b.mpMax = max(1, (int)(f["stats"]["mp"] | 1));
+    b.rested = f["rested"].isNull() ? "" : String(f["rested"].as<const char *>());
+    b.skills.clear();
+    for (JsonObject s : f["skills"].as<JsonArray>()) b.skills.push_back({s["id"] | "", asciiize(s["name"] | ""), s["mp"] | 0});
+  }
+}
+String skillName(int side, const String &id) {   // caller holds the Lock
+  if (id == "attack") return "Attack";
+  for (auto &s : bat.f[side].skills) if (s.id == id) return s.name;
+  return id;
+}
+void handleBattleMsg(const String &raw) {
+  JsonDocument d;
+  if (deserializeJson(d, raw)) return;
+  String type = d["type"] | "";
+  Lock l;
+  if (type == "room") {
+    bat.you = d["you"] | 0;
+    JsonArray ps = d["pets"].as<JsonArray>();
+    for (int i = 0; i < 2; i++) {
+      BPet p;
+      JsonObject o = ps[i];
+      if (!o.isNull()) {
+        p.present = true;
+        p.name = asciiize(o["name"] | "Pet");
+        JsonArray tr = o["traits"].as<JsonArray>();
+        for (int k = 0; k < 5; k++) p.traits[k] = (uint8_t)constrain((int)(tr[k] | 50), 0, 100);
+        p.level = o["level"] | 1;
+        p.stage = max(1, (int)(o["stageIndex"] | 1));   // battling pets are hatched
+        const char *ck = o["costume"] | "";
+        for (int k = 0; k < NL_COSTUME_COUNT; k++) if (!strcmp(ck, NL_COSTUME_KEYS[k])) p.costume = k;
+      }
+      bat.pets[i] = p;
+      bat.ready[i] = d["ready"][i] | false;
+    }
+  } else if (type == "start" || type == "turn") {
+    if (type == "turn") {
+      std::vector<String> lines;
+      int hit = -1;
+      for (JsonObject e : d["events"].as<JsonArray>()) {
+        String kind = e["kind"] | "";
+        int side = e["side"] | 0;
+        String who = bat.pets[side].name, foe = bat.pets[1 - side].name;
+        if (kind == "faint") lines.push_back(who + " fainted!");
+        else if (kind == "run") lines.push_back(who + " ran away!");
+        else if (kind == "move") {
+          String sk = e["skill"] | "";
+          int dmg = e["damage"] | 0, healed = e["healed"] | 0;
+          String dodge = e["dodge"] | "";
+          if (sk == "defend") { lines.push_back(who + " braces!"); continue; }
+          if (sk == "dodge") { lines.push_back(who + " gets ready to dodge"); continue; }
+          String s = who + ": " + skillName(side, sk);
+          if (dodge == "dodged") s += ", " + foe + " dodged!";
+          else {
+            if (dmg > 0) { s += " -" + String(dmg) + (e["crit"] | false ? " CRIT" : ""); hit = 1 - side; }
+            if (dodge == "failed") s += " (dodge failed)";
+          }
+          if (healed > 0) s += " +" + String(healed) + "HP";
+          lines.push_back(s);
+        }
+      }
+      if (lines.empty()) lines.push_back("...");
+      bat.log = lines;
+      bat.hitSide = hit;
+    } else {
+      bat.log = {"Battle start! Pick a move."};
+      bat.hitSide = -1;
+    }
+    bat.logAt = millis();
+    parseFighters(d["state"].as<JsonObject>());
+    bat.turnEndsAt = d["turnEndsAt"] | (int64_t)0;
+    bat.moved = false;
+    if (bat.phase != B_END) bat.phase = B_FIGHT;
+  } else if (type == "end") {
+    bat.phase = B_END;
+    bat.winner = d["winner"].isNull() ? -1 : (int)(d["winner"] | 0);
+    bat.reason = d["reason"] | "";
+    bat.xp = d["xp"][bat.you] | 0;
+    bat.lvBefore = d["levels"][bat.you][0] | 0;
+    bat.lvAfter = d["levels"][bat.you][1] | 0;
+  } else if (type == "saved") {
+    bat.tx = d["tx"] | "";
+  } else if (type == "save_failed") {
+    bat.saveFailed = true;
+  } else if (type == "error") {
+    String code = d["code"] | "";
+    if (code != "already_moved") bat.moved = false;   // illegal or too early: pick again
+    bat.log = {code == "illegal_move" ? "Can't use that now. Pick again." : "Not now: " + code};
+    bat.logAt = millis();
+  }
+}
+
+// Hosts a battle room with the device's pet: the laptop joins it from the QR (mypetto.xyz/battle/CODE).
+void runBattle() {
+  { Lock l; bat = Battle(); bat.phase = B_STARTING; }
+  Resp r = request("POST", "/battle/rooms", "{}", AUTH_TOKEN);
+  if (r.code != 200) {
+    JsonDocument d;
+    String msg = !deserializeJson(d, r.body) ? String(d["error"]["message"] | "") : String("");
+    if (r.code == 401) msg = "This brain can't host device battles yet (update the brain)";   // never unpair here
+    else if (r.code < 0) msg = "Can't reach the brain";
+    else if (!msg.length()) msg = "Brain error " + String(r.code);
+    Lock l; bat.phase = B_ERROR; bat.err = asciiize(msg);
+  } else {
+    JsonDocument d;
+    deserializeJson(d, r.body);
+    String code = d["code"] | "";
+    { Lock l; bat.code = code; bat.phase = B_LOBBY; }
+    Serial.printf("[BATTLE] room %s\n", code.c_str());
+    int fails = 0;
+    uint32_t retryAt = 0;
+    for (;;) {
+      bool leave, ready;
+      String mv;
+      BPhase ph;
+      { Lock l; leave = battleLeave; ready = battleReady; battleReady = false; mv = battleMove; battleMove = ""; ph = bat.phase; }
+      if (leave) break;
+      if (ph == B_ERROR) { vTaskDelay(50); continue; }
+      if (!ws.connected() && ph != B_END) {
+        if (millis() < retryAt) { vTaskDelay(50); continue; }
+        if (!ws.open(nBrain, "/battle/ws?code=" + code, "Device " + nToken)) {
+          Serial.printf("[BATTLE] socket failed (HTTP %d)\n", ws.lastStatus);
+          if (ws.lastStatus == 401 || ++fails >= 6) {
+            Lock l; bat.phase = B_ERROR;
+            bat.err = ws.lastStatus == 401 ? "This brain can't take device battles yet (update the brain)" : "Lost the battle connection";
+            continue;
+          }
+          retryAt = millis() + 1500 * fails;
+          continue;
+        }
+        Serial.println("[BATTLE] socket open");
+        fails = 0;
+      }
+      if (ready) ws.send("{\"type\":\"ready\"}");
+      if (mv.length()) ws.send(mv);
+      String msg;
+      int got;
+      while ((got = ws.poll(msg)) == 1) handleBattleMsg(msg);
+      vTaskDelay(20);
+    }
+  }
+  // wait on the error screen until the player leaves
+  for (;;) { { Lock l; if (battleLeave || bat.phase != B_ERROR) break; } vTaskDelay(50); }
+  ws.close();
+  Lock l;
+  bat = Battle(); wantBattle = false; battleLeave = false; battleMove = ""; wantStateNow = true;
+}
+
 // Lists the networks the board can see, so a wrong band (5 GHz) or name is obvious.
 void scanWifi(const String &want) {
   Serial.println("[WIFI] scanning...");
@@ -650,6 +941,9 @@ void netTask(void *) {
       if (now - lastPair > 2000) { lastPair = now; pollPairing(); }
     } else if (ph == PH_PET && nRef.length()) {
       if (talk) { { Lock l; talkReady = false; } doTalk(); continue; }
+      bool battle;
+      { Lock l; battle = wantBattle; }
+      if (battle) { runBattle(); continue; }
       if (stateNow || now - lastState > 20000) { { Lock l; wantStateNow = false; } lastState = now; pollState(); continue; }
       if (now - lastInbox > 20000 && now - lastState > 5000) { lastInbox = now; pollInbox(); continue; }
       bool haveCare;
@@ -871,11 +1165,12 @@ void drawHearts(Adafruit_GFX &g) {
 // =====================================================================
 // UI state (UI thread only)
 // =====================================================================
-enum Mode : uint8_t { M_PET, M_MENU, M_STATS, M_FEEDQR, M_DEVICE };
+enum Mode : uint8_t { M_PET, M_MENU, M_STATS, M_FEEDQR, M_DEVICE, M_BATTLE };
 Mode mode = M_PET;
 int menuSel = 0;
-const char *MENU[] = {"Stats", "Sleep", "Feed me (QR)", "Device", "Back"};
-const int MENU_N = 5;
+const char *MENU[] = {"Stats", "Battle", "Sleep", "Feed me (QR)", "Device", "Back"};
+const int MENU_N = 6;
+int bMenu = 0, bSel = 0;   // battle menu: 0 = Fight/Defend/Dodge/Run, 1 = skills
 bool pairDeclined = false;
 String bubble;                  // reply or inbox text being shown
 std::vector<String> bubbleLines;
@@ -904,6 +1199,146 @@ String feedLink(const Pet &, const String &fromTalk, const String &web, const St
   if (fromTalk.length()) return fromTalk.startsWith("http") ? fromTalk : web + fromTalk;
   if (!web.length() || !ref.length()) return "";
   return web + "/feed/" + urlEncodeRef(ref);
+}
+
+// ---- battle screens (layout after web BattleScreen: two plates, two pets, message box, menu) ----
+std::vector<BItem> battleItems(const Battle &b) {
+  std::vector<BItem> v;
+  const BFighter &me = b.f[b.you];
+  if (bMenu == 0) {
+    v.push_back({"Fight", true, "", 1});
+    v.push_back({"Defend", me.rested != "defend", "{\"kind\":\"defend\"}", 0});
+    v.push_back({"Dodge", me.rested != "dodge", "{\"kind\":\"dodge\"}", 0});
+    v.push_back({"Run", true, "{\"kind\":\"run\"}", 0});
+  } else {
+    for (auto &s : me.skills) {
+      String mv = s.id == "attack" ? String("{\"kind\":\"attack\"}") : "{\"kind\":\"skill\",\"skill\":\"" + s.id + "\"}";
+      v.push_back({s.name + (s.mp ? " " + String(s.mp) + "MP" : String("")), s.mp <= me.mp, mv, 0});
+    }
+    v.push_back({"Back", true, "", 2});
+  }
+  return v;
+}
+void drawBar(Adafruit_GFX &g, int x, int y, int w, int h, int v, int mx, uint16_t col) {
+  g.drawRect(x, y, w, h, C_INK);
+  g.fillRect(x + 1, y + 1, constrain(v, 0, mx) * (w - 2) / max(1, mx), h - 2, col);
+}
+void drawPetAt(const Pet &p, const char *name, int x, int y, int s) {   // own frame clock: two pets on one screen
+  const nl_clip_t *c = pickClip(name, p);
+  if (c) drawClipFrame(c, (millis() * c->fps / 1000) % c->frame_count, p, x, y, s);
+}
+Pet fromBPet(const BPet &b) {
+  Pet p;
+  p.valid = true; p.name = b.name; p.stage = b.stage; p.hatched = true; p.costume = b.costume;
+  memcpy(p.traits, b.traits, 5);
+  return p;
+}
+void renderBattle(Adafruit_GFX &g, const Pet &me) {
+  Battle b;
+  { Lock l; b = bat; }
+  uint32_t now = millis();
+  int you = b.you, them = 1 - you;
+  if (b.phase == B_OFF || b.phase == B_STARTING) {
+    textCenter(g, "Battle", 16, 2, C_INK);
+    drawPetAt(me, "idle", 72, 56, 3);
+    textCenter(g, "making a room...", 180, 1, C_INK);
+    hintBar(g, "A back");
+    return;
+  }
+  if (b.phase == B_ERROR) {
+    textCenter(g, "Battle", 16, 2, C_INK);
+    drawPetAt(me, "sad", 72, 46, 3);
+    auto L = wrapText(b.err, 36);
+    for (int i = 0; i < (int)L.size() && i < 4; i++) textCenter(g, L[i], 158 + i * 12, 1, C_RED);
+    hintBar(g, "B or A: back");
+    return;
+  }
+  if (b.phase == B_LOBBY) {
+    textCenter(g, "Battle " + b.code, 6, 2, C_INK);
+    drawQR(g, String(WEB_URL) + "/battle/" + b.code, 120, 102, 150);
+    String foe = b.pets[them].present ? b.pets[them].name + " Lv" + String(b.pets[them].level) + (b.ready[them] ? " is ready" : " joined")
+                                      : String("scan to join from the laptop");
+    textCenter(g, foe, 182, 1, C_INK);
+    textCenter(g, b.ready[you] ? "you: READY" : "press B when ready", 196, 1, b.ready[you] ? C_SPOT : C_INK);
+    hintBar(g, "B ready      A leave");
+    return;
+  }
+  Pet op = fromBPet(b.pets[them]);
+  bool over = b.phase == B_END;
+  const char *myClip = over ? (b.winner == you ? "celebrate" : b.winner == -1 ? "idle" : "sad") : "idle";
+  const char *opClip = over ? (b.winner == them ? "celebrate" : b.winner == -1 ? "idle" : "sad") : "idle";
+  int jit = (b.hitSide >= 0 && now - b.logAt < 500) ? ((now / 40) % 2 ? 3 : -3) : 0;
+  const BFighter &fo = b.f[them], &fm = b.f[you];
+  g.setTextSize(1); g.setTextColor(C_INK);
+  // opponent: plate top left, sprite top right
+  g.setCursor(8, 8); g.print(op.name.substring(0, 12) + " Lv" + String(b.pets[them].level));
+  drawBar(g, 8, 20, 124, 7, fo.hp, fo.hpMax, fo.hp * 4 < fo.hpMax ? C_RED : C_SPOT);
+  g.setCursor(8, 31); g.print(String(fo.hp) + "/" + String(fo.hpMax) + " HP");
+  drawPetAt(op, opClip, 160 + (b.hitSide == them ? jit : 0), 6, 2);
+  // you: sprite left, plate right
+  drawPetAt(me, myClip, 8 + (b.hitSide == you ? jit : 0), 56, 3);
+  g.setTextColor(C_INK);
+  g.setCursor(114, 70); g.print(me.name.substring(0, 12) + " Lv" + String(b.pets[you].level));
+  drawBar(g, 114, 82, 118, 7, fm.hp, fm.hpMax, fm.hp * 4 < fm.hpMax ? C_RED : C_SPOT);
+  g.setCursor(114, 93); g.print(String(fm.hp) + "/" + String(fm.hpMax) + " HP");
+  drawBar(g, 114, 106, 118, 5, fm.mp, fm.mpMax, C_MP);
+  g.setCursor(114, 115); g.print(String(fm.mp) + "/" + String(fm.mpMax) + " MP");
+  // message box
+  g.fillRoundRect(6, 156, 228, 28, 6, C_WHITE);
+  g.drawRoundRect(6, 156, 228, 28, 6, C_INK);
+  String line = b.log.empty() ? String("") : b.log[min((int)b.log.size() - 1, (int)((now - b.logAt) / 1500))];
+  auto L = wrapText(line, 36);
+  g.setTextColor(C_INK);
+  for (int i = 0; i < (int)L.size() && i < 2; i++) { g.setCursor(12, 161 + i * 10); g.print(L[i]); }
+  if (over) {
+    String t = b.winner == you ? "You win!" : b.winner == -1 ? "Draw" : "You lost";
+    textCenter(g, t + (b.xp ? "  +" + String(b.xp) + "XP" : String("")), 190, 2, C_INK);
+    String sub = b.lvAfter > b.lvBefore ? "Level up! Lv " + String(b.lvAfter)
+               : b.tx.length() ? String("saved on chain") : b.saveFailed ? String("chain save failed") : String("saving to chain...");
+    textCenter(g, sub, 212, 1, C_INK);
+    hintBar(g, "B done");
+    return;
+  }
+  if (b.moved) textCenter(g, "waiting for " + op.name + "...", 200, 1, C_INK);
+  else {
+    auto items = battleItems(b);
+    for (int i = 0; i < (int)items.size() && i < 6; i++) {
+      int x = 10 + (i % 2) * 114, y = 189 + (i / 2) * 12;
+      bool sel = i == bSel;
+      if (sel) g.fillRect(x - 3, y - 2, 110, 11, C_SPOT);
+      g.setTextColor(!items[i].ok ? C_GREY : sel ? C_WHITE : C_INK);
+      g.setCursor(x, y); g.print(items[i].label.substring(0, 17));
+    }
+  }
+  int64_t left = b.turnEndsAt && epochMs() ? (b.turnEndsAt - epochMs()) / 1000 : -1;
+  hintBar(g, String(b.moved ? "" : "A/C choose   B pick") + (left >= 0 ? "   " + String((int)left) + "s" : String("")));
+}
+void uiBattle() {
+  Battle b;
+  bool want;
+  { Lock l; b = bat; want = wantBattle; }
+  if (!want && b.phase == B_OFF) { mode = M_PET; return; }
+  if (b.phase == B_FIGHT) {
+    if (b.moved) return;   // waiting for the other player
+    auto items = battleItems(b);
+    int n = items.size();
+    if (bSel >= n) bSel = 0;
+    if (bA.shortPress) bSel = (bSel + n - 1) % n;
+    if (bC.shortPress) bSel = (bSel + 1) % n;
+    if (bB.shortPress) {
+      const BItem &it = items[bSel];
+      if (it.submenu == 1) { bMenu = 1; bSel = 0; }
+      else if (it.submenu == 2) { bMenu = 0; bSel = 0; }
+      else if (it.ok) {
+        { Lock l; battleMove = "{\"type\":\"move\",\"move\":" + it.move + "}"; bat.moved = true; }
+        bMenu = 0; bSel = 0;
+        playTone(990, 40);
+      } else playTone(220, 80);
+    }
+    return;
+  }
+  if (b.phase == B_LOBBY && bB.shortPress) { Lock l; battleReady = true; }
+  if (bA.shortPress || ((b.phase == B_END || b.phase == B_ERROR) && bB.shortPress)) { Lock l; battleLeave = true; }
 }
 
 void renderFrame() {
@@ -951,7 +1386,7 @@ void renderFrame() {
   } else if (mode == M_MENU) {
     textCenter(g, "Menu", 12, 2, C_INK);
     for (int i = 0; i < MENU_N; i++) {
-      int y = 44 + i * 34;
+      int y = 42 + i * 30;
       if (i == menuSel) g.fillRoundRect(20, y - 6, 200, 26, 6, C_SPOT);
       textCenter(g, MENU[i], y, 2, i == menuSel ? C_WHITE : C_INK);
     }
@@ -977,6 +1412,8 @@ void renderFrame() {
     else textCenter(g, "Open the Petto web app to feed me", 110, 1, C_INK);
     textCenter(g, "scan to give fuel", 210, 1, C_INK);
     hintBar(g, "A back");
+  } else if (mode == M_BATTLE) {
+    renderBattle(g, p);
   } else if (mode == M_DEVICE) {
     textCenter(g, "Device", 10, 2, C_INK);
     g.setTextSize(1); g.setTextColor(C_INK);
@@ -1144,13 +1581,15 @@ void uiLoop() {
       if (bB.shortPress) {
         switch (menuSel) {
           case 0: mode = M_STATS; break;
-          case 1: enqueueCare("sleep"); sleepUntil = now + 20000; mode = M_PET; break;
-          case 2: { Lock l; feedUrl = ""; } mode = M_FEEDQR; break;
-          case 3: mode = M_DEVICE; break;
+          case 1: { Lock l; wantBattle = true; battleLeave = false; } bMenu = 0; bSel = 0; mode = M_BATTLE; break;
+          case 2: enqueueCare("sleep"); sleepUntil = now + 20000; mode = M_PET; break;
+          case 3: { Lock l; feedUrl = ""; } mode = M_FEEDQR; break;
+          case 4: mode = M_DEVICE; break;
           default: mode = M_PET;
         }
       }
       break;
+    case M_BATTLE: uiBattle(); break;
     default:
       if (bA.shortPress || bB.shortPress) mode = M_PET;
   }
@@ -1229,7 +1668,7 @@ void setup() {
   C_BG = tft.color565(246, 250, 243); C_INK = tft.color565(26, 52, 36); C_EGG = tft.color565(196, 240, 204);
   C_EGG_HI = tft.color565(232, 252, 236); C_SPOT = tft.color565(88, 196, 120); C_LEAF = tft.color565(120, 214, 96);
   C_BODY = tft.color565(98, 204, 120); C_CHEEK = tft.color565(150, 230, 168); C_RED = tft.color565(220, 70, 60);
-  C_GREY = tft.color565(205, 214, 205); C_WHITE = 0xFFFF; C_BLACK = 0x0000;
+  C_GREY = tft.color565(205, 214, 205); C_WHITE = 0xFFFF; C_BLACK = 0x0000; C_MP = tft.color565(58, 111, 216);
   tft.fillScreen(C_BG);
   cv = new GFXcanvas16(TFT_W, TFT_H);
   if (!cv->getBuffer()) { delete cv; cv = nullptr; Serial.println(F("[TFT] no frame buffer: enable OPI PSRAM")); }
