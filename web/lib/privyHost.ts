@@ -76,16 +76,15 @@ export function describeRequest(method: HostMethod, params: Record<string, unkno
 const OUR_CONTRACTS = [PETS_CONTRACT, DEMO_PETS_CONTRACT, SHIRTS_CONTRACT];
 
 /**
- * No modal when nothing of value can leave the account: connecting, the sign-in message, and
- * zero-deposit calls to our contracts (Soul, play, feed from the pantry, device, approvals).
- * Anything attaching NEAR (even the 1 yocto of a pet transfer), keys, transfers or other
- * contracts still asks.
+ * No modal for connecting, the sign-in message, and any call to our own contracts: the Petto
+ * button the user just pressed already named the action and its NEAR ("Plant 1 NEAR"). Plain
+ * NEAR transfers, key changes and other contracts still ask.
  */
 export function autoApprove(method: HostMethod, request: object): boolean {
   const params = request as Record<string, unknown>;
   const safe = (t: TxRequest) =>
     OUR_CONTRACTS.includes(t.receiverId) &&
-    t.actions.every((a) => a.type === "FunctionCall" && BigInt(a.params.deposit) === 0n);
+    t.actions.every((a) => a.type === "FunctionCall");
   switch (method) {
     case "signIn":
     case "signInAndSignMessage":

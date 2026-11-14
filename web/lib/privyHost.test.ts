@@ -60,10 +60,11 @@ describe("autoApprove", () => {
     expect(autoApprove("signAndSendTransaction", tx.registerDevice(PETS_CONTRACT, "1", pk))).toBe(true);
   });
 
-  it("asks when NEAR is attached (mint, feed, shirt) or the pet changes hands (1 yocto)", () => {
-    expect(autoApprove("signDelegateActions", { delegateActions: [tx.feed(PETS_CONTRACT, "1", 10n ** 23n)] })).toBe(false);
-    expect(autoApprove("signDelegateActions", { delegateActions: [tx.claimShirt()] })).toBe(false);
-    expect(autoApprove("signAndSendTransaction", tx.nftTransfer(PETS_CONTRACT, "bob.testnet", "1"))).toBe(false);
+  it("skips it for calls to our contracts with NEAR attached too: the button already named the amount", () => {
+    expect(autoApprove("signAndSendTransaction", tx.stake(PETS_CONTRACT, "1", 10n ** 24n))).toBe(true);
+    expect(autoApprove("signAndSendTransaction", tx.feed(PETS_CONTRACT, "1", 10n ** 23n))).toBe(true);
+    expect(autoApprove("signAndSendTransaction", tx.claimShirt())).toBe(true);
+    expect(autoApprove("signAndSendTransaction", tx.nftTransfer(PETS_CONTRACT, "bob.testnet", "1"))).toBe(true);
   });
 
   it("asks for keys, plain transfers and other contracts", () => {
