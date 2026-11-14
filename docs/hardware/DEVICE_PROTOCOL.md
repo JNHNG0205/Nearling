@@ -7,7 +7,7 @@ Testnet only. Never log chat text or keys (`CLAUDE.md` rules 3 and 4).
 ## 0. Basics
 
 - Brain: `https://<brain-host>` (HTTPS; `wss://` for the race). Chain RPC: `https://test.rpc.fastnear.com`.
-- JSON bodies unless noted. Yocto amounts are strings. `:petRef` = URL-encoded `<contract>:<token_id>`, e.g. `pets-v8.nearling.testnet%3A5`.
+- JSON bodies unless noted. Yocto amounts are strings. `:petRef` = URL-encoded `<contract>:<token_id>`, e.g. `pets.petto.testnet%3A5`.
 - Errors: `{ "error": { "code", "message", "retry_after_s"? } }`. Codes: `unauthorized`, `not_owner`, `not_found`, `rate_limited`, `brain_resting`, `bad_audio`, `expired`, `conflict`, `upstream`, `invalid`.
 
 | Auth | Headers | Used for |
@@ -32,7 +32,7 @@ Responses:
 
 | Body | Device does |
 |---|---|
-| `{ "bound": true, "pet_ref": "pets-v8.nearling.testnet:5" }` | use the stored `device_token`; go to the pet screen |
+| `{ "bound": true, "pet_ref": "pets.petto.testnet:5" }` | use the stored `device_token`; go to the pet screen |
 | `{ "bound": false, "pairing": { "token", "qr_url", "expires_at" } }` | forget any old token; show the pairing screen (section 2). `qr_url` = `PUBLIC_WEB_URL/hatch?t=<token>` |
 
 A bound device whose pet changed owner is revoked here and gets a fresh pairing.
@@ -109,7 +109,7 @@ Care is off chain. The device may also sign an on-chain `play(pet, "pet")` (sect
 Device token. Returns the on-chain pending actions (`propose_action`, `CLAUDE.md` 7.3) for the device's bound pet, with a line to show:
 
 ```json
-{ "pet_ref": "pets-v8.nearling.testnet:5",
+{ "pet_ref": "pets.petto.testnet:5",
   "actions": [ { "id": "7", "action": { "Stake": { "amount": "1000000000000000000000000" } },
                  "deposit": "1000000000000000000000000", "expires_at": 1794356723575,
                  "summary": "Stake 1 NEAR into the Brain Garden" } ] }

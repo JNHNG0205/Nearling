@@ -6,7 +6,7 @@ describe("loadConfig", () => {
     const cfg = loadConfig({ SESSION_JWT_SECRET: "", BRAIN_ACCOUNT_ID: "  ", FEEDER_KEY: "" });
     expect(cfg.SESSION_JWT_SECRET).toBe(loadConfig({}).SESSION_JWT_SECRET);
     expect(cfg.SESSION_JWT_SECRET.length).toBeGreaterThan(0);
-    expect(cfg.BRAIN_ACCOUNT_ID).toBe("brain.nearling.testnet");
+    expect(cfg.BRAIN_ACCOUNT_ID).toBe("brain.petto.testnet");
     expect(cfg.FEEDER_KEY).toBe("");
   });
 

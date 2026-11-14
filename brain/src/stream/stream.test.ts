@@ -5,7 +5,7 @@ import { publish } from "../events";
 import { TEST_PET, testDeps } from "../test/deps";
 import { streamRoutes } from "./stream";
 
-const REF = "pets-v8.nearling.testnet:1";
+const REF = "pets.petto.testnet:1";
 const PATH = `/pets/${REF}/stream`;
 
 async function readUntil(body: ReadableStream<Uint8Array>, needle: string): Promise<string> {
@@ -29,7 +29,7 @@ describe("GET /pets/:petRef/stream", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/event-stream");
     setTimeout(() => {
-      publish("pets-v8.nearling.testnet:2", "inbox", { id: 99 }); // another pet: not forwarded
+      publish("pets.petto.testnet:2", "inbox", { id: 99 }); // another pet: not forwarded
       publish(REF, "inbox", { id: 1 });
     }, 10);
     const text = await readUntil(res.body!, "event: inbox");

@@ -9,7 +9,7 @@ import { parseTxStatus } from "../wallet/rpc";
 import { createOneClick, type OneClick, type StatusResponse } from "./intents";
 import { ordersModule, pollLive, runFeeder, type OrderRow, type OrdersIo } from "./orders";
 
-const C = "pets-v8.nearling.testnet";
+const C = "pets.petto.testnet";
 const REF = `${C}:1`;
 const NEAR = 10n ** 24n;
 const SNACK = NEAR / 10n;
@@ -46,7 +46,7 @@ function fakeRpc(txs: Record<string, TxStatus | null> = {}, balance = 10n * NEAR
 function fakeFeeder(fail = false): TxSigner & { calls: { contract: string; method: string; args: unknown; deposit?: bigint; gas?: number }[] } {
   const calls: { contract: string; method: string; args: unknown; deposit?: bigint; gas?: number }[] = [];
   return {
-    accountId: "feeder.nearling.testnet",
+    accountId: "feeder.petto.testnet",
     calls,
     async call(contract, method, args, opts) {
       calls.push({ contract, method, args, deposit: opts?.depositYocto, gas: opts?.gasTgas });
@@ -280,7 +280,7 @@ describe("the feeder", () => {
     function flakyFeeder(failures: number, hash?: (i: number) => string | null) {
       const calls: number[] = [];
       const signer: TxSigner = {
-        accountId: "feeder.nearling.testnet",
+        accountId: "feeder.petto.testnet",
         async call() {
           calls.push(calls.length);
           if (calls.length <= failures) {
@@ -310,7 +310,7 @@ describe("the feeder", () => {
       expect(calls).toHaveLength(1);
       now += 2_000;
       await runFeeder(t.deps, t.io);
-      expect(rpc.lookups).toContain(`${H1}@feeder.nearling.testnet`);
+      expect(rpc.lookups).toContain(`${H1}@feeder.petto.testnet`);
       expect(t.row(o.id)).toMatchObject({ status: "settled", feed_attempts: 2, feed_retry_at: now + 10_000 });
       now += 10_000;
       await runFeeder(t.deps, t.io);

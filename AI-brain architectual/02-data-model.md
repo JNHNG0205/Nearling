@@ -4,7 +4,7 @@ Covers the Build Spec "Shared records": device and pairing session, pet and prom
 
 Conventions: ids are UUIDv7 strings unless noted; times are unix ms; `enc` = AES-256-GCM blob (`iv|ct|tag`) with a per-pet key; amounts are strings (yocto, micro).
 
-**Pet reference:** `pet_ref = "<contract>:<token_id>"`, e.g. `pets-v8.nearling.testnet:3`. Lets one brain serve `pets-v8` and `pets-demo`.
+**Pet reference:** `pet_ref = "<contract>:<token_id>"`, e.g. `pets.petto.testnet:3`. Lets one brain serve `pets-v8` and `pets-demo`.
 
 ## 1. Entity overview
 

@@ -6,7 +6,7 @@ import { testDeps } from "../test/deps";
 import type { InboxItem } from "@petto/shared";
 import { pushInbox } from "./inbox";
 
-const REF = "pets-v8.nearling.testnet:1";
+const REF = "pets.petto.testnet:1";
 const BASE = `/pets/${REF}/inbox`;
 
 async function owner(deps: ReturnType<typeof testDeps>, account = "alice.testnet") {

@@ -6,9 +6,9 @@ import { openDb } from "./db/db";
 describe("crypto", () => {
   it("round-trips and binds to the pet", () => {
     const s = createSealer(Buffer.alloc(32, 1));
-    const blob = s.seal("pets-v8.nearling.testnet:1", "my exam is friday");
-    expect(s.open("pets-v8.nearling.testnet:1", blob)).toBe("my exam is friday");
-    expect(() => s.open("pets-v8.nearling.testnet:2", blob)).toThrow();
+    const blob = s.seal("pets.petto.testnet:1", "my exam is friday");
+    expect(s.open("pets.petto.testnet:1", blob)).toBe("my exam is friday");
+    expect(() => s.open("pets.petto.testnet:2", blob)).toThrow();
   });
 });
 

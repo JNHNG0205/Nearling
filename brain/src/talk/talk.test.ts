@@ -11,7 +11,7 @@ import { dueFollowUps, maybeSummarise, loadMemory, SUMMARY_EVERY } from "./memor
 import { buildMessages, parseEmotion, wrapSoul } from "./prompt";
 import { createTalk, LINES } from "./talk";
 
-const PET = "pets-v8.nearling.testnet:1";
+const PET = "pets.petto.testnet:1";
 const URL_ = `/pets/${PET}/talk`;
 const SECRET_USER = "my secret exam is on friday";
 const SECRET_REPLY = "good luck with the secret exam";

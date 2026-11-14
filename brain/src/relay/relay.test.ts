@@ -24,7 +24,7 @@ async function signed(o: { sender?: string; receiver?: string; acts?: Action[] }
 }
 
 const soul = actions.functionCall("set_soul", { pet_id: "1", prompt: "Brave." }, 30n * TGAS, 0n);
-const policy = { account: "alice.testnet", receivers: [PETS, "shirts.nearling.testnet"], maxGasTgas: 650n };
+const policy = { account: "alice.testnet", receivers: [PETS, "shirts.petto.testnet"], maxGasTgas: 650n };
 
 describe("decodeSignedDelegate", () => {
   it("reads back sender, receiver and the call", async () => {

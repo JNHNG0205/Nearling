@@ -7,7 +7,7 @@ import { listPets } from "./pets";
 import { publish } from "../events";
 import { localTime, onEvolved, onFed, proactiveModule, runProactivePass, type ProactiveHooks } from "./scheduler";
 
-const REF = "pets-v8.nearling.testnet:1";
+const REF = "pets.petto.testnet:1";
 const T0 = 1_800_000_000_000; // 2027-01-15 08:00 UTC
 const HOUR = 3600_000;
 const KL = "Asia/Kuala_Lumpur"; // 16:00 at T0: daytime, not morning
@@ -105,7 +105,7 @@ describe("proactive scheduler", () => {
     s.profile("form = 'winged'");
     await s.pass();
     expect(s.triggers().filter((t) => t === "evolved")).toHaveLength(1);
-    onEvolved(s.deps, "pets-v8.nearling.testnet:404"); // unknown pet: ignored
+    onEvolved(s.deps, "pets.petto.testnet:404"); // unknown pet: ignored
   });
 
   it("race_result writes one free line per match, outside the daily max", async () => {
@@ -218,17 +218,17 @@ describe("proactive scheduler", () => {
 describe("pet enumeration and local time", () => {
   it("merges profile rows with nft_tokens pages on both contracts", async () => {
     const deps = testDeps();
-    ensureProfile(deps.db, "pets-v8.nearling.testnet:7", "a.testnet", 0);
+    ensureProfile(deps.db, "pets.petto.testnet:7", "a.testnet", 0);
     const calls: unknown[] = [];
     deps.chain.view = async <T>(contract: string, method: string, args?: Record<string, unknown>) => {
       calls.push({ contract, method, args });
-      if (contract !== "pets-v8.nearling.testnet") return [{ token_id: "2" }] as T;
+      if (contract !== "pets.petto.testnet") return [{ token_id: "2" }] as T;
       return (args?.from_index === "0" ? Array.from({ length: 50 }, (_, i) => ({ token_id: String(i) })) : [{ token_id: "50" }]) as T;
     };
     const refs = (await listPets(deps)).map((p) => p.petRef);
     expect(refs).toHaveLength(52); // 0..50 (profile :7 is a duplicate) + demo :2
-    expect(refs).toContain("pets-demo.nearling.testnet:2");
-    expect(refs).toContain("pets-v8.nearling.testnet:50");
+    expect(refs).toContain("pets-demo.petto.testnet:2");
+    expect(refs).toContain("pets.petto.testnet:50");
     expect(calls).toHaveLength(3);
   });
 
@@ -241,7 +241,7 @@ describe("pet enumeration and local time", () => {
 describe("fed thank-you", () => {
   it("writes one line per order and names a friend who paid", () => {
     const deps = testDeps();
-    const ref = "pets-v8.nearling.testnet:1";
+    const ref = "pets.petto.testnet:1";
     ensureProfile(deps.db, ref, "alice.testnet", deps.now());
     onFed(deps, ref, { order_id: "o1", payer: "bob.testnet", fuel: 100 });
     onFed(deps, ref, { order_id: "o1", payer: "bob.testnet", fuel: 100 }); // duplicate settlement

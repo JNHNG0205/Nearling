@@ -7,7 +7,7 @@ Spec status legend:
 - **[VERIFY]**: based on docs but not yet tested; confirm with a spike, then update this file.
 - **[TBD]**: open; pick the simplest option, record the choice here.
 
-**Renamed to Petto (2026-11-14):** the repo is `JNHNG0205/Petto` and the product, web and brain copy say Petto. On chain the NFT collections are "Petto" (`PETTO`) and "Petto Shirts" (`PSHIRT`); the testnet accounts (`*.nearling.testnet`), the event standard `nearling`, the crate names and this file's section names keep "Nearling" (changing them would break deployed contracts and client indexers). "Nibble" was dropped: already used by other apps.
+**Renamed to Petto (2026-11-14):** the repo is `JNHNG0205/Petto` and the product, web and brain copy say Petto. **Accounts switched the same day:** the live contracts are `pets.petto.testnet`, `pets-demo.petto.testnet` and `shirts.petto.testnet` (admin and treasury `petto.testnet`, brain `brain.petto.testnet` with the same function-call keys, relayer `relayer.petto.testnet`, seed owner `seed.petto.testnet`); they emit the event standard `petto`, and the brain also reads `nearling` for the history of the earlier `*.nearling.testnet` contracts, which still run but are unused (pets, costumes and stakes there did not move). Packages are `@petto/*`, crates `petto-pets` / `petto-shirts`, the NEP-413 recipient is `petto`. Kept on purpose: this file's section names, the `nearling` names in history below, internal identifiers such as `NearlingFrame`, the brain DB path and Fly app `nearling-brain` (renaming wipes hosted data), the memory key context `nearling-mem-v1`, and the device-side names (Wi-Fi `Nearling-`, NVS namespace, `art/nearling_sprites.h`; Role 3). NFT collections: "Petto" (`PETTO`) and "Petto Shirts" (`PSHIRT`). Not affiliated with nearling.xyz. "Nibble" was dropped: already used by other apps.
 
 ---
 
@@ -133,7 +133,7 @@ Hybrid scope as built [updated 2026-11-11]:
 ```
                        NEAR testnet
    ┌──────────────────────────────────────────────┐     ┌──────────────────────────┐
-   │ pets-v9 / pets-demo-v9: NFT, fuel, pantry,   │◄───►│ NEARON iNEAR pool         │
+   │ pets / pets-demo.petto: NFT, fuel, pantry,   │◄───►│ NEARON iNEAR pool         │
    │ Soul, stake, events  ·  shirts: Closet NFTs  │     │ stake -> CREDIT           │
    └──▲──────────────▲──────────────────▲─────────┘     └────────────┬─────────────┘
       │ mint, feed,  │ charge (1 fuel), │ feed after a settled        │ sweep_credit:
@@ -206,7 +206,7 @@ Precedence (first match wins): Dormant > Starving > Sleepy (also while asleep) >
 
 ### 5.6 Play and items
 - **Game:** Nearling Run, the two-lane race (Build Spec 6), off chain.
-- **Closet:** a **shirt NFT** the owner claims; the device draws it as a sprite layer (Build Spec 5). Replaces the `buy_item` accessories, which stay in the contract unused. **Shirts contract [FIXED, M5b]** (`shirts/`, `shirts.nearling.testnet`): NEP-171/177/181, `claim()` mints one shirt per account, ever (`E_CLAIMED`); the claimer attaches 0.01 NEAR for storage and the excess is refunded. Shirts transfer freely; the brain checks ownership with `nft_tokens_for_owner` when the Closet syncs. Kept separate so the pets contract's `nft_tokens` stay pets only. **Costume shop [2026-11-14]:** `buy(costume)` mints one of 36 costumes for exactly 0.05 NEAR (kept by the contract), key in `metadata.extra` as `{"costume":"<key>"}` (`E_COSTUME` for an unknown key); `costumes()` lists the catalog and price. Deployed in place on `shirts.nearling.testnet`. `packages/sprites/src/costumes.ts` draws each costume as back and front layers from the pet's geometry; the brain stores the worn costume key (`PetState.equipped_costume`) and the web Closet has try on, buy and wear. Firmware support is Role 3's (a header regeneration).
+- **Closet:** a **shirt NFT** the owner claims; the device draws it as a sprite layer (Build Spec 5). Replaces the `buy_item` accessories, which stay in the contract unused. **Shirts contract [FIXED, M5b]** (`shirts/`, `shirts.petto.testnet`): NEP-171/177/181, `claim()` mints one shirt per account, ever (`E_CLAIMED`); the claimer attaches 0.01 NEAR for storage and the excess is refunded. Shirts transfer freely; the brain checks ownership with `nft_tokens_for_owner` when the Closet syncs. Kept separate so the pets contract's `nft_tokens` stay pets only. **Costume shop [2026-11-14]:** `buy(costume)` mints one of 36 costumes for exactly 0.05 NEAR (kept by the contract), key in `metadata.extra` as `{"costume":"<key>"}` (`E_COSTUME` for an unknown key); `costumes()` lists the catalog and price. Deployed in place on `shirts.nearling.testnet`. `packages/sprites/src/costumes.ts` draws each costume as back and front layers from the pet's geometry; the brain stores the worn costume key (`PetState.equipped_costume`) and the web Closet has try on, buy and wear. Firmware support is Role 3's (a header regeneration).
 
 ---
 
@@ -254,7 +254,7 @@ Docs confirm a contract can be holder and router. Sub-pool beneficiaries need an
 
 Start from **near-contract-standards**: NEP-171 (core), NEP-177 (metadata), NEP-181 (enumeration), NEP-297 / NEP-256 (events) [FIXED]. **No NEP-145:** the mint price covers the pet's storage (asserted in tests). NEP-178 approvals and NEP-199 payouts only if a marketplace is needed (cut for MVP). Token ids are incrementing integers stored as strings (`"0"`, `"1"`, ...).
 
-**Demo speed [FIXED, M4b]:** the same wasm is also deployed as `pets-demo-v9.nearling.testnet` (`pets-demo` before v9; the script names it `pets-demo-v$PETS_VERSION`) with `config.demo_speed = true` and about 100× faster rates (metabolism, mood decay, energy gain, dormant after about 43 min), so judges can watch hungry to starving to dormant in minutes. Web and README label it "demo speed" (rule 5). Deployed 2026-11-09 with `DEMO_SPEED=1 ./scripts/deploy-testnet.sh`: metabolism, mood decay and energy gain ×100 (metabolism $0.10/day, mood -1 per 18 s, energy +1 per 4.5 s), dormant after 43.2 min, and `starter_food` 0.005 NEAR so a fresh demo pet starves in about 14 min (mint price there: 0.105 NEAR). 0.1 NEAR of food buys about 4.8 h.
+**Demo speed [FIXED, M4b]:** the same wasm is also deployed as `pets-demo.petto.testnet` (`pets-demo-v9.nearling.testnet` before the rename; the script names it `pets-demo[-v$PETS_VERSION]`) with `config.demo_speed = true` and about 100× faster rates (metabolism, mood decay, energy gain, dormant after about 43 min), so judges can watch hungry to starving to dormant in minutes. Web and README label it "demo speed" (rule 5). Deployed 2026-11-09 with `DEMO_SPEED=1 ./scripts/deploy-testnet.sh`: metabolism, mood decay and energy gain ×100 (metabolism $0.10/day, mood -1 per 18 s, energy +1 per 4.5 s), dormant after 43.2 min, and `starter_food` 0.005 NEAR so a fresh demo pet starves in about 14 min (mint price there: 0.105 NEAR). 0.1 NEAR of food buys about 4.8 h.
 
 **Redeploys [FIXED]:** no migration code. Any breaking state change deploys to a fresh account `pets-vN.<team>.testnet` via `deploy-testnet.sh`, then `seed-demo.sh`. A code-only change with the same state layout is deployed in place with `near contract deploy <account> use-file <wasm> without-init-call` (done 2026-11-14 for the Petto names on `pets-v9`, `pets-demo-v9` and `shirts`: txs `AkxCaAT7PSN5QNj3MgcZ8NK1PzobWW55JkKm3kQMJ6qq`, `6MXicCBC9cW4e7YSVXeNrXyBeiCiU3k5FmuD9eLMWsK2`, `79FegYRGVHicCA5bzf9LE1THx2gUoPPCJAXJJd9dqzJf`; supplies, pets and config unchanged, `feed` works). Brain, web and firmware read the contract id from config / `.env`.
 
@@ -373,7 +373,7 @@ Key point: wallet and device keys both belong to the owner's account, so `predec
 - On transfer: the contract clears the device key (emits `device_cleared`) and pending actions, and refunds the whole pantry to the old owner (emits `pantry_emptied`; pantry is the owner's unspent NEAR, food stays with the pet). Traits, stage, xp and items stay with the pet. The brain archives the old owner's memories (new owner starts fresh with the pet), revokes device tokens bound to the old owner, resets the owner nickname.
 - Limited access keys live on the old owner's account, so the contract checks `predecessor == current owner` for device methods; old keys simply stop working.
 
-### 7.5 Events (NEP-297, standard `nearling`, version `1.0.0`) + NEP-256 NFT events
+### 7.5 Events (NEP-297, standard `petto` since 2026-11-14, `nearling` on the earlier contracts, version `1.0.0`) + NEP-256 NFT events
 `fed`, `thought` (pet_id, cost, usage_ref), `credited`, `credit_swept`, `soul_updated`, `pool_registered`, `played`, `staked`, `staked_from_food`, `unstaked`, `unstake_withdrawn`, `item_bought`, `stage_up`, `dormant`, `revived`, `device_registered`, `device_cleared`, `action_proposed`, `action_approved`, `action_cancelled`; pets-v9: `metadata_updated`, `pantry_stocked`, `pantry_emptied`, `fed.source` (`wallet` / `pantry`), `unstaked.pending.deposit` and `unstake_withdrawn.deposit`.
 
 ### 7.6 Invariants
@@ -512,7 +512,7 @@ Pixel art, 64×64 base sprite, 4 stages × about 12 states. One palette that rea
 
 **Kept in code, not in the demo:** on-device signing (`play`, `stake_from_food`, on-chain `approve_action`), `buy_item`, on-chain care stats.
 
-**Should-have:** sponsored transactions (NEP-366) so the device needs no gas. **Done for the web (2026-11-14):** `POST /relay` (`brain/src/relay/`) pays gas for single no-deposit calls (1 yocto at most) to our contracts from wallets that sign delegate actions (Meteor, Intear, Ledger, Email or Google). Under NEP-366 the relayer pays any NEAR attached to the inner calls, so calls with a deposit (mint, feed, stake, pantry, shirt) are never relayed: the user signs and pays them (found 2026-11-14 when relayed mints and feeds had drawn 0.42 NEAR from the relayer); relayer `relayer.nearling.testnet`, 100 relays per account per day. Verified on testnet: a relayed `set_soul` cost the user 0 and the relayer 0.000336 NEAR; a relayed `E_NOT_OWNER` comes back as the outcome status (the brain follows the inner receipt chain).
+**Should-have:** sponsored transactions (NEP-366) so the device needs no gas. **Done for the web (2026-11-14):** `POST /relay` (`brain/src/relay/`) pays gas for single no-deposit calls (1 yocto at most) to our contracts from wallets that sign delegate actions (Meteor, Intear, Ledger, Email or Google). Under NEP-366 the relayer pays any NEAR attached to the inner calls, so calls with a deposit (mint, feed, stake, pantry, shirt) are never relayed: the user signs and pays them (found 2026-11-14 when relayed mints and feeds had drawn 0.42 NEAR from the relayer); relayer `relayer.petto.testnet` (was `relayer.nearling.testnet`), 100 relays per account per day. Verified on testnet: a relayed `set_soul` cost the user 0 and the relayer 0.000336 NEAR; a relayed `E_NOT_OWNER` comes back as the outcome status (the brain follows the inner receipt chain).
 
 **Later (README roadmap):** dedicated signing chip, friend visits and postcards, Dream Journal, pets earning via Agent Market, arena prizes, brain in OutLayer, mainnet (Build Spec "Future additions").
 
@@ -586,6 +586,8 @@ pets-v9 on testnet (2026-11-11, `pets-v9` + `pets-demo-v9`, owner `nearling-seed
 | Pantry | `stock_pantry` 0.5 NEAR; a function-call key with `feed_from_pantry` signed `feed_from_pantry` 0.1 NEAR: `fed` with `source: "pantry"` (tx `31GEvSBrkaGKZCy4KibDxWFNHNnYFVTuTzqn6TG8tjm6`); more than the pantry: `E_PANTRY`; the device key attaching a deposit: refused by the protocol |
 | `set_metadata` | Brain-signed with the two Pinata CIDs: `metadata_updated`, `nft_token` shows media, hashes, reference, `description` from the Soul, `updated_at` (tx `EaoRQV6TrH1tv6sHmKfDpzzzNokbd2R1JVxtxAvBMzSv`); again within 60 s: `E_COOLDOWN`; a stranger: `E_NOT_BRAIN`; a view call with `{}` fails on deserialize (not `MethodNotFound`), so the brain detects the method |
 
+Petto accounts on testnet (2026-11-14): `petto.testnet` created by the faucet and funded by deleting the unused `pets-demo.nearling.testnet` and `s6-spike.nearling.testnet` (their iNEAR stays in the pool, lost; `pets-v8` kept: its pre-v9 `unstake` cannot attach the deposit NEARON now requires). `deploy-testnet.sh` (normal and `DEMO_SPEED=1`) and `deploy-shirts.sh` deployed `pets`, `pets-demo` and `shirts` under it; the brain's 8 existing function-call public keys were added to `brain.petto.testnet` (4 per pets contract) and the relayer key to `relayer.petto.testnet`. `seed-demo.sh` seeded and hatched #0 Sunny, #1 Crumb, #2 Echo, #3 Sprout (2 NEAR staked, self-sustaining) and demo #0 Blink. A brain-signed `charge` emitted `{"standard":"petto","event":"thought",...}` (tx `CndDMwrmsz5B8xjg36UdSy4dZjzPy8HibRpwdtgZawoy`).
+
 M3 on testnet (2026-11-07, `pets-v4`, player `nearling-player1.testnet`): stake 2 NEAR recorded 1.9945 = pool iNEAR balance; `self_sustaining: true` at 1310 µ$/day; unstake 0.5 NEAR queued at epoch 5424 in both the pet and the pool; early withdraw rejected. Stake tx `6btDMVHSYj5P3koLiGQP33WBKRqbE5i2EqWbf1VAyFfL`.
 
 ### S5 contract side (2026-11-08, `pets-v5`, CLI signing with a real limited access key; the ESP32 part is Role 4)
@@ -614,7 +616,7 @@ cargo near build non-reproducible-wasm             # cargo-near 0.23; output in 
 ./scripts/deploy-shirts.sh
 ./scripts/dev-grow.sh <pet_id> <xp> [demo]         # dev cheat: admin adds XP past the daily cap (Teen 100, Adult 500)
 ./scripts/add-brain-keys.sh <contract> <pk>...       # brain function-call keys (public keys from the brain), once per pets contract
-./scripts/seed-demo.sh                             # demo pets in each state (owner nearling-seed.testnet)
+./scripts/seed-demo.sh                             # demo pets in each state (owner seed.<parent>, hatched)
 
 # brain
 pnpm --filter brain dev

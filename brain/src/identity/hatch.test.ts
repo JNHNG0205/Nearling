@@ -4,7 +4,7 @@ import { createApp } from "../app";
 import { issueSession } from "../auth/guard";
 import { TEST_PET, testDeps } from "../test/deps";
 
-const REF = "pets-v8.nearling.testnet:1";
+const REF = "pets.petto.testnet:1";
 const egg = { ...TEST_PET, stage: 0 };
 
 async function setup() {

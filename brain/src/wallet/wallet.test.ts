@@ -6,7 +6,7 @@ import { testDeps } from "../test/deps";
 import type { NearRpc, TxStatus } from "./rpc";
 import { APPROVAL_TTL_MS, checkApprovalTx, walletModule, type ApprovalRow } from "./wallet";
 
-const C = "pets-v8.nearling.testnet";
+const C = "pets.petto.testnet";
 const REF = `${C}:1`;
 const NEAR = 10n ** 24n;
 const H1 = "4z9Lq8rB7nVtJbT3oLz2YkWm5sXqFv1hCdEaPgR6uNi";

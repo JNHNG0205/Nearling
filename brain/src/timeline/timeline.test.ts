@@ -6,7 +6,7 @@ import { TEST_PET, testDeps } from "../test/deps";
 import { type Fetch, parseTx, type RawTx } from "./indexer";
 import { diffSnapshot, runTimelineTail, type Snapshot } from "./timeline";
 
-const C = "pets-v8.nearling.testnet";
+const C = "pets.petto.testnet";
 const REF = `${C}:1`;
 const NOW = 1_800_000_000_000; // testDeps clock (ms)
 const ns = (ms: number) => (BigInt(ms) * 1_000_000n).toString();
@@ -36,8 +36,8 @@ const OLD = NOW - 3_600_000; // settled
 const TXS: RawTx[] = [
   tx("MINT", "alice.testnet", OLD, [{ id: "r1", logs: [log("nep171", "nft_mint", [{ owner_id: "alice.testnet", token_ids: ["1"] }]), log("nearling", "soul_updated", [{ pet_id: "1", version: 1, prompt: "secret-ish soul" }])] }]),
   tx("FEED", "bob.testnet", OLD + 1000, [{ id: "r2", logs: [log("nearling", "fed", [{ pet_id: "1", by: "bob.testnet", amount: "500000000000000000000000" }])] }]),
-  tx("CHARGE1", "brain.nearling.testnet", OLD + 2000, [{ id: "r3", logs: [log("nearling", "thought", [{ pet_id: "1", cost_micro: 1000, usage_ref: "u1", source: "food" }])] }]),
-  tx("CHARGE2", "brain.nearling.testnet", OLD + 3000, [{ id: "r4", logs: [log("nearling", "thought", [{ pet_id: "1", cost_micro: 1000, usage_ref: "u2", source: "food" }])] }]),
+  tx("CHARGE1", "brain.petto.testnet", OLD + 2000, [{ id: "r3", logs: [log("nearling", "thought", [{ pet_id: "1", cost_micro: 1000, usage_ref: "u1", source: "food" }])] }]),
+  tx("CHARGE2", "brain.petto.testnet", OLD + 3000, [{ id: "r4", logs: [log("nearling", "thought", [{ pet_id: "1", cost_micro: 1000, usage_ref: "u2", source: "food" }])] }]),
   // stake: the event is in the callback receipt; the pool receipt and a failed receipt are ignored
   tx("STAKE", "alice.testnet", OLD + 4000, [
     { id: "r5", logs: [] },
@@ -78,8 +78,8 @@ describe("timeline event parsing", () => {
       ["minted", REF, "alice.testnet", null, "MINT", "r1", 0],
       ["soul_updated", REF, "alice.testnet", "1", "MINT", "r1", 1],
       ["fed", REF, "bob.testnet", "500000000000000000000000", "FEED", "r2", 0],
-      ["thought", REF, "brain.nearling.testnet", "1000", "CHARGE1", "r3", 0],
-      ["thought", REF, "brain.nearling.testnet", "1000", "CHARGE2", "r4", 0],
+      ["thought", REF, "brain.petto.testnet", "1000", "CHARGE1", "r3", 0],
+      ["thought", REF, "brain.petto.testnet", "1000", "CHARGE2", "r4", 0],
       ["staked", REF, "alice.testnet", "1000000000000000000000000", "STAKE", "r7", 0],
     ]);
     expect(JSON.stringify(parseTx(TXS[0]!, C))).not.toContain("secret-ish soul");
@@ -187,9 +187,9 @@ describe("timeline after a redeploy on the same account", () => {
     const ins = deps.db.prepare(
       "INSERT INTO pet_event (pet_ref, kind, actor, amount, tx_hash, source, block_ts) VALUES (?, 'minted', ?, NULL, ?, 'event', ?)",
     );
-    ins.run("pets-v8.nearling.testnet:1", "old-owner.testnet", "OLDTX", born - 86_400_000); // previous deploy
-    ins.run("pets-v8.nearling.testnet:1", "alice.testnet", "NEWTX", born);
-    const res = await createApp(deps).request("/pets/pets-v8.nearling.testnet:1/timeline");
+    ins.run("pets.petto.testnet:1", "old-owner.testnet", "OLDTX", born - 86_400_000); // previous deploy
+    ins.run("pets.petto.testnet:1", "alice.testnet", "NEWTX", born);
+    const res = await createApp(deps).request("/pets/pets.petto.testnet:1/timeline");
     const items = (await res.json()) as TimelineItem[];
     expect(items.map((i) => i.tx_hash)).toEqual(["NEWTX"]);
   });

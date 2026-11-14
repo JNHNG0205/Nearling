@@ -1,8 +1,8 @@
-# Contract interface (pets-v9, 2026-11-11)
+# Contract interface (pets-v9 code on petto.testnet, 2026-11-14)
 
 Quick reference for the brain, web and device. Full rules: `CLAUDE.md` 6 and 7. Scope: hybrid, `CLAUDE.md` 1.1. Machine-readable ABIs (method names, argument and return types): [`docs/abi/petto_pets_abi.json`](abi/petto_pets_abi.json), [`docs/abi/petto_shirts_abi.json`](abi/petto_shirts_abi.json).
 
-**Live on testnet:** `pets-v9.nearling.testnet` (current, `PETS_CONTRACT`), `pets-demo-v9.nearling.testnet` (same code, about 100× speed, `config.demo_speed = true`, label it "demo speed", `DEMO_PETS_CONTRACT`), `shirts.nearling.testnet` (`SHIRTS_CONTRACT`). Seeded by `scripts/seed-demo.sh`: `pets-v9` #1 Happy, #2 Hungry, #3 Starving, #4 Happy and self-sustaining (owner `nearling-seed.testnet`; #0 is the v9 smoke-test pet); `pets-demo-v9` #0 Blink (starving about 14 min after the seed, dormant about 43 min later). `pets-v8` and `pets-demo` still run the older code until clients switch; do not use them for new pets.
+**Live on testnet:** `pets.petto.testnet` (current, `PETS_CONTRACT`), `pets-demo.petto.testnet` (same code, about 100× speed, `config.demo_speed = true`, label it "demo speed", `DEMO_PETS_CONTRACT`), `shirts.petto.testnet` (`SHIRTS_CONTRACT`). Seeded by `scripts/seed-demo.sh` (owner `seed.petto.testnet`, all hatched): `pets` #0 Sunny Happy, #1 Crumb Hungry, #2 Echo Starving, #3 Sprout Happy and self-sustaining (2 NEAR staked); `pets-demo` #0 Blink (starving about 14 min after the seed, dormant about 43 min later). The earlier `*.nearling.testnet` contracts (`pets-v9`, `pets-demo-v9`, `shirts`) still run but are no longer used; their events carry the standard `nearling`, the new ones `petto`.
 
 **Names (2026-11-14):** the pets collection is "Petto" (`PETTO`), the shirts collection "Petto Shirts" (`PSHIRT`); the code was redeployed in place, so ids, pets and state are unchanged. The event standard stays `nearling` and the accounts keep `nearling.testnet`.
 
@@ -54,7 +54,7 @@ Quick reference for the brain, web and device. Full rules: `CLAUDE.md` 6 and 7. 
 | `credit(pet_id, micro_usd, ref)` | 30 Tgas | Capped correction. `credited`. `E_CREDIT_CAP` |
 | `set_metadata(pet_id, media, media_hash, reference, reference_hash)` | 30 Tgas | Points the NFT at the pinned PNG and public JSON. Links `ipfs://`, ≤ 256 bytes; hashes base64 of 32 bytes (sha256); one update per pet per 60 s. `metadata_updated { pet_id, media, reference }`. `E_METADATA`, `E_COOLDOWN` |
 
-The brain signs these with function-call keys on `brain.nearling.testnet` (receiver = one pets contract, methods `charge, credit, sweep_credit, set_metadata`), added by `scripts/add-brain-keys.sh` from public keys the brain generates.
+The brain signs these with function-call keys on `brain.petto.testnet` (receiver = one pets contract, methods `charge, credit, sweep_credit, set_metadata`), added by `scripts/add-brain-keys.sh` from public keys the brain generates.
 
 ### Admin (`config.admin`)
 

@@ -10,7 +10,7 @@ import { testDeps } from "../test/deps";
 import { receiptsModule } from "./receipts";
 
 const MODEL = "openai/gpt-oss-120b";
-const PET = "pets-v8.nearling.testnet:1";
+const PET = "pets.petto.testnet:1";
 const BASE = "https://cloud-stg-api.near.ai/v1";
 // Recorded-style exchange; these exact strings must never reach the DB.
 const RAW_REQ = '{"model":"openai/gpt-oss-120b","messages":[{"role":"user","content":"SECRET-REQ-hello Mochi"}]}';
@@ -232,7 +232,7 @@ describe("receipt routes", () => {
     );
     for (let i = 0; i < 22; i++) add.run(`pub-${i}`, PET, MODEL, 1, 1000 + i, 1000 + i);
     add.run("private-1", PET, MODEL, 0, 5000, 5000);
-    add.run("other-pet", "pets-v8.nearling.testnet:2", MODEL, 1, 6000, 6000);
+    add.run("other-pet", "pets.petto.testnet:2", MODEL, 1, 6000, 6000);
     const app = createApp(deps, [receiptsModule]);
 
     const res = await app.request(`/pets/${PET}/receipts?public=1`);

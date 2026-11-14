@@ -8,15 +8,15 @@ const Env = z.object({
     .string()
     .default("https://test.rpc.fastnear.com,https://rpc.testnet.near.org")
     .transform((s) => s.split(",").map((u) => u.trim()).filter(Boolean)),
-  PETS_CONTRACT: z.string().default("pets-v8.nearling.testnet"),
-  DEMO_PETS_CONTRACT: z.string().default("pets-demo.nearling.testnet"),
+  PETS_CONTRACT: z.string().default("pets.petto.testnet"),
+  DEMO_PETS_CONTRACT: z.string().default("pets-demo.petto.testnet"),
   PORT: z.coerce.number().int().default(8787),
   DB_PATH: z.string().default("./data/nearling.db"),
   /** 32 bytes, base64. Required outside tests; generate with `openssl rand -base64 32`. */
   MEMORY_MASTER_KEY: z.string().optional(),
   WEB_ORIGIN: z.string().default("http://localhost:3000"),
   PUBLIC_WEB_URL: z.string().default("http://localhost:3000"), // Hatch & Pair QR: `${PUBLIC_WEB_URL}/hatch?t=<token>`
-  SHIRTS_CONTRACT: z.string().default("shirts.nearling.testnet"),
+  SHIRTS_CONTRACT: z.string().default("shirts.petto.testnet"),
   /** HS256 secret for owner sessions, base64. Required outside tests. */
   SESSION_JWT_SECRET: z.string().default("dev-only-insecure-session-secret-change-me"),
   /** NEAR AI Cloud, OpenAI-compatible (CLAUDE.md 8.1). Staging for the hackathon. */
@@ -62,7 +62,7 @@ const Env = z.object({
   FISH_AUDIO_MODEL: z.string().default("s2.1-pro-free"),
   /** Kokoro only: OpenAI-compatible base URL of the self-hosted container. */
   TTS_BASE_URL: z.string().default("http://localhost:8880/v1"),
-  BRAIN_ACCOUNT_ID: z.string().default("brain.nearling.testnet"),
+  BRAIN_ACCOUNT_ID: z.string().default("brain.petto.testnet"),
   BRAIN_KEYS: z
     .string()
     .default("")

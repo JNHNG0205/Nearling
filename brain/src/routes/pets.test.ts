@@ -9,8 +9,8 @@ import { createTalk } from "../talk/talk";
 import { TEST_PET, testDeps } from "../test/deps";
 import { petsModule } from "./pets";
 
-const C = "pets-v8.nearling.testnet";
-const DEMO = "pets-demo.nearling.testnet";
+const C = "pets.petto.testnet";
+const DEMO = "pets-demo.petto.testnet";
 const REF = `${C}:1`;
 
 async function setup() {

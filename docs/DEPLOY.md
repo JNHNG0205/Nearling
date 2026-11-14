@@ -82,10 +82,10 @@ Environment variables (Production; `NEXT_PUBLIC_*` are baked in at build time, s
 |---|---|
 | `NEXT_PUBLIC_BRAIN_URL` | `https://nearling-brain.fly.dev` (no trailing slash) |
 | `NEXT_PUBLIC_NEAR_NETWORK` | `testnet` |
-| `NEXT_PUBLIC_PETS_CONTRACT` | `pets-v8.nearling.testnet` |
-| `NEXT_PUBLIC_DEMO_PETS_CONTRACT` | `pets-demo.nearling.testnet` |
-| `NEXT_PUBLIC_SHIRTS_CONTRACT` | `shirts.nearling.testnet` |
-| `NEXT_PUBLIC_DEMO_PET_REF` | the landing page's live demo pet, e.g. `pets-demo.nearling.testnet:0` (pick a seeded pet that exists) |
+| `NEXT_PUBLIC_PETS_CONTRACT` | `pets.petto.testnet` |
+| `NEXT_PUBLIC_DEMO_PETS_CONTRACT` | `pets-demo.petto.testnet` |
+| `NEXT_PUBLIC_SHIRTS_CONTRACT` | `shirts.petto.testnet` |
+| `NEXT_PUBLIC_DEMO_PET_REF` | the landing page's live demo pet, e.g. `pets-demo.petto.testnet:0` (pick a seeded pet that exists) |
 | `NEXT_PUBLIC_RPC_URL` | optional, default `https://test.rpc.fastnear.com` |
 
 With the CLI instead of the dashboard:
@@ -129,8 +129,8 @@ fly secrets set --app nearling-brain \
 B=https://nearling-brain.fly.dev
 W=https://<your-app>.vercel.app
 
-curl -s $B/health                                    # {"ok":true,"network":"testnet","pets":"pets-v8.nearling.testnet"}
-curl -s "$B/pets/$(printf 'pets-v8.nearling.testnet:1' | jq -sRr @uri)/state" | head -c 400   # seeded pet #1 state
+curl -s $B/health                                    # {"ok":true,"network":"testnet","pets":"pets.petto.testnet"}
+curl -s "$B/pets/$(printf 'pets.petto.testnet:1' | jq -sRr @uri)/state" | head -c 400   # seeded pet #1 state
 curl -s -o /dev/null -w '%{http_code}\n' -H "Origin: $W" -X OPTIONS "$B/health" -H 'Access-Control-Request-Method: GET'   # 204
 curl -s -D - -o /dev/null -H "Origin: $W" $B/health | grep -i access-control-allow-origin   # echoes $W
 curl -s $B/feed/packs                                # packs and enabled modes

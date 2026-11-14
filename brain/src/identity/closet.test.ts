@@ -5,7 +5,7 @@ import type { Chain } from "../chain/near";
 import { getProfile } from "../profiles";
 import { testDeps } from "../test/deps";
 
-const PET = "pets-v8.nearling.testnet:1";
+const PET = "pets.petto.testnet:1";
 
 function setup() {
   const deps = testDeps();
@@ -34,7 +34,7 @@ describe("Closet", () => {
     const { req, calls } = setup();
     const res = await req(`/pets/${PET}/closet`);
     expect(await res.json()).toEqual({ shirts: [{ token_id: "0", title: "Petto Shirt", costume: null }], equipped: null });
-    expect(calls[0]).toEqual(["shirts.nearling.testnet", "nft_tokens_for_owner", { account_id: "alice.testnet", from_index: "0", limit: 100 }]);
+    expect(calls[0]).toEqual(["shirts.petto.testnet", "nft_tokens_for_owner", { account_id: "alice.testnet", from_index: "0", limit: 100 }]);
   });
 
   it("equips only an owned shirt, and null unequips", async () => {

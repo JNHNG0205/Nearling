@@ -22,7 +22,7 @@ function addTurn(deps: ReturnType<typeof testDeps>, id: string, o: { inf?: strin
   deps.db
     .prepare(
       `INSERT INTO turn (id, pet_ref, owner_account, request_id, channel, status, inference_id, provider_cost_nano, created_at)
-       VALUES (?, 'pets-v8.nearling.testnet:1', 'alice.testnet', ?, 'web', ?, ?, ?, ?)`,
+       VALUES (?, 'pets.petto.testnet:1', 'alice.testnet', ?, 'web', ?, ?, ?, ?)`,
     )
     .run(id, `req-${id}`, o.status ?? "done", o.inf === undefined ? INF(1) : o.inf, o.est === undefined ? 1000 : o.est, o.at ?? NOW - 120_000);
 }
@@ -116,10 +116,10 @@ describe("F6 org balance", () => {
       expect(url).toBe("https://cloud-stg-api.near.ai/v1/organizations/org-1/usage/balance");
       return json({ organization_id: "org-1", remaining, spend_limit: 10_000_000_000, total_spent: 1 });
     });
-    await recordOrgBalance(deps, "pets-v8.nearling.testnet", f as unknown as typeof fetch);
+    await recordOrgBalance(deps, "pets.petto.testnet", f as unknown as typeof fetch);
     remaining = 6_500_000_000;
     t += 1000;
-    await recordOrgBalance(deps, "pets-v8.nearling.testnet", f as unknown as typeof fetch);
+    await recordOrgBalance(deps, "pets.petto.testnet", f as unknown as typeof fetch);
     expect(latestOrgBalance(deps)).toMatchObject({ org_id: "org-1", remaining_nano: 6_500_000_000, fetched_at: NOW + 1000 });
     expect(info).toHaveBeenLastCalledWith("org balance", expect.objectContaining({ delta_nano: 1_500_000_000 }));
   });
@@ -130,7 +130,7 @@ describe("F6 org balance", () => {
     deps.chain.view = (async () => ({ org_id: "00000000-0000-0000-0000-000000000000" })) as typeof deps.chain.view;
     vi.spyOn(log, "warn").mockImplementation(() => undefined);
     const f = vi.fn();
-    expect(await recordOrgBalance(deps, "pets-v8.nearling.testnet", f as unknown as typeof fetch)).toBeNull();
+    expect(await recordOrgBalance(deps, "pets.petto.testnet", f as unknown as typeof fetch)).toBeNull();
     expect(f).not.toHaveBeenCalled();
   });
 });
@@ -170,8 +170,8 @@ describe("O4 alert webhook", () => {
     });
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     setAlertSink(createAlertWebhook("https://hooks.test/x", { fetch: f as unknown as typeof fetch, now: () => t }));
-    log.alert("feeder balance low", { account: "feeder.nearling.testnet", text: "secret chat" });
-    log.alert("feeder balance low", { account: "feeder.nearling.testnet" }); // same message inside 10 min
+    log.alert("feeder balance low", { account: "feeder.petto.testnet", text: "secret chat" });
+    log.alert("feeder balance low", { account: "feeder.petto.testnet" }); // same message inside 10 min
     expect(posts).toHaveLength(1);
     expect(posts[0]!.content).toBe(posts[0]!.text);
     expect(posts[0]!.content).toContain("feeder balance low");
@@ -195,9 +195,9 @@ describe("D7 GET /ops", () => {
 
   it("needs basic auth and reports spend, queues, orders, feeder, attestation, claimable, org balance, credits", async () => {
     const deps = testDeps({ now: () => NOW });
-    deps.cfg = { ...deps.cfg, OPS_USER: "ops", OPS_PASSWORD: "pw", FEEDER_ACCOUNT_ID: "feeder.nearling.testnet", BACKUP_DIR: "/nonexistent-nearling" };
+    deps.cfg = { ...deps.cfg, OPS_USER: "ops", OPS_PASSWORD: "pw", FEEDER_ACCOUNT_ID: "feeder.petto.testnet", BACKUP_DIR: "/nonexistent-nearling" };
     deps.chain.view = (async (_c: string, _m: string, args?: Record<string, unknown>) =>
-      ({ claimable: args?.account_id === "pets-v8.nearling.testnet" ? "123" : "0" })) as typeof deps.chain.view;
+      ({ claimable: args?.account_id === "pets.petto.testnet" ? "123" : "0" })) as typeof deps.chain.view;
     addSpend(deps.db, NOW, 2_000_000, 1000, 500_000);
     addTurn(deps, "t1", { at: NOW });
     deps.db.prepare(
@@ -222,8 +222,8 @@ describe("D7 GET /ops", () => {
       spend_today: { day: utcDay(NOW), provider_usd: 0.002, stt_usd: 0.0005, tts_chars: 1000, tts_usd: 0.05, total_usd: 0.0525, unbilled_turns: 1 },
       charge_queue: { depth: 1, retrying: 1, failed: 0, oldest_pending_age_s: 30 },
       orders: { by_status: { fed: 1 }, feed_retrying: 0 },
-      feeder: { account: "feeder.nearling.testnet", balance_yocto: "5000000000000000000000000" },
-      nearon_claimable: { "pets-v8.nearling.testnet": "123", "pets-demo.nearling.testnet": "0" },
+      feeder: { account: "feeder.petto.testnet", balance_yocto: "5000000000000000000000000" },
+      nearon_claimable: { "pets.petto.testnet": "123", "pets-demo.petto.testnet": "0" },
       org_balance: { org_id: "org-1", remaining_usd: 4 },
       elevenlabs_credits: 9000,
       backups: { last_at: null, count: 0 },

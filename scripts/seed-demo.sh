@@ -8,8 +8,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 set -a; source "$ROOT/.env"; set +a
 
-OWNER="${SEED_OWNER:-nearling-seed.testnet}"
-DEMO="${DEMO_PETS_CONTRACT:-pets-demo-v${PETS_VERSION}.${NEAR_PARENT_ACCOUNT}}"
+OWNER="${SEED_OWNER:-seed.${NEAR_PARENT_ACCOUNT}}"
+DEMO="${DEMO_PETS_CONTRACT:-pets-demo${PETS_VERSION:+-v$PETS_VERSION}.${NEAR_PARENT_ACCOUNT}}"
 RUN="$(date +%s)"   # makes usage_refs unique per run (charge is idempotent on usage_ref)
 
 call() { # signer contract method args gas deposit
@@ -46,6 +46,10 @@ HUNGRY=$(mint "$PETS_CONTRACT" '0.2 NEAR' Crumb 'A snack-obsessed fox who measur
 STARVING=$(mint "$PETS_CONTRACT" '0.2 NEAR' Echo 'A quiet echo spirit who repeats your best jokes.')
 RICH=$(mint "$PETS_CONTRACT" '0.2 NEAR' Sprout 'A patient sprout who grows on staking yield.')
 
+for id in "$HAPPY" "$HUNGRY" "$STARVING" "$RICH"; do  # Babies, not eggs (CLAUDE.md 5.4 hatching)
+  call "$OWNER" "$PETS_CONTRACT" hatch "{\"pet_id\":\"$id\"}" '30 Tgas' '0 NEAR' >/dev/null
+done
+
 # Starter food is 0.1 NEAR = $0.02 = 20_000 micro-USD at the testnet rate.
 spend "$HUNGRY" 19000      # leaves $0.001: under 40 fullness, Hungry
 spend "$STARVING" 20000    # empty: Starving (Low Fuel), dormant 72 h later
@@ -53,6 +57,7 @@ call "$OWNER" "$PETS_CONTRACT" stake "{\"pet_id\":\"$RICH\"}" '450 Tgas' '2 NEAR
 
 echo "Seeding $DEMO (demo speed)..."
 DORMANT=$(mint "$DEMO" '0.105 NEAR' Blink 'A sleepy comet who naps between galaxies.')
+call "$OWNER" "$DEMO" hatch "{\"pet_id\":\"$DORMANT\"}" '30 Tgas' '0 NEAR' >/dev/null
 
 echo
 echo "$PETS_CONTRACT"
