@@ -10,6 +10,7 @@ export const COSTUME_KEYS = [
   "striped_shirt", "headphones", "detective", "ninja", "devil_wings", "chef_hat", "astronaut", "clown", "cyborg",
   "explorer", "bow_tie", "crown", "fairy_wings", "graduate", "viking", "raincoat", "volcano", "mummy",
   "tuxedo", "ghost", "knight", "angel", "superhero", "cowboy", "party_hat", "sweater", "ice_crystal",
+  "ceo", "spy",
 ] as const;
 export type CostumeKey = (typeof COSTUME_KEYS)[number];
 
@@ -284,6 +285,60 @@ const DRAW: Record<CostumeKey, Draw> = {
       }
     }
     ellipse(back, g.cx, g.cy + 1, g.rx + 2, g.ry + 1, 14);
+  },
+  ceo: ({ front }, g) => {
+    const cx = Math.round(g.cx);
+    // grey swept fringe: covers the crown, sweeps lower on the left, white highlights
+    for (let y = g.top - 1; y < g.ey - 1; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        if (!inBody(g, x, y, 0.5)) continue;
+        if (y === g.ey - 2 && x > cx - 2) continue;
+        px(front, x, y, (x + 2 * y) % 7 === 0 || y === g.top - 1 ? 2 : 13);
+      }
+    }
+    // square black frames with green between frame and eye (eyes are 2 px at cx -/+ eyeGap), and a bridge
+    const frames = [cx - g.eyeGap - 3, cx + g.eyeGap - 2];
+    for (const ex of frames) {
+      rect(front, ex, g.ey - 2, 6, 1, 1);
+      rect(front, ex, g.ey + 3, 6, 1, 1);
+      rect(front, ex, g.ey - 1, 1, 4, 1);
+      rect(front, ex + 5, g.ey - 1, 1, 4, 1);
+    }
+    for (let x = frames[0]! + 6; x < frames[1]!; x++) px(front, x, g.ey, 1);
+    // black leather jacket, grey lapels, navy shirt down the middle
+    const top = chest(g);
+    torso(front, g, top, (x, y) => {
+      const d = Math.abs(x + 0.5 - g.cx);
+      const open = 1 + (y - top) * 0.35;
+      if (d <= open) return 8;
+      if (d <= open + 1) return 13;
+      return (x + y) % 6 === 0 ? 13 : 1;
+    });
+  },
+  spy: ({ back, front }, g) => {
+    // long brown hair behind the body: a wide curtain from the crown to below the shoulders
+    for (let y = g.top - 2; y < g.cy + g.ry * 0.55; y++) {
+      for (let x = 0; x < SIZE; x++) if (inBody(g, x, y, 3.5)) px(back, x, y, 11);
+    }
+    // plain fringe over the crown with a side part, and strands down the face edges
+    const part = Math.round(g.cx) + 2;
+    for (let y = g.top - 1; y < g.ey + 4; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        if (!inBody(g, x, y, 0.5)) continue;
+        const crown = y < g.ey - 1 - (x > part ? 1 : 0);
+        if (crown || !inBody(g, x, y, -1)) px(front, x, y, crown && x === part && y < g.ey - 3 ? 12 : 11);
+      }
+    }
+    // white earrings
+    px(front, Math.round(g.cx - g.rx), g.ey + 3, 2);
+    px(front, Math.round(g.cx + g.rx) - 1, g.ey + 3, 2);
+    // red qipao: gold collar, gold pattern, white flowers
+    const top = chest(g);
+    torso(front, g, top, (x, y) => {
+      if (y === top && Math.abs(x + 0.5 - g.cx) <= 2) return 15;
+      if ((x + 3 * y) % 11 === 0) return 2;
+      return (2 * x + y) % 5 === 0 ? 15 : 3;
+    });
   },
 };
 

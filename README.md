@@ -10,7 +10,7 @@
     <a href="docs/hardware/"><img src="https://img.shields.io/badge/Device-ESP32--S3-E7352C?style=flat-square" alt="Device: ESP32-S3" /></a>
   </p>
   <p>Every word your pet says is a private AI thought, paid on chain from its own NEAR wallet. Feed it and it chats, forget it and it goes quiet, stake for it and the yield keeps it fed.</p>
-  <img src="docs/readme-banner.png" alt="One Petto in each of the 36 Closet costumes, drawn by the app's own sprite code" width="800" />
+  <img src="docs/readme-banner.png" alt="One Petto in each of the 38 Closet costumes, drawn by the app's own sprite code" width="800" />
   <p>
     <a href="#try-it-do-x-see-y">Try it</a> &middot;
     <a href="#architecture">Architecture</a> &middot;
@@ -111,7 +111,7 @@ Editable source: [`docs/architecture.drawio`](docs/architecture.drawio) (open in
 | Feature | What you see | How it works |
 |---|---|---|
 | **Feed the Brain** | Snack / Meal / Feast packs; anyone can feed any pet | `feed(pet)` from your wallet; NEAR Intents (pay from another chain) when enabled, dry quotes by default |
-| **Closet and Shop** | Claim a free shirt; tap any of 36 costumes to try it on your pet, buy it for 0.05 NEAR | Shirts contract `shirts.petto.testnet`: `claim()` (free shirt) and `buy(costume)` (0.05 NEAR); each item is a NEP-171 NFT you own and can gift |
+| **Closet and Shop** | Claim a free shirt; tap any of 38 costumes to try it on your pet, buy it for 0.05 NEAR | Shirts contract `shirts.petto.testnet`: `claim()` (free shirt) and `buy(costume)` (0.05 NEAR); each item is a NEP-171 NFT you own and can gift |
 | **Petto Run** | Two-lane race against a friend, browser or device | Deterministic rules shared by web and firmware (golden vectors); the brain replays inputs to pick the winner |
 | **Care and evolution** | Pat, rock and lights off; the pet grows wings | Device sensors (touch, motion, light) or web buttons; care is local, no transaction |
 | **Public pet page** | `/p/<pet>`: timeline, receipts, "Feed this pet" | No wallet needed: the link to share |

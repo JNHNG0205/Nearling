@@ -71,7 +71,7 @@ The brain signs these with function-call keys on `brain.petto.testnet` (receiver
 | Method | Caller | Deposit | Gas | Notes |
 |---|---|---|---|---|
 | `claim()` | anyone, once per account | 0.01 NEAR (excess refunded) | 30 Tgas | Returns the token id. `nft_mint`. `E_CLAIMED`, `E_DEPOSIT` |
-| `buy(costume)` | anyone, any number | exactly 0.05 NEAR (kept by the contract) | 30 Tgas | One of the 36 keys in `costumes()`. Returns the token id; `metadata.extra` = `{"costume":"<key>"}`. `nft_mint`. `E_COSTUME`, `E_DEPOSIT` |
+| `buy(costume)` | anyone, any number | exactly 0.05 NEAR (kept by the contract) | 30 Tgas | One of the 38 keys in `costumes()`. Returns the token id; `metadata.extra` = `{"costume":"<key>"}`. `nft_mint`. `E_COSTUME`, `E_DEPOSIT` |
 | `costumes()` | view | | | `{ costumes: string[], price: "<yocto>" }` |
 | `nft_transfer(receiver_id, token_id)` | owner | 1 yocto | 30 Tgas | Ownership follows the wallet; re-check `nft_tokens_for_owner` when the Closet syncs |
 | `nft_tokens_for_owner(account_id)` and other NEP-171 / 181 views | anyone | | | Collection "Petto Shirts" (`PSHIRT`); new tokens titled "Petto Shirt" (the first 3 claims keep "Nearling Shirt") |

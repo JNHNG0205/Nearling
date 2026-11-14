@@ -6,7 +6,7 @@ import { COSTUME_KEYS, SIZE, buildPalette, clip, toRgba } from "../src/index";
 import { encodePng } from "../src/png";
 
 const out = process.argv[2] ?? "../../docs/readme-banner.png";
-const COLS = 9;
+const COLS = 10;
 const SCALE = 4;
 const CELL = SIZE * SCALE + 24;
 const PAD = 32;
@@ -20,7 +20,9 @@ const traits = [0, 0, 1, 0, 0]; // mint, belly: the colour of the logo's pets
 COSTUME_KEYS.forEach((costume, n) => {
   const c = clip("idle", { stage: "teen", winged: false, costume });
   const rgba = toRgba(c.frames[0]!, buildPalette(traits), null, c.costume![0]);
-  const ox = PAD + (n % COLS) * CELL + 12;
+  const row = Math.floor(n / COLS);
+  const inRow = Math.min(COLS, COSTUME_KEYS.length - row * COLS); // the last row is centred
+  const ox = PAD + ((COLS - inRow) * CELL) / 2 + (n % COLS) * CELL + 12;
   const oy = PAD + Math.floor(n / COLS) * CELL + 12;
   for (let y = 0; y < SIZE * SCALE; y++) {
     for (let x = 0; x < SIZE * SCALE; x++) {
