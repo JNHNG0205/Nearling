@@ -1,5 +1,6 @@
 // Draws one frame of a Petto from a pose. Pure function: same pose, same pixels,
 // so web, brain and the firmware export always agree.
+import type { CostumeGeom } from "./costumes";
 import { C, SHIRT, SIZE, blank, ellipse, get, outline, px, rect, stamp, type Bitmap } from "./raster";
 
 export type Eyes = "open" | "blink" | "closed" | "happy" | "dizzy" | "up" | "half" | "sad" | "big" | "left" | "right";
@@ -184,7 +185,7 @@ export function drawPet(pose: Pose, look: PetLook): PetLayers {
   // the shirt layer leaves a hole wherever the face or an effect was drawn, so
   // "frame, then shirt where non-zero" gives body < shirt < face < effects
   for (let i = 0; i < b.length; i++) if (b[i] !== beforeFace[i]) shirt[i] = SHIRT.clear;
-  return { frame: b, shirt };
+  return { frame: b, shirt, geom: { cx, cy, rx, ry, top, ey, eyeGap, ground: GROUND, wingUp: pose.wingUp } };
 }
 
 const BODY_PIXELS: ReadonlySet<number> = new Set([C.body, C.shade, C.light, C.belly, C.spot]);
@@ -193,6 +194,8 @@ export interface PetLayers {
   frame: Bitmap;
   /** Shirt overlay (raster.ts `SHIRT` indices), drawn over `frame` where non-zero. */
   shirt: Bitmap;
+  /** Where the body is in this frame, for costume layers (costumes.ts). */
+  geom: CostumeGeom;
 }
 
 export interface EggPose {
