@@ -58,6 +58,29 @@ function implicitFallback(provider: Provider): Provider {
   } as unknown as Provider;
 }
 
+/**
+ * Access-key lookups over several RPCs: public testnet RPCs rate-limit (HTTP 429) and drop requests,
+ * and one failed lookup used to fail the whole sign-in. Two rounds, like chain/near.ts.
+ */
+export function keyFailover(providers: Pick<Provider, "viewAccessKey">[]): Provider {
+  return {
+    viewAccessKey: async (args: Parameters<Provider["viewAccessKey"]>[0]) => {
+      let last: unknown;
+      for (let round = 0; round < 2; round++) {
+        if (round > 0) await new Promise((ok) => setTimeout(ok, 300));
+        for (const p of providers) {
+          try {
+            return await p.viewAccessKey(args);
+          } catch (err) {
+            last = err;
+          }
+        }
+      }
+      throw last;
+    },
+  } as unknown as Provider;
+}
+
 const SessionBody = z.object({
   accountId: z.string().regex(/^[a-z0-9._-]{2,64}$/),
   publicKey: z.string().min(1).max(200),
@@ -82,7 +105,7 @@ export function decodeSignature(s: string): Uint8Array | null {
 
 export function authRoutes(deps: Deps, verifier?: Nep413Verifier) {
   const { db, now } = deps;
-  const verify = verifier ?? nep413Verifier(new JsonRpcProvider({ url: deps.cfg.NEAR_RPC_URLS[0]! }));
+  const verify = verifier ?? nep413Verifier(keyFailover(deps.cfg.NEAR_RPC_URLS.map((url) => new JsonRpcProvider({ url }, { retries: 1 }))));
   const app = new Hono();
 
   app.get("/auth/nonce", (c) => {

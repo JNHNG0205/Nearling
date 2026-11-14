@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEMO_PETS_CONTRACT,
   eventData,
+  firstAnswer,
   formatNear,
   GAS,
   nearToThoughts,
@@ -217,5 +218,27 @@ describe("device key and approval tx builders", () => {
     expect(fc(tx.proposeAction(PETS_CONTRACT, "3", "Withdraw"))).toMatchObject({ args: { pet_id: "3", action: "Withdraw" } });
     expect(fc(tx.cancelAction(PETS_CONTRACT, "9"))).toMatchObject({ methodName: "cancel_action", args: { action_id: "9" }, deposit: "0" });
     expect(GAS.approve).toBe(450n * 1_000_000_000_000n);
+  });
+});
+
+describe("RPC failover", () => {
+  it("moves to the next RPC when one is rate limited, and gives up only when all fail", async () => {
+    const calls: string[] = [];
+    const answer = await firstAnswer(["a", "b"], async (p) => {
+      calls.push(p);
+      if (p === "a") throw new Error("429 Too Many Requests");
+      return 42;
+    });
+    expect(answer).toBe(42);
+    expect(calls).toEqual(["a", "b"]);
+    await expect(firstAnswer(["a", "b"], async () => { throw new Error("fetch failed"); })).rejects.toThrow("fetch failed");
+  });
+
+  it("does not retry real answers: contract panics and missing accounts", async () => {
+    for (const msg of ["Smart contract panicked: E_UNKNOWN_PET: no such pet", "account x does not exist while viewing"]) {
+      let n = 0;
+      await expect(firstAnswer(["a", "b"], async () => { n++; throw new Error(msg); })).rejects.toThrow(msg);
+      expect(n).toBe(1);
+    }
   });
 });

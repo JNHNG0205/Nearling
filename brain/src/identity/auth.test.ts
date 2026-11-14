@@ -3,7 +3,7 @@ import { KeyPair, KeyPairSigner, baseEncode, type Provider } from "near-api-js";
 import { NEP413_MESSAGE, NEP413_RECIPIENT } from "@petto/shared";
 import { createApp } from "../app";
 import { testDeps } from "../test/deps";
-import { authRoutes, decodeSignature, nep413Verifier, type Nep413Verifier } from "./auth";
+import { authRoutes, decodeSignature, keyFailover, nep413Verifier, type Nep413Verifier } from "./auth";
 
 const post = (body: unknown) => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
@@ -75,6 +75,17 @@ describe("nep413Verifier", () => {
     await expect(
       nep413Verifier(provider("FullAccess"))({ accountId: "alice.testnet", publicKey: key.getPublicKey().toString(), signature: signed.signature, nonce }),
     ).resolves.toBeUndefined();
+  });
+
+  it("still signs you in when the first RPC is rate limited: the next one answers", async () => {
+    const limited = { viewAccessKey: async () => { throw new Error("429 Too Many Requests"); } } as unknown as Provider;
+    const signed = await sign();
+    await expect(
+      nep413Verifier(keyFailover([limited, provider("FullAccess")]))({
+        accountId: "alice.testnet", publicKey: key.getPublicKey().toString(), signature: signed.signature, nonce,
+      }),
+    ).resolves.toBeUndefined();
+    await expect(keyFailover([limited, limited]).viewAccessKey({} as never)).rejects.toThrow("429");
   });
 
   it("POST /session accepts base64, ed25519:<base58> and hex signatures (D2)", async () => {

@@ -107,15 +107,36 @@ export function parseNear(input: string): bigint | null {
 
 // ---------- views ----------
 
-let provider: JsonRpcProvider | null = null;
-function rpc(): JsonRpcProvider {
-  provider ??= new JsonRpcProvider({ url: RPC_URL });
-  return provider;
+/** Second RPC when the first rate-limits (FastNEAR answers HTTP 429 to bursts from one IP). */
+const FALLBACK_RPC = "https://rpc.testnet.near.org";
+
+/** A contract panic or a missing account is an answer from the chain, not an outage: never retried. */
+const isAnswer = (err: unknown) => /GuestPanic|\bE_[A-Z_]+:|does not exist|UNKNOWN_ACCOUNT/i.test(String(err));
+
+/** Tries each item in order until one answers; real answers (`isAnswer`) are thrown at once. */
+export async function firstAnswer<P, T>(items: P[], fn: (p: P) => Promise<T>): Promise<T> {
+  let last: unknown;
+  for (const p of items) {
+    try {
+      return await fn(p);
+    } catch (err) {
+      if (isAnswer(err)) throw err;
+      last = err;
+    }
+  }
+  throw last;
+}
+
+let providers: JsonRpcProvider[] | null = null;
+function rpc<T>(fn: (p: JsonRpcProvider) => Promise<T>): Promise<T> {
+  // one quick retry each, then the next RPC (the default backs off several times before giving up)
+  providers ??= [...new Set([RPC_URL, FALLBACK_RPC])].map((url) => new JsonRpcProvider({ url }, { retries: 1 }));
+  return firstAnswer(providers, fn);
 }
 
 export async function view<T>(contractId: string, method: string, args: Record<string, unknown> = {}): Promise<T> {
   // near-api-js returns the JSON-decoded return value
-  return (await rpc().callFunction({ contractId, method, args })) as T;
+  return (await rpc((p) => p.callFunction({ contractId, method, args }))) as T;
 }
 
 export interface PetsConfig {
@@ -192,7 +213,7 @@ export function isAccountId(id: string): boolean {
 /** True when the account exists on testnet (an NFT sent to a missing account is lost). */
 export async function accountExists(accountId: string): Promise<boolean> {
   try {
-    await rpc().viewAccount({ accountId });
+    await rpc((p) => p.viewAccount({ accountId }));
     return true;
   } catch (err) {
     if (/does not exist|UNKNOWN_ACCOUNT/i.test(String(err))) return false;
@@ -203,7 +224,7 @@ export async function accountExists(accountId: string): Promise<boolean> {
 /** Account balance in yocto (`view_account` amount); 0 for an account that does not exist yet. */
 export async function accountBalance(accountId: string): Promise<bigint> {
   try {
-    return BigInt((await rpc().viewAccount({ accountId })).amount);
+    return BigInt((await rpc((p) => p.viewAccount({ accountId }))).amount);
   } catch (err) {
     if (/does not exist|UNKNOWN_ACCOUNT/i.test(String(err))) return 0n;
     throw err;
@@ -212,7 +233,7 @@ export async function accountBalance(accountId: string): Promise<bigint> {
 
 /** Current epoch height (garden unlock check). */
 export async function currentEpoch(): Promise<bigint> {
-  const v = await rpc().viewValidators();
+  const v = await rpc((p) => p.viewValidators());
   return BigInt(v.epoch_height);
 }
 

@@ -40,6 +40,18 @@ export function inSetup(path: string): boolean {
   return SETUP_ROUTES.some((r) => path === r || path.startsWith(`${r}/`));
 }
 
+/** App pages that need a pet of your own. Public pages, setup, pet and feed pages stay open to anyone. */
+const NEEDS_PET = ["/my", "/shop", "/race", "/wallet"];
+
+/**
+ * Where a connected wallet with no pet goes instead of an app page (setup), or null to stay.
+ * `pets` null = the lookup failed: never lock anyone out on a flaky RPC.
+ */
+export function setupGate(o: { path: string; account: string | null; pets: number | null }): string | null {
+  if (!o.account || o.pets === null || o.pets > 0) return null;
+  return NEEDS_PET.some((r) => o.path === r || o.path.startsWith(`${r}/`)) ? "/start" : null;
+}
+
 /** "Connect your Petto" on the pet home: the owner, no device paired, not dismissed. */
 export function showDeviceNudge(o: { isOwner: boolean; paired: boolean; dismissed: boolean }): boolean {
   return o.isOwner && !o.paired && !o.dismissed;

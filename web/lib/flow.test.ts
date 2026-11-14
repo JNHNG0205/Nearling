@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PETS_CONTRACT, petPath } from "./chain";
-import { homeRoute, inSetup, needsYou, setupInProgress, showDeviceNudge, startRedirect } from "./flow";
+import { homeRoute, inSetup, needsYou, setupGate, setupInProgress, showDeviceNudge, startRedirect } from "./flow";
 
 const pet = (tokenId: string, name = `Pet ${tokenId}`) => ({ contract: PETS_CONTRACT, tokenId, name });
 
@@ -96,5 +96,22 @@ describe("inSetup", () => {
 
   it("is false in the app and on look-alike paths", () => {
     for (const p of ["/", "/my", "/shop", "/race", "/pet/x:1", "/starter", "/adopt"]) expect(inSetup(p)).toBe(false);
+  });
+});
+
+describe("setupGate", () => {
+  it("sends a connected wallet with no pet from the app pages to setup", () => {
+    for (const path of ["/my", "/shop", "/race", "/race/ABCD", "/wallet"]) {
+      expect(setupGate({ path, account: "new.testnet", pets: 0 })).toBe("/start");
+    }
+  });
+
+  it("leaves owners, signed-out visitors, unknown pet counts and open pages alone", () => {
+    expect(setupGate({ path: "/shop", account: "old.testnet", pets: 2 })).toBeNull();
+    expect(setupGate({ path: "/shop", account: null, pets: 0 })).toBeNull();
+    expect(setupGate({ path: "/shop", account: "new.testnet", pets: null })).toBeNull(); // lookup failed: never lock out
+    for (const path of ["/", "/start", "/login", "/p/x:1", "/pet/x:1", "/feed/x:1", "/receipt/abc", "/privacy", "/shopping"]) {
+      expect(setupGate({ path, account: "new.testnet", pets: 0 })).toBeNull();
+    }
   });
 });

@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Logo } from "@/components/site/Logo";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
 import { putProfile } from "@/lib/brain";
-import { inSetup } from "@/lib/flow";
+import { inSetup, setupGate } from "@/lib/flow";
 import { loadMyPets } from "@/lib/myPets";
 import { authHeaders, useSession } from "@/lib/session";
+import { useWallet } from "@/lib/wallet";
 
 /**
  * App header (W10): wordmark, Home, Shop, Race, wallet; setup screens (lib/flow.ts inSetup) get no nav. The landing page gets a light, static one
@@ -16,6 +17,7 @@ import { authHeaders, useSession } from "@/lib/session";
  */
 export function SiteHeader() {
   useTimezoneSync();
+  useSetupGate();
   const path = usePathname();
   if (path === "/") {
     return (
@@ -91,4 +93,32 @@ function useTimezoneSync() {
       }
     })();
   }, [session]);
+}
+
+/** Accounts known to own a pet; a zero is never cached, so a pet hatched a moment ago counts at once. */
+const hasPet = new Set<string>();
+
+/**
+ * Setup guard (lib/flow.ts setupGate): a connected wallet with no pet is sent from the app pages
+ * (Home, Shop, Race, Wallet) to setup. A failed pet lookup leaves the page alone.
+ */
+function useSetupGate() {
+  const path = usePathname();
+  const router = useRouter();
+  const account = useWallet().accountId;
+  const session = useSession();
+  useEffect(() => {
+    if (!account || setupGate({ path, account, pets: 0 }) === null || hasPet.has(account)) return;
+    let live = true;
+    loadMyPets(account, session ? authHeaders() : {})
+      .then(({ pets }) => {
+        if (pets.length > 0) hasPet.add(account);
+        const to = setupGate({ path, account, pets: pets.length });
+        if (live && to) router.replace(to);
+      })
+      .catch(() => undefined); // unknown: stay
+    return () => {
+      live = false;
+    };
+  }, [path, account, session, router]);
 }
