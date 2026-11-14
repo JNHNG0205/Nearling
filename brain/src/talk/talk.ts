@@ -201,8 +201,11 @@ export async function runTurn(deps: Deps, ai: NearAi, input: TurnInput): Promise
     } else if (!p.chat) {
       messages.push({
         role: "user",
-        content: `(You tried your tools${p.looked.length ? ` (${p.looked.join(", ")})` : ""} but found no way to do this. Say so honestly in one sentence and suggest checking that tool's setup on the MCP page.)`,
+        content: `(You tried your tools${p.looked.length ? ` (${p.looked.join(", ")})` : ""} but found no way to do this. Nothing was created, booked or sent. Say so honestly in one sentence and suggest checking that tool's setup on the MCP page.)`,
       });
+    } else {
+      // plain chat: the pet must not pretend to be doing a task
+      messages[0]!.content += "\n\nNo task was prepared for this message. Do not say you are creating, booking, sending, checking or looking up anything.";
     }
   }
   // the reply the owner sees (and the receipt covers): always plain words, no tools

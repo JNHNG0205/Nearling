@@ -57,6 +57,8 @@ function toolAi() {
   const ai: NearAi = {
     async chat(messages, o = {}) {
       seen.push({ tools: o.tools, messages });
+      // the real model (Qwen) rejects a system message anywhere but first (HTTP 400)
+      if (messages.slice(1).some((m) => m.role === "system")) throw new Error("system message after the first");
       const fn = o.tools?.[0]?.function.name;
       const proposed = messages.at(-1)!.content.includes("waits for my approval");
       const text = fn ? "" : proposed ? "[excited] I will book that, please approve it below!" : "[happy] All done, it is on your calendar!";
