@@ -102,9 +102,9 @@ function Wizard() {
     <AppFrame title="Set up your Petto" back="/">
       <div className="flex flex-col gap-2">
         <p className="font-display text-sm text-muted">Step {active} of {STEPS.length}</p>
-        <div role="progressbar" aria-label="Setup progress" aria-valuemin={0} aria-valuemax={4} aria-valuenow={done}
-          className="grid grid-cols-4 gap-1">
-          {[0, 1, 2, 3].map((i) => (
+        <div role="progressbar" aria-label="Setup progress" aria-valuemin={0} aria-valuemax={STEPS.length - 1} aria-valuenow={done}
+          className="grid grid-cols-3 gap-1">
+          {[0, 1, 2].map((i) => (
             <span key={i} className={`h-3 border-2 border-line ${i < done ? "bg-accent" : "bg-surface"}`} />
           ))}
         </div>
@@ -136,7 +136,6 @@ function Wizard() {
           );
         })}
       </ol>
-      <DeviceChoice />
     </AppFrame>
   );
 }
@@ -152,8 +151,6 @@ interface StepProps {
 function StepBody({ step, state, update, accountId, signedIn }: StepProps) {
   switch (step) {
     case 1:
-      return <DeviceStep state={state} update={update} />;
-    case 2:
       return (
         <div className="flex flex-col gap-3">
           <p className="text-sm text-muted">
@@ -168,39 +165,17 @@ function StepBody({ step, state, update, accountId, signedIn }: StepProps) {
           )}
         </div>
       );
-    case 3:
+    case 2:
       return accountId && signedIn ? (
         <PetStep accountId={accountId} onChosen={(petRef) => update({ petRef, customised: false })} />
       ) : (
         <p className="text-sm text-muted">Connect your wallet first.</p>
       );
-    case 4:
+    case 3:
       return state.petRef ? <CustomiseStep petRef={state.petRef} onNext={() => update({ customised: true })} /> : null;
-    case 5:
+    case 4:
       return state.petRef ? <HandoffStep state={state} update={update} /> : null;
   }
-}
-
-// ---------- step 1 ----------
-
-function DeviceStep({ state, update }: { state: WizardState; update: (p: Partial<WizardState>) => void }) {
-  return (
-    <div className="flex flex-col gap-4">
-      {state.device === "qr" && state.pairingToken && (
-        <p className="text-sm text-fuel">Your Petto sent you here. You will pair it with your pet in step 5.</p>
-      )}
-      <DeviceOptions
-        onBle={(token) => update({ device: "ble", pairingToken: token })}
-      />
-      <div className="flex flex-col gap-2 border-t-2 border-line pt-4">
-        <h3 className="font-display">No device yet</h3>
-        <p className="text-sm text-muted">The browser Petto has the same pet, chat and fuel. You can pair a device later.</p>
-        <button className="pixel-btn pixel-btn--secondary self-start" onClick={() => update({ device: "browser" })}>
-          Continue in the browser
-        </button>
-      </div>
-    </div>
-  );
 }
 
 /** QR explanation plus Bluetooth discovery where the browser supports it. Used in steps 1 and 5. */
@@ -411,7 +386,7 @@ function CustomiseStep({ petRef, onNext }: { petRef: string; onNext: () => void 
         ))}
       </ul>
       <button className="pixel-btn self-start" onClick={onNext}>
-        Continue to hand-off
+        Next: device or browser
       </button>
     </div>
   );
@@ -423,9 +398,11 @@ function HandoffStep({ state, update }: { state: WizardState; update: (p: Partia
   if (!p) return null;
   const name = pet?.name ?? "your pet";
   const browserLink = (
-    <Link href={petPath(p.contract, p.tokenId)} className="pixel-btn pixel-btn--secondary self-start">
-      Open {name} in the browser
-    </Link>
+    <div className="flex flex-col gap-2 border-t-2 border-line pt-4">
+      <h3 className="font-display">No device? Play in the browser</h3>
+      <p className="text-sm text-muted">The browser Petto has the same pet, chat and fuel. You can pair a device later.</p>
+      <Link href="/my" className="pixel-btn pixel-btn--secondary self-start">Continue in the browser</Link>
+    </div>
   );
 
   if (!pet && !failed) return <Spinner />;
@@ -460,6 +437,7 @@ function HandoffStep({ state, update }: { state: WizardState; update: (p: Partia
         <>
           <p className="text-sm text-muted">No Petto is paired with {name} yet. Pair one to care, chat and approve on the device.</p>
           <DeviceOptions onBle={(token) => update({ device: "ble", pairingToken: token })} />
+          <Link href="/connect-device" className="text-sm text-accent underline">How to connect a device, step by step</Link>
         </>
       )}
       {browserLink}
@@ -467,17 +445,3 @@ function HandoffStep({ state, update }: { state: WizardState; update: (p: Partia
   );
 }
 
-/** Always at the bottom: set up a device now (guide), or carry on in the browser. */
-function DeviceChoice() {
-  return (
-    <div className="flex flex-col gap-2 border-t-2 border-line pt-4">
-      <p className="text-sm text-muted">Have a Petto device? Pair it any time. No device? Your pet lives in the browser too.</p>
-      <div className="flex flex-wrap gap-2">
-        <Link href="/connect-device" className="pixel-btn">Connect device</Link>
-        <Link href="/my" className="pixel-btn pixel-btn--secondary">
-          Continue without a device
-        </Link>
-      </div>
-    </div>
-  );
-}
