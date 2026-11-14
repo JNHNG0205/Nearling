@@ -25,7 +25,8 @@ export function privyManifest(origin: string) {
     icon: `${origin}/wallet-email.svg`,
     description: "Sign in with email or Google. Petto makes you a NEAR testnet account.",
     website: origin,
-    version: "0.0.8",
+    // NEAR Connect caches the executor per `id:version`: bump the suffix whenever public/privy-executor.js changes
+    version: "0.0.8-petto.1",
     executor: `${origin}/privy-executor.js`,
     type: "sandbox" as const,
     platform: [] as string[],
