@@ -80,6 +80,17 @@ export function nearToThoughts(yocto: string | bigint, nearUsdRateMicro: number,
   return Number((BigInt(yocto) * BigInt(nearUsdRateMicro)) / (10n ** 24n * BigInt(fuelPriceMicro)));
 }
 
+/** Thoughts per day the Garden pays for beyond staying alive: (daily credit - metabolism) / fuel price. */
+export function spareThoughtsPerDay(dailyCreditMicro: number, metabolismMicro: number, fuelPriceMicro: number): number {
+  if (fuelPriceMicro <= 0) return 0;
+  return Math.max(0, dailyCreditMicro - metabolismMicro) / fuelPriceMicro;
+}
+
+/** What `withdraw` pays the owner: the unstaked amount plus the pool unstake deposit (pets-v9). */
+export function withdrawTotal(pending: NonNullable<PetView["pending_unstake"]>): bigint {
+  return BigInt(pending.amount) + BigInt(pending.deposit ?? "0");
+}
+
 /** Parses a user-typed NEAR amount ("1", "0.5"). Null when invalid or not positive. */
 export function parseNear(input: string): bigint | null {
   const t = input.trim();
@@ -110,6 +121,7 @@ export interface PetsConfig {
   starter_food: string;
   min_stake: string;
   fuel_price_micro: number;
+  metabolism_micro_per_day: number;
   near_usd_rate_micro: number;
   farm_rate_micro_per_near_day: number;
   demo_speed: boolean;

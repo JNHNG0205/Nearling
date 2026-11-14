@@ -8,7 +8,17 @@ import { PetPage } from "@/components/wallet/PetPage";
 import { ErrorText, Panel, TxStatus } from "@/components/wallet/ui";
 import type { PetData } from "@/components/wallet/usePet";
 import { useTx } from "@/components/wallet/useTx";
-import { currentEpoch, eventData, formatNear, getConfig, MIN_STAKE, parseNear, tx } from "@/lib/chain";
+import {
+  currentEpoch,
+  eventData,
+  formatNear,
+  getConfig,
+  MIN_STAKE,
+  parseNear,
+  spareThoughtsPerDay,
+  tx,
+  withdrawTotal,
+} from "@/lib/chain";
 
 // /pet/[petRef]/garden Brain Garden (03 section 8, Build Spec 9): NEARON stake grows AI credit.
 export default function GardenPage() {
@@ -29,8 +39,11 @@ const DAY_MS = 86_400_000;
 function Garden({ pet }: { pet: PetData }) {
   const c = pet.chain!;
   const [fuelPrice, setFuelPrice] = useState(1000);
+  const [metabolism, setMetabolism] = useState(1000);
   const [minStake, setMinStake] = useState<bigint>(MIN_STAKE);
-  const [unstakeDeposit, setUnstakeDeposit] = useState(0n); // pets-v9 config.pool_unstake_deposit, 0 on v8
+  // pets-v9 config.pool_unstake_deposit (0 on v8); null until config() loads, so unstake waits for it
+  const [unstakeDeposit, setUnstakeDeposit] = useState<bigint | null>(null);
+  const [configError, setConfigError] = useState(false);
   const [loadedAt, setLoadedAt] = useState(() => Date.now());
   const [now, setNow] = useState(() => Date.now());
 
@@ -38,10 +51,11 @@ function Garden({ pet }: { pet: PetData }) {
     getConfig(pet.contract)
       .then((cfg) => {
         setFuelPrice(cfg.fuel_price_micro || 1000);
+        setMetabolism(cfg.metabolism_micro_per_day);
         setMinStake(BigInt(cfg.min_stake));
         setUnstakeDeposit(BigInt(cfg.pool_unstake_deposit ?? "0"));
       })
-      .catch(() => undefined);
+      .catch(() => setConfigError(true));
   }, [pet.contract]);
 
   useEffect(() => setLoadedAt(Date.now()), [c]);
@@ -53,7 +67,8 @@ function Garden({ pet }: { pet: PetData }) {
   const staked = BigInt(c.staked);
   // live ticker: credit_micro + daily_credit_micro x elapsed (03 section 8)
   const credit = c.credit_micro + (c.daily_credit_micro * (now - loadedAt)) / DAY_MS;
-  const thoughtsPerDay = c.daily_credit_micro / fuelPrice;
+  // what the stake pays for beyond metabolism (staying alive)
+  const thoughtsPerDay = spareThoughtsPerDay(c.daily_credit_micro, metabolism, fuelPrice);
 
   return (
     <>
@@ -72,9 +87,9 @@ function Garden({ pet }: { pet: PetData }) {
       <OwnerGate owner={c.owner} name={c.name} needSession={false}>
         <Plant pet={pet} minStake={minStake} />
         {c.pending_unstake ? (
-          <Collect pet={pet} amount={c.pending_unstake.amount} unlockEpoch={c.pending_unstake.unlock_epoch} />
+          <Collect pet={pet} amount={withdrawTotal(c.pending_unstake)} unlockEpoch={c.pending_unstake.unlock_epoch} />
         ) : (
-          staked > 0n && <Unplant pet={pet} staked={staked} deposit={unstakeDeposit} />
+          staked > 0n && <Unplant pet={pet} staked={staked} deposit={unstakeDeposit} configError={configError} />
         )}
       </OwnerGate>
 
@@ -148,19 +163,34 @@ function Plant({ pet, minStake }: { pet: PetData; minStake: bigint }) {
   );
 }
 
-function Unplant({ pet, staked, deposit }: { pet: PetData; staked: bigint; deposit: bigint }) {
+function Unplant({
+  pet,
+  staked,
+  deposit,
+  configError,
+}: {
+  pet: PetData;
+  staked: bigint;
+  deposit: bigint | null;
+  configError: boolean;
+}) {
   const [amount, setAmount] = useState(formatNear(staked));
+  const [note, setNote] = useState<string | null>(null);
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const { send, state, busy } = useTx(pet.chain!.name);
   const y = parseNear(amount);
-  const ok = y !== null && y <= staked;
+  const ok = y !== null && y <= staked && deposit !== null;
 
   async function unplant() {
-    if (!y) return;
+    if (!y || deposit === null) return;
+    setNote(null);
     // approval mode: the proposal holds the pool unstake deposit (pets-v9) until the device approves
     if (pet.chain!.approval_mode) return setProposal(await propose(send, pet, { Unstake: { amount: y.toString() } }, deposit));
     const r = await send(tx.unstake(pet.contract, pet.tokenId, y, deposit));
-    if (r) await pet.reload();
+    if (!r) return;
+    // `unstaked` is emitted in the callback; without it NEARON refused, the stake stayed and the deposit came back
+    if (eventData(r.events, "unstaked").length === 0) setNote("The Brain Garden kept the NEAR planted. Your deposit was sent back.");
+    await pet.reload();
   }
 
   return (
@@ -168,19 +198,22 @@ function Unplant({ pet, staked, deposit }: { pet: PetData; staked: bigint; depos
       <h2 className="font-display text-lg">Take NEAR out</h2>
       <AmountInput label={`Amount (up to ${formatNear(staked)} NEAR)`} value={amount} onChange={setAmount} />
       <p className="text-sm text-muted">It returns in 12 to 24 h. Then collect it here.</p>
-      {deposit > 0n && (
+      {deposit !== null && deposit > 0n && (
         <p className="text-sm text-muted">{formatNear(deposit, 5)} NEAR is held by the pool and returned with your NEAR.</p>
       )}
+      {configError && <ErrorText>Couldn&apos;t load the Garden settings. Refresh to try again.</ErrorText>}
       <button className="pixel-btn pixel-btn--secondary" disabled={!ok || busy} onClick={() => void unplant()}>
         {busy ? "Check your wallet..." : `Unplant ${y ? formatNear(y) : ""} NEAR`}
       </button>
-      <TxStatus state={state} doneText="Unplanted" />
+      <TxStatus state={state} doneText="Transaction sent" />
+      <ErrorText>{note}</ErrorText>
       <PetApproval pet={pet} proposal={proposal} />
     </Panel>
   );
 }
 
-function Collect({ pet, amount, unlockEpoch }: { pet: PetData; amount: string; unlockEpoch: string }) {
+/** `amount`: what withdraw pays, the unstaked NEAR plus the pool unstake deposit. */
+function Collect({ pet, amount, unlockEpoch }: { pet: PetData; amount: bigint; unlockEpoch: string }) {
   const [epoch, setEpoch] = useState<bigint | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [proposal, setProposal] = useState<Proposal | null>(null);
