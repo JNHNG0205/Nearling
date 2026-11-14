@@ -50,6 +50,9 @@ const Env = z.object({
   RELAYER_ACCOUNT_ID: z.string().default(""),
   RELAYER_KEY: z.string().default(""),
   RELAY_DAILY_PER_ACCOUNT: z.coerce.number().int().positive().default(100),
+  /** Money caps across all callers (each costs the relayer or registrar NEAR): relayed calls and new names per UTC day. */
+  RELAY_DAILY_TOTAL: z.coerce.number().int().positive().default(2000),
+  NAMES_DAILY_TOTAL: z.coerce.number().int().positive().default(30),
   NEARON_POOL: z.string().default("mw-pool-1024.testnet"),
   /**
    * Testnet validator pool for Wallet staking (`get_account_staked_balance`). Checked 2026-11-11:

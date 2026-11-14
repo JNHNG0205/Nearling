@@ -8,6 +8,14 @@ Base: `https://<brain-host>`. JSON unless noted. Big numbers (yocto) are strings
 - `P` = public.
 - `device secret` = headers `X-Device-Id: <hw_id>` and `X-Device-Secret: <device_secret>` (the same pair sent in the `POST /devices/hello` body).
 
+**Limits** (`brain/src/limits.ts`; refusals are 429 `rate_limited` with a `Retry-After` header and `retry_after_s`)
+- Bodies over 64 KB: 413 (except `POST /pets/:petRef/talk`, which has its own audio cap).
+- Per address, every route but `/health`: 600 a minute.
+- Per address, tighter: `GET /auth/nonce` 30 a minute; `POST /session`, `/devices/hello`, `/devices/pairing/confirm`, `/pairings/:token/claim`, `/orders/:id/direct-tx` 20 a minute; `POST /orders` 10 a minute; `POST /names` 3 an hour; `POST /relay` 120 an hour; `POST /battle/rooms` and `/battle/rooms/:code/join` 30 per 10 minutes; `POST /me/mcp...` 30 an hour; `POST /approvals` and `/receipts/:turnId/publish` 30 a minute.
+- Totals per UTC day across all callers: 30 new names, 2000 relayed calls (settings `NAMES_DAILY_TOTAL`, `RELAY_DAILY_TOTAL`).
+- Live updates (`/pets/:petRef/stream`): 10 open per account.
+- Talk keeps its own limits: 1 thought per 3 s per pet, 300 a day.
+
 ### Device auth in detail (firmware)
 
 | Stage | How the device authenticates |

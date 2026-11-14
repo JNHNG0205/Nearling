@@ -21,6 +21,19 @@ async function readUntil(body: ReadableStream<Uint8Array>, needle: string): Prom
   return text;
 }
 
+/** Reads until `needle` but leaves the stream open. */
+async function readUntil2(body: ReadableStream<Uint8Array>, needle: string): Promise<void> {
+  const reader = body.getReader();
+  const dec = new TextDecoder();
+  let text = "";
+  while (!text.includes(needle)) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    text += dec.decode(value);
+  }
+  reader.releaseLock();
+}
+
 describe("GET /pets/:petRef/stream", () => {
   it("streams bus events to the owner authenticated with ?t=", async () => {
     const deps = testDeps();
@@ -77,5 +90,23 @@ describe("GET /pets/:petRef/stream", () => {
       .prepare("INSERT INTO device (id, hw_id, secret_hash, token_hash, pet_ref, owner_account, created_at) VALUES ('d1','hw','x',?,?,?,0)")
       .run(sha256("devtok"), REF, "alice.testnet");
     expect((await app.request(PATH, { headers: { Authorization: "Device devtok" } })).status).toBe(401);
+  });
+
+  it("keeps at most 10 streams open per account; closing one frees a place", async () => {
+    const deps = testDeps();
+    const { token } = await issueSession(deps, "alice.testnet");
+    const app = createApp(deps);
+    const open: Response[] = [];
+    for (let i = 0; i < 10; i++) {
+      const res = await app.request(`${PATH}?t=${token}`);
+      expect(res.status).toBe(200);
+      await readUntil2(res.body!, ": connected");
+      open.push(res);
+    }
+    const extra = await app.request(`${PATH}?t=${token}`);
+    expect(extra.status).toBe(429);
+    await open[0]!.body!.cancel();
+    await new Promise((r) => setTimeout(r, 20));
+    expect((await app.request(`${PATH}?t=${token}`)).status).toBe(200);
   });
 });

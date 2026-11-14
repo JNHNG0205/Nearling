@@ -94,4 +94,14 @@ describe("/names", () => {
     expect((await app.request("/names", post({ name: "hachi" }, token))).status).toBe(502);
     expect((await app.request(`/names/${implicit}`)).status).toBe(404);
   });
+
+  it("stops creating names once the day's total is spent, whoever asks (the registrar pays for each)", async () => {
+    const { app, deps, created } = setup();
+    deps.cfg.NAMES_DAILY_TOTAL = 1;
+    const other = Buffer.from(KeyPair.fromRandom("ed25519").getPublicKey().data).toString("hex");
+    expect((await app.request("/names", post({ name: "first" }, (await issueSession(deps, implicit)).token))).status).toBe(200);
+    const res = await app.request("/names", post({ name: "second" }, (await issueSession(deps, other)).token));
+    expect(res.status).toBe(429);
+    expect(created.map((c) => c.id)).toEqual(["first.testnet"]);
+  });
 });

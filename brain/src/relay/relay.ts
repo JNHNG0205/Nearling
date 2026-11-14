@@ -8,6 +8,7 @@ import { Account, JsonRpcProvider, KeyPairSigner, SCHEMA, actions, type KeyPairS
 import { requireCaller, type AuthEnv } from "../auth/guard";
 import type { Deps, Module } from "../deps";
 import { jsonBody } from "../identity/common";
+import { takeDaily } from "../limits";
 import { log } from "../log";
 
 const TGAS = 10n ** 12n;
@@ -131,6 +132,9 @@ export function relayRoutes(deps: Deps, relayer: Relayer | null, opts: { perDay:
     const key = `${Math.floor(deps.now() / DAY_MS)}:${account}`;
     const n = used.get(key) ?? 0;
     if (n >= opts.perDay) return refuse(c, 429, "relay_limit", "Daily gas relay limit reached");
+    // the relayer pays every call's gas: a total per day across all accounts (accounts are free)
+    const budget = takeDaily(deps, "relay", deps.cfg.RELAY_DAILY_TOTAL);
+    if (!budget.ok) return refuse(c, 429, "relay_limit", "The gas relay is busy today. Sign the transaction in your wallet instead.");
     used.set(key, n + 1);
 
     const method = d.delegateAction.actions[0]?.functionCall?.methodName;

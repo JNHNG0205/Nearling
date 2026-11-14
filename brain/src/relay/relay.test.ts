@@ -179,4 +179,14 @@ describe("POST /relay", () => {
     expect(res.status).toBe(503);
     expect(((await res.json()) as { error: { code: string } }).error.code).toBe("relay_off");
   });
+
+  it("stops relaying once the day's total is spent, across accounts (the relayer pays the gas)", async () => {
+    const { app, deps, sent } = setup(relayer, 10);
+    deps.cfg.RELAY_DAILY_TOTAL = 1;
+    const a = await app.request("/relay", post({ signed_delegate: await signed() }, (await issueSession(deps, "alice.testnet")).token));
+    expect(a.status).toBe(200);
+    const b = await app.request("/relay", post({ signed_delegate: await signed({ sender: "bob.testnet" }) }, (await issueSession(deps, "bob.testnet")).token));
+    expect(b.status).toBe(429);
+    expect(sent).toEqual(["alice.testnet"]);
+  });
 });

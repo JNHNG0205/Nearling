@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { streamSSE } from "hono/streaming";
+import { streamSSE, type SSEStreamingApi } from "hono/streaming";
 import { parsePetRef } from "@petto/shared";
 import { readCaller } from "../auth/guard";
 import type { Deps, Module } from "../deps";
@@ -7,6 +7,9 @@ import { subscribe } from "../events";
 
 const HEARTBEAT_MS = 20_000;
 const OWNER_CHECK_MS = 60_000;
+/** Open streams per account: each holds a connection and re-reads the chain every minute. */
+const MAX_OPEN_PER_ACCOUNT = 10;
+const openByDeps = new WeakMap<Deps, Map<string, number>>();
 
 /**
  * `GET /pets/:petRef/stream`: SSE of every bus event for the pet, owner only.
@@ -33,7 +36,14 @@ export function streamRoutes(deps: Deps, heartbeatMs = HEARTBEAT_MS, ownerCheckM
     const petRef = `${ref.contract}:${ref.tokenId}`;
 
     const account = caller.account;
-    return streamSSE(c, async (stream) => {
+    let open = openByDeps.get(deps);
+    if (!open) openByDeps.set(deps, (open = new Map()));
+    const counts = open;
+    if ((counts.get(account) ?? 0) >= MAX_OPEN_PER_ACCOUNT) {
+      return c.json({ error: { code: "rate_limited", message: "Too many open live updates for this account. Close another tab." } }, 429);
+    }
+    counts.set(account, (counts.get(account) ?? 0) + 1);
+    const serve = async (stream: SSEStreamingApi) => {
       let finish = () => {};
       const closed = new Promise<void>((resolve) => {
         finish = resolve;
@@ -54,11 +64,23 @@ export function streamRoutes(deps: Deps, heartbeatMs = HEARTBEAT_MS, ownerCheckM
           })
           .catch(() => undefined);
       }, ownerCheckMs);
-      await stream.write(": connected\n\n");
-      await closed;
-      clearInterval(beat);
-      clearInterval(recheck);
-      unsubscribe();
+      try {
+        await stream.write(": connected\n\n");
+        await closed;
+      } finally {
+        clearInterval(beat);
+        clearInterval(recheck);
+        unsubscribe();
+      }
+    };
+    return streamSSE(c, async (stream) => {
+      try {
+        await serve(stream);
+      } finally {
+        const n = (counts.get(account) ?? 1) - 1;
+        if (n > 0) counts.set(account, n);
+        else counts.delete(account);
+      }
     });
   });
 

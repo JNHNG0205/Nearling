@@ -431,6 +431,7 @@ Every 15 min: proactive message rules (5.5). Hourly: call `sweep_credit()` to mo
 - Memory per pet, encrypted at rest (AES-256-GCM, per-pet key from a master key). Honest limit: the brain can read memories. Stretch: run the brain step in OutLayer.
 - Kid-friendly system prompt; stays in character when refusing.
 - Rate limits: 1 thought per 3 s per pet, 300 per day; global daily spend cap.
+- API abuse limits [2026-11-14] (`brain/src/limits.ts`, in memory, one instance): request bodies 64 KB (talk upload exempt, its own audio cap); per address (last `X-Forwarded-For` entry, set by Caddy; the brain listens on 127.0.0.1 only) 600 requests a minute overall, and tighter limits on open or costly routes (sign-in, device hello and pairing, orders, names, relay, battle rooms, MCP, approvals, receipt publish). Money totals per UTC day across everyone: `NAMES_DAILY_TOTAL` (30) new names and `RELAY_DAILY_TOTAL` (2000) relayed calls, counted only when NEAR is spent. At most 10 open live-update streams per account. Refusals: 429 `rate_limited` with `Retry-After` (413 for big bodies).
 
 ---
 

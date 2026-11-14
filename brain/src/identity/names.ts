@@ -7,6 +7,7 @@ import { Account, JsonRpcProvider, KeyPairSigner, PublicKey, baseEncode, type Ke
 import { requireCaller, type AuthEnv } from "../auth/guard";
 import type { Deps, Module } from "../deps";
 import { jsonBody } from "./common";
+import { takeDaily, tooMany } from "../limits";
 import { log } from "../log";
 
 const REGISTRAR = "testnet";
@@ -88,6 +89,9 @@ export function nameRoutes(deps: Deps, registrar: Registrar | null) {
     }
     const name = `${label}${SUFFIX}`;
     if (await registrar.exists(name)) return err(c, 409, "conflict", `${name} is taken`);
+    // each name costs the registrar NEAR: a total per day across everyone (new accounts are free)
+    const budget = takeDaily(deps, "names", deps.cfg.NAMES_DAILY_TOTAL);
+    if (!budget.ok) return tooMany(c, budget.retryAfterS, "No more new names today. Try again tomorrow, or keep using your current account.");
     let ok = false;
     try {
       ok = await registrar.create(name, publicKey);
