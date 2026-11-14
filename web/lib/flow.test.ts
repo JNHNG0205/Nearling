@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PETS_CONTRACT, petPath } from "./chain";
-import { homeRoute, showDeviceNudge, startRedirect } from "./flow";
+import { homeRoute, needsYou, showDeviceNudge, startRedirect } from "./flow";
 
 const pet = (tokenId: string, name = `Pet ${tokenId}`) => ({ contract: PETS_CONTRACT, tokenId, name });
 
@@ -9,12 +9,9 @@ describe("homeRoute", () => {
     expect(homeRoute([])).toEqual({ href: "/start", label: "Hatch your first pet" });
   });
 
-  it("opens the only pet directly", () => {
-    expect(homeRoute([pet("7", "Hachiware")])).toEqual({ href: petPath(PETS_CONTRACT, "7"), label: "Open Hachiware" });
-  });
-
-  it("lists several pets on My pets", () => {
-    expect(homeRoute([pet("1"), pet("2")])).toEqual({ href: "/my", label: "My pets" });
+  it("sends every owner with pets to Home", () => {
+    expect(homeRoute([pet("7", "Hachiware")])).toEqual({ href: "/my", label: "Home" });
+    expect(homeRoute([pet("1"), pet("2")])).toEqual({ href: "/my", label: "Home" });
   });
 });
 
@@ -24,7 +21,7 @@ describe("startRedirect", () => {
   });
 
   it("sends existing users home instead of re-running setup", () => {
-    expect(startRedirect({ pets: [pet("7")], hasDeviceLink: false, wizardPetRef: null })).toBe(petPath(PETS_CONTRACT, "7"));
+    expect(startRedirect({ pets: [pet("7")], hasDeviceLink: false, wizardPetRef: null })).toBe("/my");
     expect(startRedirect({ pets: [pet("1"), pet("2")], hasDeviceLink: false, wizardPetRef: null })).toBe("/my");
   });
 
@@ -46,5 +43,40 @@ describe("showDeviceNudge", () => {
   it("hides it after 'Not now' and for visitors", () => {
     expect(showDeviceNudge({ isOwner: true, paired: false, dismissed: true })).toBe(false);
     expect(showDeviceNudge({ isOwner: false, paired: false, dismissed: false })).toBe(false);
+  });
+});
+
+describe("needsYou", () => {
+  const base = { contract: PETS_CONTRACT, fuelLeft: 10, fuelLow: false, hatched: true, unread: 0, paired: true };
+  const p = (tokenId: string, name: string, o: Partial<typeof base> = {}) => ({ ...base, tokenId, name, ...o });
+
+  it("is empty when every pet is fine", () => {
+    expect(needsYou([p("1", "Mochi")], new Set())).toEqual([]);
+  });
+
+  it("lists what needs the owner, most urgent first", () => {
+    const items = needsYou(
+      [
+        p("1", "Mochi", { paired: false }),
+        p("2", "Sprout", { fuelLeft: 0, fuelLow: true }),
+        p("3", "Bao", { unread: 2 }),
+        p("4", "Kiki", { fuelLeft: 3, fuelLow: true }),
+        p("5", "Egg", { hatched: false }),
+      ],
+      new Set(),
+    );
+    expect(items.map((i) => i.text)).toEqual([
+      "Sprout is out of fuel. Feed Sprout",
+      "Kiki is low on fuel: 3 thoughts left",
+      "Egg is waiting to hatch",
+      "Bao sent you 2 messages",
+      "Mochi has no Petto device yet",
+    ]);
+    expect(items[0]!.href).toBe(`/feed/${encodeURIComponent(`${PETS_CONTRACT}:2`)}`);
+    expect(items[4]!.href).toBe(petPath(PETS_CONTRACT, "1", "/device"));
+  });
+
+  it("leaves out the device reminder the owner dismissed with Not now", () => {
+    expect(needsYou([p("1", "Mochi", { paired: false })], new Set([`${PETS_CONTRACT}:1`]))).toEqual([]);
   });
 });

@@ -31,7 +31,7 @@ export function SiteHeader() {
       <div className="mx-auto flex min-h-16 max-w-[1200px] items-center gap-x-3 px-4 py-2 md:gap-x-6 md:px-6">
         <Link href="/" className="font-display text-xl leading-8 font-bold md:text-[32px]">Petto</Link>
         <nav aria-label="Main" className="flex flex-1 gap-3 font-display text-sm md:gap-6">
-          <Link href="/my" className="hover:text-accent">My pets</Link>
+          <Link href="/my" className="hover:text-accent">Home</Link>
           <Link href="/race" className="hover:text-accent">Race</Link>
         </nav>
         <ConnectButton compact label="Connect wallet" />
