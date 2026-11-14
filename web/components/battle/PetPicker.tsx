@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PetSprite } from "@/components/PetSprite";
+import { getBattle } from "@/lib/chain";
 import { loadMyPets, type MyPet } from "@/lib/myPets";
 import { authHeaders, useSession } from "@/lib/session";
 
@@ -9,6 +10,7 @@ import { authHeaders, useSession } from "@/lib/session";
 export function PetPicker({ value, onChange }: { value: string | null; onChange: (ref: string) => void }) {
   const session = useSession();
   const [pets, setPets] = useState<MyPet[] | null>(null);
+  const [levels, setLevels] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!session) return;
@@ -20,6 +22,20 @@ export function PetPicker({ value, onChange }: { value: string | null; onChange:
       live = false;
     };
   }, [session]);
+
+  // battle level of each pet, from chain (level 1 before its first battle)
+  useEffect(() => {
+    if (!pets) return;
+    let live = true;
+    for (const p of pets) {
+      getBattle(p.contract, p.tokenId)
+        .then((r) => live && setLevels((l) => ({ ...l, [p.ref]: r.level })))
+        .catch(() => undefined);
+    }
+    return () => {
+      live = false;
+    };
+  }, [pets]);
 
   useEffect(() => {
     if (pets?.[0] && !value) onChange(pets[0].ref);
@@ -52,6 +68,7 @@ export function PetPicker({ value, onChange }: { value: string | null; onChange:
             />
           )}
           <span className="font-display text-sm">{p.name}</span>
+          <span className="text-xs text-muted">{levels[p.ref] ? `Battle Lv ${levels[p.ref]}` : "\u00a0"}</span>
           {p.demo && <span className="text-xs text-muted">demo speed</span>}
         </button>
       ))}
