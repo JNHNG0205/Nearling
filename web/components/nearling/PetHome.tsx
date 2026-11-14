@@ -161,7 +161,7 @@ export function PetHome({ initial }: { initial: PetState }) {
   const m = pet.care.milestones;
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-[480px] flex-col gap-6 px-4 py-6">
+    <main className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col gap-6 px-4 py-6 md:max-w-[760px] md:px-6 lg:max-w-[1200px] lg:gap-8 lg:py-10">
       <header className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3">
           <h1 className="font-display text-2xl">
@@ -182,6 +182,10 @@ export function PetHome({ initial }: { initial: PetState }) {
           <StatePill state={pet.display_state} />
         </div>
       </header>
+
+      {/* phone: one column (pet, talk, links). desktop: pet and links left, talk and chat right */}
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,460px)_minmax(0,1fr)] lg:items-start lg:gap-x-10">
+      <div className="flex flex-col gap-6 lg:col-start-1 lg:row-start-1">
 
       {inboxOpen && isOwner && <InboxPanel items={inbox} name={pet.name} />}
       {banner && <p className="border-2 border-line bg-surface px-3 py-2">{banner}</p>}
@@ -239,6 +243,9 @@ export function PetHome({ initial }: { initial: PetState }) {
         </p>
       </div>
 
+      </div>
+
+      <div className="flex flex-col gap-6 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:border-l-2 lg:border-line lg:pl-10">
       {isOwner ? (
         <TalkBar
           petRef={petRef}
@@ -268,6 +275,9 @@ export function PetHome({ initial }: { initial: PetState }) {
       )}
 
       <ChatLog entries={entries} name={pet.name} readOnly={!isOwner} petRef={petRef} />
+      </div>
+
+      <div className="flex flex-col gap-6 lg:col-start-1 lg:row-start-2">
 
       <PantryCard compact contract={pet.contract} tokenId={pet.token_id} name={pet.name} />
       <nav aria-label={`${pet.name} pages`} className="flex flex-wrap gap-2 border-t-2 border-line pt-4">
@@ -285,6 +295,8 @@ export function PetHome({ initial }: { initial: PetState }) {
           <Link key={href} href={href!} className="pixel-btn pixel-btn--secondary px-3 text-sm">{label}</Link>
         ))}
       </nav>
+      </div>
+      </div>
 
       {toast && <InboxToast item={toast} name={pet.name} onClose={() => setToast(null)} />}
     </main>

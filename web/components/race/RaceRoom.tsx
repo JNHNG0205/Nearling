@@ -193,7 +193,7 @@ export function RaceRoom({ code }: { code: string }) {
   const url = origin ? `${origin}/race/${code}` : "";
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-[480px] flex-col gap-6 px-4 py-6 sm:max-w-[560px]">
+    <main className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col gap-6 px-4 py-6 md:max-w-[760px] md:gap-8 md:px-6 md:py-10">
       <header className="flex items-center gap-3">
         <Link href="/race" aria-label="Back to races" className="font-display text-2xl text-muted hover:text-ink">
           &lt;
