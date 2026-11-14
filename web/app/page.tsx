@@ -5,7 +5,6 @@ import { CountUp } from "@/components/nearling/CountUp";
 import { DemoPet } from "@/components/nearling/DemoPet";
 import { GardenPlot } from "@/components/nearling/GardenPlot";
 import { NearlingFrame } from "@/components/nearling/NearlingFrame";
-import { StartButton } from "@/components/site/StartButton";
 import { ReceiptCard } from "@/components/talk/ReceiptCard";
 import { DEMO_PET_REF, getPublicReceipts } from "@/lib/brain";
 import { getConfig, PETS_CONTRACT } from "@/lib/chain";
@@ -52,7 +51,7 @@ export default async function Home() {
                 so you can watch its budget drop.
               </p>
               <div className="flex flex-wrap gap-4">
-                <StartButton />
+                <Link href="/start" className="pixel-btn">Get started</Link>
                 <Link href={DEMO_HREF} className="pixel-btn pixel-btn--secondary">Watch the demo pet</Link>
               </div>
             </div>

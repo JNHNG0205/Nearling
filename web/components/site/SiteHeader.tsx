@@ -9,19 +9,18 @@ import { loadMyPets } from "@/lib/myPets";
 import { authHeaders, useSession } from "@/lib/session";
 
 /**
- * App header (W10): wordmark, My pets, Race, wallet. The landing page gets a light one instead:
- * wordmark and "Open app" (signed in: /go routes by pets; signed out: setup).
+ * App header (W10): wordmark, My pets, Race, wallet. The landing page gets a light, static one
+ * (same for everyone): wordmark and "Open app" to /start, which routes by what the account owns.
  */
 export function SiteHeader() {
   useTimezoneSync();
   const path = usePathname();
-  const session = useSession();
   if (path === "/") {
     return (
       <header className="border-b-2 border-line">
         <div className="mx-auto flex min-h-16 max-w-[1200px] items-center justify-between gap-x-3 px-4 py-2 md:px-6">
           <Link href="/" className="font-display text-xl leading-8 font-bold md:text-[32px]">Petto</Link>
-          <Link href={session ? "/go" : "/start"} className="pixel-btn px-3 text-sm">Open app</Link>
+          <Link href="/start" className="pixel-btn px-3 text-sm">Open app</Link>
         </div>
       </header>
     );

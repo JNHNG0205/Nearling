@@ -17,9 +17,10 @@ test("start wizard renders its three steps and asks for a wallet first", async (
   await expect(page.getByRole("main").getByRole("button", { name: /Connect wallet|Loading wallet/ })).toBeVisible();
 });
 
-test("landing leads signed-out visitors to Get started, and /go back to the landing", async ({ page }) => {
+test("landing is the same for everyone: Get started and Open app lead to setup; /go signed out returns to the landing", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "Get started" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Get started" })).toHaveAttribute("href", "/start");
+  await expect(page.getByRole("link", { name: "Open app" })).toHaveAttribute("href", "/start");
   await page.goto("/go");
   await expect(page).toHaveURL(/\/$/);
 });
