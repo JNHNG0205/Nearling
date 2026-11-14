@@ -8,9 +8,9 @@ export const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID ?? "";
 export const PRIVY_CLIENT_ID = process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID ?? "";
 export const PRIVY_WALLET_ID = "petto-privy";
 
-/** Social login shows only when the Privy app is configured. */
+/** Social login shows only when the Privy app is configured (the client id is optional). */
 export function privyEnabled(): boolean {
-  return PRIVY_APP_ID !== "" && PRIVY_CLIENT_ID !== "";
+  return PRIVY_APP_ID !== "";
 }
 
 /**
@@ -84,7 +84,11 @@ let client: Promise<Privy> | null = null;
 export function getPrivy(): Promise<Privy> {
   client ??= (async () => {
     const { default: PrivyClient, LocalStorage } = await import("@privy-io/js-sdk-core");
-    const privy = new PrivyClient({ appId: PRIVY_APP_ID, clientId: PRIVY_CLIENT_ID, storage: new LocalStorage() });
+    const privy = new PrivyClient({
+      appId: PRIVY_APP_ID,
+      ...(PRIVY_CLIENT_ID ? { clientId: PRIVY_CLIENT_ID } : {}),
+      storage: new LocalStorage(),
+    });
     await privy.initialize();
     return privy;
   })();
