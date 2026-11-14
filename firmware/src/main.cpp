@@ -1,3 +1,4 @@
+// OUTDATED: early OLED breadboard self-test. The device firmware is firmware/petto/petto.ino (see firmware/HARDWARE_HANDOFF.md).
 // Nearling bench bring-up test. Shows every input live on the display and on serial.
 // Button B plays a short beep. Modules that are not wired yet show as "--".
 // Replace this file with the real firmware once the bench checks pass.

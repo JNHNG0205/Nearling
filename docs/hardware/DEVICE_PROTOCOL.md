@@ -44,6 +44,7 @@ A bound device whose pet changed owner is revoked here and gets a fresh pairing.
 3. On `awaiting_confirm`: show "Pair <pet_name>?" and wait for the physical button.
 4. Button press: `POST /devices/pairing/confirm` (device secret headers, no body) returns `{ "device_token", "pet_ref" }`. Store both in NVS. The token is shown **once**; if lost, the owner unpairs on the web and you pair again. Confirm also hatches the egg (Build Spec 1).
 5. On `expired`: call `/devices/hello` again for a new code.
+6. Start over with another pet (device menu New pet): `POST /devices/unpair` with the device token, forget the token, then `/devices/hello` gives a fresh pairing.
 
 Errors: 401 `unauthorized` (bad secret headers), 404 (call hello first), 409 `conflict` (not waiting / already used), 410 `expired`, 403 `not_owner` (pet moved during pairing).
 
@@ -152,7 +153,7 @@ While the pairing screen is up, the device advertises a BLE peripheral so a phon
 
 ## 10. Battles (Race was removed)
 
-Petto Run is gone; the device has no game for now. See `docs/hardware/BATTLE.md` for the turn-based battle and how the device can join later.
+Petto Run is gone. The device hosts turn-based battles (`firmware/petto`, menu Battle): `POST /battle/rooms` with the device token (the brain uses the bound pet), show the QR `https://mypetto.xyz/battle/<code>` for the other player, then `GET /battle/ws?code=<code>` with the header `Authorization: Device <token>`. Messages are in `packages/battle/src/protocol.ts`; send `{"type":"ready"}`, then one `{"type":"move","move":{...}}` per turn. The other player must be a different account. Details: `docs/hardware/BATTLE.md`.
 
 ## 11. Sprites: `art/nearling_sprites.h`
 

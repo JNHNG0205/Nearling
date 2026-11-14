@@ -136,6 +136,7 @@ charge. `played`, `device_*`, `action_*` and `item_bought` are left out.
 | `GET /pairings/:token` | P | | `{ status, expires_at }` |
 | `POST /pairings/:token/claim` | S | `{ pet_ref }` | `{ status: "awaiting_confirm" }` |
 | `POST /pets/:petRef/unpair` | S | | `{ ok }` |
+| `POST /devices/unpair` | D (the device unpairs itself; next hello opens a fresh pairing) | | `{ ok }` |
 | `GET /pets/:petRef/device` | S (owner) | | `{ paired, device_pk, last_seen_at, chain_device_pk, key_added, approval_mode, pantry_supported }`. `chain_device_pk` = `get_pet.device_pk`. `key_added` = the owner's `view_access_key_list` has a function-call key with `device_pk` and receiver = this pet's contract (`null` if the RPC failed). `pantry_supported` = `get_pet` has `pantry_yocto` (pets-v9, add `feed_from_pantry` to the key) |
 | `GET /devices/actions` | D | | `{ pet_ref, contract, pet_id, approval_mode, key_registered, actions: [{ id, pet_id, action, deposit, proposer_pk, expires_at_ns, expires_at, summary }] }`. The pet's on-chain `get_pending_actions(pet_id)` without expired ones; `summary` is one line for the 240x240 screen (`Stake 1 NEAR`, `Unstake 0.5 NEAR`, `Collect unstaked NEAR`, `Turn approvals off`, `Give Mochi to bob.testnet`). `key_registered` = the device's `device_pk` equals `get_pet.device_pk`. The device approves by signing `approve_action(action_id)` with its limited key (450 Tgas for Stake / Unstake / Withdraw / StakeFromFood, `CLAUDE.md` 7.3) |
 | `POST /pets/:petRef/care` | D or S | `{ events: [{ id, kind, at }] }` | `{ mood, milestones, form, evolved_now }` |
@@ -158,9 +159,9 @@ charge. `played`, `device_*`, `action_*` and `item_bought` are left out.
 
 | Method, path | Auth | Body | Returns |
 |---|---|---|---|
-| `POST /battle/rooms` | S (owner of the pet) | `{ pet_ref }` | `{ code }` |
-| `POST /battle/rooms/:code/join` | S (owner of the pet) | `{ pet_ref }` | `{ ok: true }` |
-| `GET /battle/ws?code=&token=` | S (session token in the query) | | WebSocket |
+| `POST /battle/rooms` | S (owner of the pet) or D (always its bound pet, `pet_ref` ignored) | `{ pet_ref }` | `{ code }` |
+| `POST /battle/rooms/:code/join` | S (owner of the pet) or D (its bound pet) | `{ pet_ref }` | `{ ok: true }` |
+| `GET /battle/ws?code=&token=` | S (session token in the query) or D (`Authorization: Device <token>` header) | | WebSocket |
 
 Errors: 404 `not_found`; 409 `full`, `same_owner`, `same_pet`, `other_contract` (pets on different contracts), `daily_limit` (3 battles per pair of pets in a rolling 24 hours; the body adds `retry_at`, ms since epoch, when the pair may battle again), `pet_busy` (the pet is fighting in another battle; joining or starting a room otherwise drops the pet's other waiting room); 422 `pet_unavailable` (starving or dormant); 429 `rate_limited`. The socket upgrade answers 401 before joining.
 
