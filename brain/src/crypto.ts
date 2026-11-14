@@ -24,6 +24,14 @@ export function createSealer(masterKey: Buffer) {
       d.setAuthTag(tag);
       return Buffer.concat([d.update(ct), d.final()]).toString("utf8");
     },
+    /** Like `open`, but null when the blob was sealed with another master key (old dev runs) or is damaged. */
+    tryOpen(petRef: string, blob: Buffer): string | null {
+      try {
+        return this.open(petRef, blob);
+      } catch {
+        return null;
+      }
+    },
   };
 }
 

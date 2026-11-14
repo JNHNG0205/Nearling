@@ -89,6 +89,9 @@ const isLowFuel = (pet: PetView, config: PetsConfig) =>
   pet.life_state === "Starving" || pet.life_state === "Dormant" || pet.budget_micro < config.fuel_price_micro;
 
 /** Added to the system prompt when the owner connected MCP tools (web /mcp). */
+/** Shown for a saved chat line that can no longer be decrypted. */
+const UNREADABLE = "(this message can't be read anymore)";
+
 const TOOLS_NOTE = [
   "You can help your owner with tasks using the tools you were given (they connected them themselves).",
   "- When the owner asks for something a tool can do, make a real tool call (the function-calling kind). Never just describe a tool call in words, and never invent tool names or results.",
@@ -325,14 +328,14 @@ export function createTalk(deps: Deps, overrides: TalkOverrides = {}) {
     const res: TalkResponse = {
       turn_id: t.id,
       status: t.status === "done" ? "done" : "canned",
-      reply: t.reply_text_enc ? sealer.open(t.pet_ref, t.reply_text_enc) : LINES.notCaught.reply,
+      reply: (t.reply_text_enc ? sealer.tryOpen(t.pet_ref, t.reply_text_enc) : null) ?? LINES.notCaught.reply,
       emotion: t.emotion ?? "happy",
       fuel: { left: fuelLeft(pet.budget_micro, config.fuel_price_micro), ...(job ? { charged: job.status === "settled" ? "settled" : "pending" } : {}) },
       audio_url: audioUrl(t.audio_key),
       receipt_url: t.status === "done" ? receiptUrl(t.id) : null,
     };
     if (t.soul_version !== null) res.soul_version = t.soul_version;
-    if (t.stt_ms !== null && t.user_text_enc) res.transcript = sealer.open(t.pet_ref, t.user_text_enc);
+    if (t.stt_ms !== null && t.user_text_enc) res.transcript = sealer.tryOpen(t.pet_ref, t.user_text_enc) ?? undefined;
     return res;
   }
 
@@ -648,8 +651,9 @@ export function createTalk(deps: Deps, overrides: TalkOverrides = {}) {
         at: r.created_at,
         channel: r.channel,
         status: r.status,
-        user_text: r.user_text_enc ? sealer.open(petRef, r.user_text_enc) : null,
-        reply: r.reply_text_enc ? sealer.open(petRef, r.reply_text_enc) : null,
+        // sealed with another key (an earlier dev run): shown as unreadable instead of failing the whole list
+        user_text: r.user_text_enc ? (sealer.tryOpen(petRef, r.user_text_enc) ?? UNREADABLE) : null,
+        reply: r.reply_text_enc ? (sealer.tryOpen(petRef, r.reply_text_enc) ?? UNREADABLE) : null,
         emotion: r.emotion,
         soul_version: r.soul_version,
         model: r.model,
