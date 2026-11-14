@@ -8,6 +8,7 @@ export interface McpServerView {
   name: string;
   url: string;
   has_token: boolean;
+  catalog_id: string | null;
   tools: { name: string; description: string }[];
   refreshed_at: number;
 }
@@ -43,3 +44,24 @@ export const decideTask = (h: Record<string, string>, petRef: string, taskId: st
     h,
     { method: "POST", body: { voice } },
   );
+
+/** One ready-made tool on /mcp, from the brain's catalog. */
+export interface CatalogTool {
+  id: string;
+  name: string;
+  what: string;
+  try: string;
+  auth: "none" | "key" | "oauth" | "local";
+  key_name?: string;
+  key_url?: string;
+  help?: string;
+  /** false: sign-in app not set up on this Petto yet, or runs locally only */
+  available: boolean;
+}
+
+export const getCatalog = async () =>
+  ((await (await fetch(`${BRAIN_URL}/mcp/catalog`)).json()) as { tools: CatalogTool[] }).tools;
+
+/** Open and key tools connect at once; sign-in tools return the provider's sign-in link. */
+export const connectTool = (h: Record<string, string>, id: string, key?: string) =>
+  call<McpServerView & { authorize_url?: string }>("/me/mcp/connect", h, { method: "POST", body: { id, ...(key ? { key } : {}) } });

@@ -171,3 +171,56 @@ describe("MCP servers and tasks", () => {
     expect((await mcp.request("/me/mcp")).status).toBe(401); // signed out
   });
 });
+
+describe("MCP catalog and sign-in", () => {
+  async function app() {
+    const deps = testDeps({ now: () => t });
+    const mcp = createApp(deps, [mcpModule]);
+    const { token } = await issueSession(deps, "alice.testnet");
+    const h = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+    const connect = async (body: object) => {
+      const r = await mcp.request("/me/mcp/connect", { method: "POST", headers: h, body: JSON.stringify(body) });
+      return { status: r.status, body: (await r.json()) as { error?: { message: string }; authorize_url?: string } };
+    };
+    return { deps, mcp, connect };
+  }
+
+  it("lists every tool with how it connects, without endpoints or secrets", async () => {
+    const { mcp } = await app();
+    const { tools } = (await (await mcp.request("/mcp/catalog")).json()) as { tools: { id: string; auth: string; available: boolean }[] };
+    const by = Object.fromEntries(tools.map((x) => [x.id, x]));
+    for (const id of ["gmail", "gcal", "slack", "notion", "canva", "firecrawl", "playwright", "deepwiki"]) expect(by[id]).toBeDefined();
+    expect(by.gmail).toMatchObject({ auth: "oauth", available: false }); // no Google app in the test config
+    expect(by.notion).toMatchObject({ auth: "oauth", available: true }); // registers itself
+    expect(by.firecrawl).toMatchObject({ auth: "key", available: true });
+    expect(by.playwright).toMatchObject({ auth: "local", available: false });
+    expect(JSON.stringify(tools)).not.toMatch(/firecrawl\.dev\/\{key\}|client_secret/);
+  });
+
+  it("refuses what cannot connect, with a reason", async () => {
+    const { connect } = await app();
+    expect(await connect({ id: "firecrawl" })).toMatchObject({ status: 400, body: { error: { message: expect.stringMatching(/API key/) } } });
+    expect(await connect({ id: "gmail" })).toMatchObject({ status: 400, body: { error: { message: expect.stringMatching(/not set up/) } } });
+    expect((await connect({ id: "playwright" })).status).toBe(400);
+    expect((await connect({ id: "nope" })).status).toBe(400);
+  });
+
+  it("the sign-in callback only accepts a live state, and sends the browser back to the web page", async () => {
+    const { mcp } = await app();
+    const bogus = await mcp.request("/mcp/oauth/callback?state=forged&code=abc");
+    expect(bogus.status).toBe(302);
+    expect(bogus.headers.get("location")).toMatch(/^http:\/\/localhost:3000\/mcp\?mcp_error=/);
+    const cancelled = await mcp.request("/mcp/oauth/callback?state=x&error=access_denied");
+    expect(decodeURIComponent(cancelled.headers.get("location") ?? "")).toContain("cancelled");
+  });
+
+  it("puts an API key in the server path, never in the stored address", async () => {
+    const { deps } = await app();
+    const { resolveServer, sealAuth } = await import("./auth");
+    const row = { id: 1, owner_account: "alice.testnet", name: "Firecrawl", url: "https://mcp.firecrawl.dev/mcp", token_enc: sealAuth(deps, "alice.testnet", { kind: "path_key", key: "fc-123" }), tools_json: "[]", catalog_id: "firecrawl", created_at: 0, refreshed_at: 0 };
+    const { url, token } = await resolveServer(deps, "alice.testnet", row);
+    expect(url.toString()).toBe("https://mcp.firecrawl.dev/fc-123/v2/mcp");
+    expect(token).toBeNull();
+    expect(row.url).not.toContain("fc-123");
+  });
+});

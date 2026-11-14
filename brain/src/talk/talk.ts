@@ -18,8 +18,9 @@ import type { BilledTrigger, FollowUp } from "../proactive/rules";
 import type { GenerateProactive } from "../proactive/scheduler";
 import { buildMessages, parseEmotion, PROACTIVE_NUDGE, proactiveTask, type Channel } from "./prompt";
 import { addSpend, overSpendCap, utcDay } from "./spend";
-import { callTool, checkUrl, McpError } from "../mcp/client";
-import { ownerTools, taskCard, tasksForTurn, tokenContext, type OwnerTools, type ServerRow, type TaskRow } from "../mcp/store";
+import { resolveServer } from "../mcp/auth";
+import { callTool, McpError } from "../mcp/client";
+import { ownerTools, taskCard, tasksForTurn, type OwnerTools, type ServerRow, type TaskRow } from "../mcp/store";
 
 /**
  * Soul & Verified Talk (AI-brain 03 sections 1, 2, 8). One press = one turn = one reply = one
@@ -582,8 +583,7 @@ export function createTalk(deps: Deps, overrides: TalkOverrides = {}) {
     const t0 = now();
     try {
       if (!srv) throw new McpError("unreachable");
-      const url = await checkUrl(srv.url, cfg.MCP_ALLOW_PRIVATE);
-      const token = srv.token_enc ? sealer.open(tokenContext(caller.account), srv.token_enc) : null;
+      const { url, token } = await resolveServer(deps, caller.account, srv);
       const args = JSON.parse(sealer.open(key, task.args_enc)) as Record<string, unknown>;
       const result = await callTool(url, token, task.tool, args);
       db.prepare("UPDATE mcp_task SET status = 'done', result_enc = ?, updated_at = ? WHERE id = ?").run(sealer.seal(key, result), now(), task.id);

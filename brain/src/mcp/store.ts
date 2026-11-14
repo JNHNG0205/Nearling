@@ -13,6 +13,8 @@ export interface ServerRow {
   url: string;
   token_enc: Buffer | null;
   tools_json: string;
+  /** catalog tool id (web /mcp cards); null for a server the owner typed in */
+  catalog_id: string | null;
   created_at: number;
   refreshed_at: number;
 }

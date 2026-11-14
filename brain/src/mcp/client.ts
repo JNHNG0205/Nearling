@@ -15,7 +15,7 @@ export interface McpTool {
 }
 
 export class McpError extends Error {
-  constructor(public code: "bad_url" | "private_address" | "unreachable" | "tool_failed") {
+  constructor(public code: "bad_url" | "private_address" | "unreachable" | "tool_failed" | "not_set_up" | "expired" | "needs_key") {
     super(`mcp_${code}`);
     this.name = "McpError";
   }

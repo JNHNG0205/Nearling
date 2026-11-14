@@ -3,12 +3,17 @@
 import { useCallback, useEffect, useState } from "react";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
 import { AppFrame, ErrorText, Panel, Spinner } from "@/components/wallet/ui";
-import { addMcp, listMcp, McpRequestError, refreshMcp, removeMcp, type McpServerView } from "@/lib/mcp";
-import { MCP_CATALOG } from "@/lib/mcpCatalog";
+import {
+  addMcp, connectTool, getCatalog, listMcp, McpRequestError, refreshMcp, removeMcp,
+  type CatalogTool, type McpServerView,
+} from "@/lib/mcp";
 import { authHeaders, useSession } from "@/lib/session";
 
-// /mcp: pick tools for your pet from a ready-made list (one click each); adding your own MCP server
-// is optional. Then ask in chat: the pet proposes a tool call and nothing runs until you approve it.
+// /mcp: connect tools for your pet. Apps (Gmail, Calendar, Slack, Notion, Canva) send you to their own
+// sign-in page and back; Firecrawl takes your API key; open knowledge tools connect in one click.
+// Then ask in chat: the pet proposes a tool call and nothing runs until you press Approve.
+
+const APPS = ["gmail", "gcal", "slack", "notion", "canva", "firecrawl", "playwright"];
 
 export default function McpPage() {
   const session = useSession();
@@ -29,22 +34,35 @@ export default function McpPage() {
 }
 
 function Tools() {
+  const [catalog, setCatalog] = useState<CatalogTool[] | null>(null);
   const [servers, setServers] = useState<McpServerView[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      setServers(await listMcp(authHeaders()));
+      const [c, s] = await Promise.all([getCatalog(), listMcp(authHeaders())]);
+      setCatalog(c);
+      setServers(s);
     } catch (err) {
       setError(err instanceof McpRequestError ? err.message : "Couldn't load your tools.");
     }
   }, []);
-  useEffect(() => void load(), [load]);
+
+  useEffect(() => {
+    // back from a provider's sign-in page: say how it went, then tidy the address bar
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("connected")) setNotice("Connected! Ask your pet to use it in chat.");
+    if (q.get("mcp_error")) setError(q.get("mcp_error"));
+    if (q.size) window.history.replaceState(null, "", "/mcp");
+    void load();
+  }, [load]);
 
   async function run(label: string, fn: () => Promise<unknown>): Promise<boolean> {
     setBusy(label);
     setError(null);
+    setNotice(null);
     try {
       await fn();
       await load();
@@ -57,44 +75,50 @@ function Tools() {
     }
   }
 
-  if (!servers) return error ? <ErrorText>{error}</ErrorText> : <Spinner label="Loading your tools..." />;
+  async function connect(tool: CatalogTool, key?: string) {
+    setBusy(tool.id);
+    setError(null);
+    setNotice(null);
+    try {
+      const r = await connectTool(authHeaders(), tool.id, key);
+      if (r.authorize_url) {
+        window.location.href = r.authorize_url; // the provider's own sign-in page; it sends you back here
+        return true;
+      }
+      await load();
+      setNotice(`${tool.name} connected! Ask your pet to use it in chat.`);
+      return true;
+    } catch (err) {
+      setError(err instanceof McpRequestError ? err.message : "Couldn't connect. Try again.");
+      return false;
+    } finally {
+      setBusy(null);
+    }
+  }
 
-  // the brain stores addresses normalised (`new URL().toString()`), so compare them the same way
-  const norm = (u: string) => { try { return new URL(u).toString(); } catch { return u; } };
-  const byUrl = new Map(servers.map((s) => [norm(s.url), s]));
-  const custom = servers.filter((s) => !MCP_CATALOG.some((c) => norm(c.url) === norm(s.url)));
+  if (!catalog || !servers) return error ? <ErrorText>{error}</ErrorText> : <Spinner label="Loading your tools..." />;
+
+  const byTool = new Map(servers.filter((s) => s.catalog_id).map((s) => [s.catalog_id!, s]));
+  const custom = servers.filter((s) => !s.catalog_id);
+  const card = (t: CatalogTool) => (
+    <ToolCard key={t.id} tool={t} on={byTool.get(t.id)} busy={busy}
+      onConnect={(key) => connect(t, key)}
+      onDisconnect={(id) => void run(t.id, () => removeMcp(authHeaders(), id))} />
+  );
 
   return (
     <div className="flex flex-col gap-6">
+      {notice && <p className="border-2 border-fuel px-3 py-2 text-sm text-fuel" role="status">{notice}</p>}
       <ErrorText>{error}</ErrorText>
 
-      <section aria-label="Tools" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {MCP_CATALOG.map((c) => {
-          const on = byUrl.get(norm(c.url));
-          return (
-            <article key={c.id} className={`pixel-panel flex flex-col gap-2 p-4 ${on ? "border-accent" : ""}`}>
-              <header className="flex items-center justify-between gap-2">
-                <h2 className="font-display text-lg">{c.name}</h2>
-                {on && <span className="font-display text-xs text-fuel">Connected</span>}
-              </header>
-              <p className="text-sm text-muted">{c.what}</p>
-              {on ? (
-                <>
-                  <p className="text-xs text-muted">{on.tools.length} tools . Try: <span className="text-ink">&quot;{c.try}&quot;</span></p>
-                  <button className="pixel-btn pixel-btn--secondary mt-auto self-start px-3 text-sm" disabled={busy !== null}
-                    onClick={() => void run(c.id, () => removeMcp(authHeaders(), on.id))}>
-                    {busy === c.id ? "..." : "Disconnect"}
-                  </button>
-                </>
-              ) : (
-                <button className="pixel-btn mt-auto self-start px-3 text-sm" disabled={busy !== null}
-                  onClick={() => void run(c.id, () => addMcp(authHeaders(), { name: c.name, url: c.url }))}>
-                  {busy === c.id ? "Connecting..." : "Connect"}
-                </button>
-              )}
-            </article>
-          );
-        })}
+      <section aria-label="Apps" className="flex flex-col gap-3">
+        <h2 className="font-display text-lg">Your apps</h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{catalog.filter((t) => APPS.includes(t.id)).map(card)}</div>
+      </section>
+
+      <section aria-label="Knowledge" className="flex flex-col gap-3">
+        <h2 className="font-display text-lg">Knowledge (no account needed)</h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{catalog.filter((t) => !APPS.includes(t.id)).map(card)}</div>
       </section>
 
       {custom.length > 0 && (
@@ -125,10 +149,62 @@ function Tools() {
       <CustomServer busy={busy} run={run} />
 
       <p className="text-xs text-muted">
-        Petto&apos;s brain connects to these tools for you. What you ask a tool to do is sent to that tool&apos;s server,
-        so do not share private information with it.
+        Petto&apos;s brain connects to these tools for you and keeps sign-ins and keys encrypted. What you ask a tool to do
+        is sent to that tool&apos;s service.
       </p>
     </div>
+  );
+}
+
+function ToolCard({ tool, on, busy, onConnect, onDisconnect }: {
+  tool: CatalogTool;
+  on: McpServerView | undefined;
+  busy: string | null;
+  onConnect: (key?: string) => Promise<boolean>;
+  onDisconnect: (serverId: number) => void;
+}) {
+  const [askKey, setAskKey] = useState(false);
+  const [key, setKey] = useState("");
+  const mine = busy === tool.id;
+  return (
+    <article className={`pixel-panel flex flex-col gap-2 p-4 ${on ? "border-accent" : ""}`}>
+      <header className="flex items-center justify-between gap-2">
+        <h3 className="font-display text-lg">{tool.name}</h3>
+        {on ? <span className="font-display text-xs text-fuel">Connected</span>
+          : tool.auth === "local" ? <span className="font-display text-xs text-muted">On your computer</span>
+          : tool.auth === "oauth" && !tool.available ? <span className="font-display text-xs text-muted">Coming soon</span>
+          : null}
+      </header>
+      <p className="text-sm text-muted">{tool.what}</p>
+
+      {on ? (
+        <>
+          <p className="text-xs text-muted">{on.tools.length} tools . Try: <span className="text-ink">&quot;{tool.try}&quot;</span></p>
+          <button className="pixel-btn pixel-btn--secondary mt-auto self-start px-3 text-sm" disabled={busy !== null} onClick={() => onDisconnect(on.id)}>
+            {mine ? "..." : "Disconnect"}
+          </button>
+        </>
+      ) : tool.auth === "local" ? (
+        <p className="mt-auto text-xs text-muted">{tool.help}</p>
+      ) : tool.auth === "oauth" && !tool.available ? (
+        <p className="mt-auto text-xs text-muted">Sign-in for {tool.name} is not set up on this Petto yet.</p>
+      ) : tool.auth === "key" && askKey ? (
+        <form className="mt-auto flex flex-col gap-2" autoComplete="off"
+          onSubmit={(e) => { e.preventDefault(); void onConnect(key.trim()).then((ok) => ok && setKey("")); }}>
+          <input name={`${tool.id}-api-key`} type="password" autoComplete="new-password" required value={key} onChange={(e) => setKey(e.target.value)}
+            className="border-2 border-line bg-bg px-3 py-2 font-mono text-sm" placeholder={tool.key_name} />
+          <span className="text-xs text-muted">
+            Get one at <a className="text-accent underline" href={tool.key_url} target="_blank" rel="noreferrer">{tool.key_url?.replace(/^https:\/\//, "")}</a>
+          </span>
+          <button className="pixel-btn self-start px-3 text-sm" disabled={busy !== null}>{mine ? "Connecting..." : "Connect"}</button>
+        </form>
+      ) : (
+        <button className="pixel-btn mt-auto self-start px-3 text-sm" disabled={busy !== null}
+          onClick={() => (tool.auth === "key" ? setAskKey(true) : void onConnect())}>
+          {mine ? (tool.auth === "oauth" ? "Opening sign-in..." : "Connecting...") : tool.auth === "oauth" ? `Sign in with ${tool.name.split(" ")[0]}` : "Connect"}
+        </button>
+      )}
+    </article>
   );
 }
 
