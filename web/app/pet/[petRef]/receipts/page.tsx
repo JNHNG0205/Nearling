@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PetTabs } from "@/components/nearling/PetTabs";
 import { ReceiptList } from "@/components/talk/ReceiptList";
 
 export const metadata: Metadata = { title: "Receipts . Petto" };
@@ -13,6 +14,7 @@ export default async function ReceiptsPage({ params }: { params: Promise<{ petRe
         <Link href={`/pet/${encodeURIComponent(ref)}`} className="pixel-btn pixel-btn--secondary px-3" aria-label="Back">&lt;</Link>
         <h1 className="font-display text-2xl">Receipts</h1>
       </header>
+      <PetTabs petRef={ref} isOwner={false} />
       <p className="text-muted">Every reply is one thought of fuel and comes with proof of where it ran.</p>
       <ReceiptList petRef={ref} />
     </main>

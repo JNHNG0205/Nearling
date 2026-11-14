@@ -18,6 +18,7 @@ import { authHeaders, useSession } from "@/lib/session";
 import { useStream } from "@/lib/useStream";
 import { useTalk } from "@/lib/useTalk";
 import { DeviceNudge } from "./DeviceNudge";
+import { PetTabs } from "./PetTabs";
 import { notifyInBackground } from "./Inbox";
 import { DemoSpeedPill, StatePill, stateBanner } from "./Pills";
 import { talkAnim, turnFromTalk } from "./talkFlow";
@@ -176,6 +177,8 @@ export function PetHome({ initial }: { initial: PetState }) {
           {pet.demo_speed && <DemoSpeedPill />}
           <StatePill state={pet.display_state} />
         </div>
+        <DeviceNudge petRef={petRef} name={pet.name} href={`/pet/${ref}/device`} isOwner={isOwner} paired={pet.device.paired} />
+        <PetTabs petRef={petRef} isOwner={isOwner} />
       </header>
 
       {/* phone: one column (pet, talk, links). desktop: pet and links left, talk and chat right */}
@@ -235,6 +238,7 @@ export function PetHome({ initial }: { initial: PetState }) {
           </span>
           <span className="text-muted">Pat, rock and put {pet.name} to sleep to grow wings.</span>
         </p>
+        <PantryCard compact contract={pet.contract} tokenId={pet.token_id} name={pet.name} />
       </div>
 
       </div>
@@ -278,23 +282,6 @@ export function PetHome({ initial }: { initial: PetState }) {
 
       <div className="chat-scroll flex flex-col gap-6 lg:col-start-1 lg:row-start-2 lg:max-h-full lg:min-h-0 lg:gap-3 lg:overflow-y-auto">
 
-      <DeviceNudge petRef={petRef} name={pet.name} href={`/pet/${ref}/device`} isOwner={isOwner} paired={pet.device.paired} />
-      <PantryCard compact contract={pet.contract} tokenId={pet.token_id} name={pet.name} />
-      <nav aria-label={`${pet.name} pages`} className="flex flex-wrap gap-2 border-t-2 border-line pt-4">
-        {[
-          [`/feed/${ref}`, "Feed"],
-          [`/pet/${ref}/closet`, "Closet"],
-          [`/pet/${ref}/soul`, "Soul"],
-          [`/pet/${ref}/garden`, "Garden"],
-          [`/pet/${ref}/device`, "Device"],
-          ["/race", "Race"],
-          [`/pet/${ref}/receipts`, "Receipts"],
-          [`/p/${ref}`, "Share"],
-          ...(isOwner ? [[`/pet/${ref}/settings`, "Settings"], [`/pet/${ref}/transfer`, "Give away"]] : []),
-        ].map(([href, label]) => (
-          <Link key={href} href={href!} className="pixel-btn pixel-btn--secondary px-3 text-sm">{label}</Link>
-        ))}
-      </nav>
       </div>
       </div>
 

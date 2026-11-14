@@ -37,17 +37,12 @@ export function DeviceNudge({ petRef, name, href, isOwner, paired }: {
   }
 
   return (
-    <section aria-label="Connect your Petto" className="pixel-panel flex flex-col gap-3 p-4">
-      <h2 className="font-display text-lg">Connect your Petto</h2>
-      <p className="text-sm text-muted">
-        Give {name} a body on your desk: pair a Petto device to talk, pet and play with {name} away from the browser.
-      </p>
-      <div className="flex flex-wrap items-center gap-3">
-        <Link href={href} className="pixel-btn">Connect a Petto</Link>
-        <button className="text-sm text-muted underline" onClick={notNow}>
-          Not now
-        </button>
-      </div>
-    </section>
+    <aside aria-label="Connect your Petto" className="flex flex-wrap items-center gap-x-4 gap-y-2 border-2 border-line bg-surface px-3 py-2 text-sm">
+      <span className="flex-1">Give {name} a body on your desk: connect a Petto device.</span>
+      <Link href={href} className="font-display text-accent underline">Connect your Petto</Link>
+      <button className="text-muted underline" onClick={notNow}>
+        Not now
+      </button>
+    </aside>
   );
 }
