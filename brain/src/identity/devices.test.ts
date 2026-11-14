@@ -150,6 +150,19 @@ describe("Hatch & Pair", () => {
     expect(deviceStatus(deps.db, PET)).toEqual({ paired: false, last_seen_at: null });
   });
 
+  it("a device can unpair itself and then pair again", async () => {
+    const { deps, app, pair, hello } = setup();
+    const token = await pair();
+    const unpair = (auth?: string) => app.request("/devices/unpair", json("POST", undefined, auth ? { Authorization: auth } : {}));
+    expect((await unpair()).status).toBe(401);
+    expect((await unpair(`Device ${token}`)).status).toBe(200);
+    expect(deviceStatus(deps.db, PET).paired).toBe(false);
+    expect((await unpair(`Device ${token}`)).status).toBe(401); // the old token is dead
+    const h = await hello();
+    expect(h.bound).toBe(false); // a fresh pairing QR
+    expect(await pair()).not.toBe(token);
+  });
+
   it("a transferred pet drops the binding on hello", async () => {
     const { deps, hello, pair } = setup();
     await pair();

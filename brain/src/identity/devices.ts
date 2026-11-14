@@ -308,6 +308,16 @@ export function deviceRoutes(deps: Deps) {
     });
   });
 
+  // The device unpairs itself (its menu "New pet"): like the owner's unpair, for this device only.
+  // The next hello opens a fresh pairing, so the owner can hatch and pair another pet.
+  app.post("/devices/unpair", requireCaller(deps, ["device"]), (c) => {
+    const caller = c.get("caller");
+    if (caller.kind !== "device") return fail(c, 401, "unauthorized", "Device token required");
+    revoke("id = ?", caller.deviceId);
+    log.info("device_unpaired", { device: caller.deviceId, by: "device" });
+    return c.json({ ok: true });
+  });
+
   // On-chain pending actions for the device's approve screen (CLAUDE.md 7.3 step 2).
   app.get("/devices/actions", requireCaller(deps, ["device"]), async (c) => {
     const caller = c.get("caller");

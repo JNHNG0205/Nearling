@@ -44,6 +44,7 @@ A bound device whose pet changed owner is revoked here and gets a fresh pairing.
 3. On `awaiting_confirm`: show "Pair <pet_name>?" and wait for the physical button.
 4. Button press: `POST /devices/pairing/confirm` (device secret headers, no body) returns `{ "device_token", "pet_ref" }`. Store both in NVS. The token is shown **once**; if lost, the owner unpairs on the web and you pair again. Confirm also hatches the egg (Build Spec 1).
 5. On `expired`: call `/devices/hello` again for a new code.
+6. Start over with another pet (device menu New pet): `POST /devices/unpair` with the device token, forget the token, then `/devices/hello` gives a fresh pairing.
 
 Errors: 401 `unauthorized` (bad secret headers), 404 (call hello first), 409 `conflict` (not waiting / already used), 410 `expired`, 403 `not_owner` (pet moved during pairing).
 
