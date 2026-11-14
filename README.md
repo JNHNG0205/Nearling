@@ -1,9 +1,41 @@
-# Petto
+<div align="center">
+  <img src="web/public/images/logo.jpeg" alt="Petto" width="360" />
+  <p><strong>An AI Tamagotchi that pays for its own thoughts</strong></p>
+  <p>
+    <a href="https://near.org"><img src="https://img.shields.io/badge/Network-NEAR_Testnet-00C08B?style=flat-square" alt="Network: NEAR testnet" /></a>
+    <a href="https://docs.near.ai"><img src="https://img.shields.io/badge/AI-NEAR_AI_Cloud_(TEE)-111111?style=flat-square" alt="AI: NEAR AI Cloud, private TEE models" /></a>
+    <a href="https://stg.nearon.dev"><img src="https://img.shields.io/badge/Staking-NEARON-C9A45A?style=flat-square" alt="Staking: NEARON" /></a>
+    <a href="https://github.com/near/near-sdk-rs"><img src="https://img.shields.io/badge/Contracts-Rust_near--sdk_5-DEA584?style=flat-square" alt="Contracts: Rust near-sdk 5" /></a>
+    <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Console-Next.js-000000?style=flat-square" alt="Console: Next.js" /></a>
+    <a href="docs/hardware/"><img src="https://img.shields.io/badge/Device-ESP32--S3-E7352C?style=flat-square" alt="Device: ESP32-S3" /></a>
+  </p>
+  <p>Every word your pet says is a private AI thought, paid on chain from its own NEAR wallet. Feed it and it chats, forget it and it goes quiet, stake for it and the yield keeps it fed.</p>
+  <img src="docs/readme-banner.png" alt="One Petto in each of the 36 Closet costumes, drawn by the app's own sprite code" width="800" />
+  <p>
+    <a href="#try-it-do-x-see-y">Try it</a> &middot;
+    <a href="#architecture">Architecture</a> &middot;
+    <a href="docs/CONTRACT_INTERFACE.md">Contract interface</a> &middot;
+    <a href="https://testnet.nearblocks.io/txns/CndDMwrmsz5B8xjg36UdSy4dZjzPy8HibRpwdtgZawoy">A thought, paid on chain</a> &middot;
+    <a href="#limitations">Limitations</a>
+  </p>
+  <p><sub>NEAR testnet only, test NEAR only. Built for NEAR HACKATHON 2026. Hosted demo and video: links added at submission.</sub></p>
+</div>
 
-**Petto is an AI Tamagotchi that pays for its own thoughts.** Every word your pet says is a real AI thought, and the pet pays for it out of its own wallet. Each reply is a private inference on NEAR AI Cloud, billed on chain to the pet's own fuel. Feed it and it chats; neglect it and it goes hungry, quiet, then dormant; plant NEAR in its Brain Garden and the staking yield feeds it forever. The pet lives in a small device on your desk; the web app is its console (feed, dress, stake, read receipts) and also plays the same pet in the browser, so you can try everything without the hardware.
+---
 
-> **Status:** built for NEAR HACKATHON (Nov 2026), **testnet only**. Tracks: `games` (main), `nfts`, `agents`, `privacy`, `security`.
-> **Hosted demo:** _URL added after deploy_ · **Demo video / X post:** _link added at submission_
+## Overview
+
+**Petto is an AI Tamagotchi that pays for its own thoughts.** Each reply is a private inference on NEAR AI Cloud, billed on chain to the pet's own fuel. Feed it and it chats; neglect it and it goes hungry, quiet, then dormant; plant NEAR in its Brain Garden and the staking yield feeds it. The pet lives in a small device on your desk; the web app is its console (feed, dress, stake, read receipts) and also plays the same pet in the browser, so you can try everything without the hardware.
+
+```text
+A thought happens  =  fuel > 0  →  one on-chain charge of $0.001 (1 fuel)
+Fuel               =  staking credit (spent first) + food (NEAR anyone fed it)
+Fuel = 0           →  no AI call, nothing billed: Starving, then Dormant after 72 h (pets never die)
+```
+
+Tracks: `games` (main), `nfts`, `agents`, `privacy`, `security`.
+
+---
 
 ## Why it is different
 
@@ -14,9 +46,11 @@ Most AI pets are a chat window with a cute skin, paid for by a company. In Petto
 | Food is a number that refills for free | Food is NEAR in the pet's on-chain budget; one reply burns one fuel ($0.001), visible as a public `thought` event |
 | A hungry pet looks sad | A hungry pet literally cannot think: at zero fuel it stops calling the AI and says "zzz... my brain is out of fuel" for free |
 | Care is tapping buttons | Care is real: pat, rock and lights off on the device sensors grow its wings; chatting and daily visits grow it from Baby to Teen to Adult |
-| Wealth means a bigger number | Stake NEAR for it and the yield (NEARON CREDIT) pays for its thoughts: a pet that never goes hungry again |
+| Wealth means a bigger number | Stake NEAR for it and the yield (NEARON CREDIT) pays for its thoughts: with enough stake it never goes hungry |
 
 It is Illia Polosukhin's "NFT pets each with a NEAR balance that pays for AI inference", turned into a game loop with a body you can hold.
+
+---
 
 ## What the pet's AI actually does
 
@@ -34,6 +68,8 @@ Every reply comes from a private (TEE) model on NEAR AI Cloud, built from five i
 
 What it does **not** do: it does not move money, trade or give financial advice. Only the brain can bill fuel, within on-chain caps, and value actions always need the owner's wallet.
 
+---
+
 ## Architecture
 
 ![Petto architecture](docs/architecture.png)
@@ -43,6 +79,8 @@ Editable source: [`docs/architecture.drawio`](docs/architecture.drawio) (open in
 - **The chain is the pet's bank:** ownership, fuel (food + staking credit), stake, Soul, stage and events live in the pets contract. Interface: [`docs/CONTRACT_INTERFACE.md`](docs/CONTRACT_INTERFACE.md); full spec: [`CLAUDE.md`](CLAUDE.md) sections 6 and 7.
 - **The brain is the pet's mind:** it talks (private TEE models), remembers (encrypted), reaches out first, and is the only account allowed to `charge` fuel, within on-chain caps.
 - **The device is the pet, the web app is its console:** both show the same pet, driven by the same brain and the same on-chain fuel; the browser can play it on its own.
+
+---
 
 ## Main features
 
@@ -86,6 +124,8 @@ Editable source: [`docs/architecture.drawio`](docs/architecture.drawio) (open in
 | **Gas-free actions** | Soul edits and hatching cost no gas | NEP-366 meta transactions through our relayer, only for calls with no NEAR attached |
 | **Capped brain** | A leaked brain key cannot drain a pet | Brain uses function-call keys only; `charge` is capped at $0.005 per call and $0.10 per pet per day |
 | **Device approvals** | Hold Approve on the device before a value action | Limited device key (can never send NEAR away); on-chain approve flow where one key cannot both propose and approve |
+
+---
 
 ## Try it (do X, see Y)
 
@@ -133,11 +173,15 @@ Evidence that the pet pays for its thoughts: a brain `charge` on the current con
 | Gas relayer | `relayer.petto.testnet` |
 | NEARON pool used | `mw-pool-1024.testnet` |
 
+---
+
 ## The device: the Tamagotchi on your desk
 
 The pet's own body: ESP32-S3 with a small screen, three buttons, a touch pad, motion and light sensors, a mic and a speaker, in a 3D-printed case. Hold a button to talk; pat, rock or darken the room to care for it offline; race in Petto Run; hold Approve before a wallet action. Wiring and pins: [`docs/hardware/`](docs/hardware/); device API: [`AI-brain architectual/08-api-reference.md`](AI-brain%20architectual/08-api-reference.md).
 
 _Photos, video and build steps: to be added by the hardware team._
+
+---
 
 ## NEAR tech per track
 
@@ -155,6 +199,8 @@ _Photos, video and build steps: to be added by the hardware team._
 
 **NEAR Connect, Privy and NEP-366:** wallets come from `@hot-labs/near-connect`; email and Google users get a Privy embedded NEAR wallet registered as a NEAR Connect wallet; sign-in is a NEP-413 signed message. Calls with no NEAR attached go through our NEP-366 relayer, so the user pays no gas.
 
+---
+
 ## Security model (contract)
 
 - **Only the brain can spend fuel, within caps:** $0.005 per call, $0.10 per pet per day; xp, mood and trait changes clamped. Only the admin can change config.
@@ -163,6 +209,8 @@ _Photos, video and build steps: to be added by the hardware team._
 - **Every NEARON call is locked before and restored on failure**, so a failed pool call never loses or double-counts stake.
 - **The device key can never attach NEAR:** it can feed from a pantry the owner stocked (1 NEAR a day), stake the pet's own food (capped) and approve actions the wallet proposed.
 - **Tests:** 657 in total, all passing (pets contract 192, shirts 10, brain 267, web 140, sprites 23, device 10, race 8, shared 7), plus each flow run on testnet.
+
+---
 
 ## Limitations
 
@@ -177,9 +225,13 @@ _Photos, video and build steps: to be added by the hardware team._
 - **One brain instance:** rate limits and race rooms reset on restart; data is in SQLite.
 - **Costume NFTs have no image yet** in wallets; the app draws them.
 
+---
+
 ## Naming
 
 Petto was called **Nearling** while we built it. On 2026-11-14 we moved to `petto.testnet` accounts with the event standard `petto`. The earlier `*.nearling.testnet` contracts still exist with their history (event standard `nearling`, which the brain still reads), but the app no longer uses them, and pets on them did not move. A few internal names keep "Nearling" (some file and component names, the hosted brain's database and app name). Petto is **not affiliated** with nearling.xyz, a separate project. "Tamagotchi" is a trademark of Bandai; we use it only to describe the kind of game Petto is, and Petto is not affiliated with or endorsed by Bandai.
+
+---
 
 ## Prior art and similar projects
 
@@ -190,6 +242,8 @@ Petto was called **Nearling** while we built it. On 2026-11-14 we moved to `pett
 | TamaTown, agentchi, Dæmons, Pett.ai | AI or wallet pets on other chains | Built on NEAR AI private inference with the pet paying per thought |
 
 Our edge, in order: the game loop (needs, memory, the pet reaching out first), the hardware body, the pet visibly paying for each thought, stake to live.
+
+---
 
 ## Repository
 
@@ -205,6 +259,8 @@ Our edge, in order: the game loop (needs, memory, the pet reaching out first), t
 | `docs/` | Contract interface, architecture, hardware, milestones, limitations, Build Spec |
 | `AI-brain architectual/`, `web-app architectual/` | Design docs for brain and web |
 | `CLAUDE.md` | The spec the team and Claude Code work from |
+
+---
 
 ## Hackathon disclosures
 
@@ -223,9 +279,13 @@ Our edge, in order: the game loop (needs, memory, the pet reaching out first), t
 - **AI-assisted code:** most code and docs were written with **Claude Code** (Anthropic) under the rules in [`CLAUDE.md`](CLAUDE.md), with the team directing, reviewing and testing every change.
 - **License:** [MIT](LICENSE).
 
+---
+
 ## Roadmap
 
 A dedicated signing chip on the device, costume images in wallets, friend visits and postcards, a Dream Journal, pets earning on Agent Market, arena prizes, the brain inside OutLayer, then mainnet.
+
+---
 
 ## Team
 
