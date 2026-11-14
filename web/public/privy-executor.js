@@ -1,4 +1,5 @@
-// @peerfolio/privy-near-connect@0.0.8 dist/executor.js (reviewed 2026-11-14), served from our origin. Do not edit.
+// @peerfolio/privy-near-connect@0.0.8 dist/executor.js (reviewed 2026-11-14), served from our origin.
+// One change from upstream: the sign page opens as a small popup window, not a full tab (PETTO marks it).
 // src/types.ts
 var CHANNEL_SOURCE = "privy-near-connect";
 var channelMsg = {
@@ -56,7 +57,7 @@ function requestWallet(metadata, payload) {
   const { signPageURL, debug = false } = metadata;
   const logger = createLogger(LOG_PREFIX, debug);
   return new Promise((resolve, reject) => {
-    const popup = window.selector.open(signPageURL);
+    const popup = window.selector.open(signPageURL, "_blank", "popup,width=440,height=760"); // PETTO: popup, not a tab
     const cleanup = () => {
       window.removeEventListener("message", handler);
       clearInterval(closedPoll);
