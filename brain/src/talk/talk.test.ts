@@ -78,9 +78,17 @@ async function setup(opts: Parameters<typeof fakeAi>[0] & { tts?: TtsProvider | 
 
 describe("prompt", () => {
   const state = {
-    name: "Mochi", stage: "baby", form: "base" as const, shirt: null, fuelLeft: 19, displayState: "happy" as const,
+    name: "Mochi", stage: "baby", form: "base" as const, shirt: null, costume: null, fuelLeft: 19, displayState: "happy" as const,
     nickname: "Sam", ownerLocalTime: "Mon 09:00 (UTC)", channel: "device" as const,
   };
+
+  it("tells the pet which costume it wears, by name", () => {
+    const sys = (costume: string | null, shirt: string | null) =>
+      buildMessages({ soul: null, state: { ...state, shirt, costume }, summary: null, facts: [], today: "2026-01-02", history: [], userText: "hi" })[0]!.content;
+    expect(sys("wizard_hat", "4")).toContain("You are wearing a wizard hat costume.");
+    expect(sys(null, "0")).toContain("You are wearing a Petto shirt.");
+    expect(sys(null, null)).toContain("You are wearing nothing special.");
+  });
 
   it("puts the safety core first, then the wrapped Soul, state, memory, history and user text", () => {
     const m = buildMessages({

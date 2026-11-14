@@ -148,6 +148,7 @@ export async function runTurn(deps: Deps, ai: NearAi, input: TurnInput): Promise
       stage: STAGES[pet.stage] ?? "adult",
       form: profile.form,
       shirt: profile.equipped_shirt,
+      costume: profile.equipped_costume ?? null,
       fuelLeft: left,
       displayState: displayState(pet.life_state, profile.care_mood, sleeping),
       nickname,
