@@ -1,3 +1,4 @@
+import { COSTUME_KEYS } from "@petto/sprites";
 import { describe, expect, it } from "vitest";
 import { closetItems, costumeLabel, ownedCostumes, shopCostumes } from "./closet";
 
@@ -16,7 +17,7 @@ describe("closet", () => {
 
   it("the shop lists every costume the owner does not have yet", () => {
     const shop = shopCostumes(closetItems([shirt, hat]));
-    expect(shop).toHaveLength(35);
+    expect(shop).toHaveLength(COSTUME_KEYS.length - 1); // all but the wizard hat they own
     expect(shop).not.toContain("wizard_hat");
     expect(shop[0]).toBe("cap");
   });
