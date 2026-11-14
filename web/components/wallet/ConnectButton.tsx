@@ -36,15 +36,6 @@ export function ConnectButton({ label = "Connect wallet", compact = false }: { l
       <button className={`pixel-btn ${compact ? "px-3 text-sm" : ""}`} disabled={busy} onClick={() => void signIn()}>
         {busy ? "Check your wallet..." : wallet.accountId ? "Sign in to Petto" : label}
       </button>
-      {!compact && !wallet.accountId && (
-        <button
-          className="self-start text-sm text-muted underline"
-          disabled={busy}
-          onClick={() => void signIn({ anyWallet: true })}
-        >
-          Use another wallet
-        </button>
-      )}
       {!compact && wallet.accountId && (
         <button className="self-start text-sm text-muted underline" onClick={() => void signOut()}>
           Disconnect {wallet.accountId}
