@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { PixelIcon, type IconName } from "@/components/PixelIcon";
 
 /**
  * One bar for a pet's pages: the everyday ones as tabs (current one highlighted, scrolls sideways
@@ -10,14 +11,14 @@ import { usePathname } from "next/navigation";
 export function PetTabs({ petRef, isOwner }: { petRef: string; isOwner: boolean }) {
   const path = usePathname();
   const ref = encodeURIComponent(petRef);
-  const tabs: [string, string][] = [
-    [`/pet/${ref}`, "Talk"],
-    [`/feed/${ref}`, "Feed"],
-    [`/pet/${ref}/garden`, "Garden"],
-    [`/pet/${ref}/closet`, "Closet"],
-    [`/pet/${ref}/soul`, "Soul"],
-    [`/pet/${ref}/traits`, "Traits"],
-    [`/pet/${ref}/device`, "Device"],
+  const tabs: [string, string, IconName][] = [
+    [`/pet/${ref}`, "Talk", "talk"],
+    [`/feed/${ref}`, "Feed", "feed"],
+    [`/pet/${ref}/garden`, "Garden", "garden"],
+    [`/pet/${ref}/closet`, "Closet", "closet"],
+    [`/pet/${ref}/soul`, "Soul", "soul"],
+    [`/pet/${ref}/traits`, "Traits", "traits"],
+    [`/pet/${ref}/device`, "Device", "device"],
   ];
   const more: [string, string][] = [
     [`/pet/${ref}/receipts`, "Receipts"],
@@ -30,13 +31,14 @@ export function PetTabs({ petRef, isOwner }: { petRef: string; isOwner: boolean 
   return (
     <nav aria-label="Pet pages" className="flex items-stretch gap-2 border-b-2 border-line">
       <ul className="-mb-[2px] flex min-w-0 flex-1 gap-1 overflow-x-auto font-display text-sm">
-        {tabs.map(([href, label]) => (
+        {tabs.map(([href, label, icon]) => (
           <li key={href} className="shrink-0">
             <Link
               href={href}
               aria-current={here(href) ? "page" : undefined}
-              className={`block border-b-2 px-3 py-2 ${here(href) ? "border-accent text-accent" : "border-transparent text-muted hover:text-ink"}`}
+              className={`flex items-center gap-1.5 border-b-2 px-3 py-2 ${here(href) ? "border-accent text-accent" : "border-transparent text-muted hover:text-ink"}`}
             >
+              <PixelIcon name={icon} size={14} />
               {label}
             </Link>
           </li>

@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { PixelIcon } from "@/components/PixelIcon";
 import { getBattle, type BattleRecord } from "@/lib/chain";
-import { traitSummary } from "@/lib/traits";
+import { STAT_LABEL, traitSummary } from "@/lib/traits";
 
-/** The pet's five traits with what each raises in battle, its battle record and battle style. */
+/** The pet's five traits with the battle stats each raises, its battle record and battle style. */
 export function TraitsPanel({ contract, tokenId, traits, name }: { contract: string; tokenId: string; traits: readonly number[]; name: string }) {
   const [r, setR] = useState<BattleRecord | null>(null);
   useEffect(() => {
@@ -20,42 +21,55 @@ export function TraitsPanel({ contract, tokenId, traits, name }: { contract: str
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="pixel-panel flex flex-col gap-3 p-4">
-        <h2 className="font-display text-xl">Traits</h2>
-        <p className="text-sm text-muted">Set at birth and stored on NEAR. They shape {name}&apos;s look and how it fights.</p>
-        <ul className="flex flex-col gap-3">
+      <section className="pixel-panel flex flex-col gap-4 p-4">
+        <div>
+          <h2 className="font-display text-xl">Traits</h2>
+          <p className="text-sm text-muted">Set at birth. They shape how {name} looks and fights.</p>
+        </div>
+        <ul className="flex flex-col gap-4">
           {t.traits.map((x) => (
-            <li key={x.label} className="grid grid-cols-[5rem_1fr_2.5rem] items-center gap-x-3">
+            <li key={x.label} className="grid grid-cols-[5rem_1fr_2.5rem] items-center gap-x-3 gap-y-1">
               <span className="font-display text-sm">{x.label}</span>
               <div role="meter" aria-label={x.label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={x.value} className="h-3 border-2 border-[var(--n-line)] bg-bg">
                 <div className="h-full bg-accent" style={{ width: `${x.value}%` }} />
               </div>
               <span className="text-right font-mono tabular-nums">{x.value}</span>
-              <span className="col-start-2 col-span-2 text-xs text-muted">Battle: {x.effect}</span>
+              <span className="col-start-2 col-span-2 flex flex-wrap gap-3 text-xs text-muted">
+                {x.stats.map((s) => (
+                  <span key={s} className="flex items-center gap-1"><PixelIcon name={s} size={14} />{STAT_LABEL[s]}</span>
+                ))}
+              </span>
             </li>
           ))}
         </ul>
       </section>
 
-      <section className="pixel-panel flex flex-col gap-3 p-4">
+      <section className="pixel-panel flex flex-col gap-4 p-4">
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="font-display text-xl">Battle style: {t.family}</h2>
-          <Link href="/battle" className="font-display text-sm hover:text-accent">Battle</Link>
+          <div>
+            <h2 className="font-display text-xl">Battle style: {t.family}</h2>
+            <p className="text-sm text-muted">
+              Battle Lv {level}{r && `, ${r.wins} won, ${r.losses} lost${r.draws ? `, ${r.draws} drawn` : ""}`}
+            </p>
+          </div>
+          <Link href="/battle" className="pixel-btn shrink-0 text-sm">Battle</Link>
         </div>
-        <p className="text-sm text-muted">
-          From {name}&apos;s highest trait.{r && ` Battle Lv ${r.level}: ${r.wins} won, ${r.losses} lost${r.draws ? `, ${r.draws} drawn` : ""}.`}
-        </p>
-        <ul className="flex flex-col gap-1 text-sm">
-          {t.skills.map((k) => (
-            <li key={k.name} className={k.level <= level ? "" : "text-muted"}>
-              {k.name} <span className="text-muted">{k.level <= level ? "(unlocked)" : `(unlocks at Lv ${k.level})`}</span>
-            </li>
-          ))}
+        <ul className="flex flex-col gap-2 text-sm">
+          {t.skills.map((k) => {
+            const open = k.level <= level;
+            return (
+              <li key={k.name} className={`flex items-center gap-2 ${open ? "" : "text-muted"}`}>
+                <PixelIcon name={open ? "attack" : "lock"} size={14} />
+                <span>{k.name}</span>
+                {!open && <span className="text-xs">Lv {k.level}</span>}
+              </li>
+            );
+          })}
         </ul>
-        <p className="text-sm text-muted">
-          Every pet can also Defend (takes 70% damage, restores 10% MP) or Dodge (30% chance at equal speed, plus 2% per
-          point faster; a miss takes 25% more). Neither can be used two turns in a row.
-        </p>
+        <ul className="flex flex-col gap-2 border-t-2 border-line pt-3 text-sm">
+          <li className="flex items-center gap-2"><PixelIcon name="defence" size={14} /><span><span className="font-display">Defend</span> <span className="text-muted">takes less damage and regains MP</span></span></li>
+          <li className="flex items-center gap-2"><PixelIcon name="dodge" size={14} /><span><span className="font-display">Dodge</span> <span className="text-muted">may avoid the hit; faster pets dodge more</span></span></li>
+        </ul>
       </section>
     </div>
   );

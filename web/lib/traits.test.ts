@@ -7,7 +7,7 @@ describe("traitSummary", () => {
     expect(s.traits.map((t) => [t.label, t.value])).toEqual([
       ["Playful", 50], ["Curious", 45], ["Calm", 82], ["Sassy", 41], ["Kind", 56],
     ]);
-    expect(s.traits[2]?.effect).toBe("HP and defence");
+    expect(s.traits.map((t) => t.stats)).toEqual([["attack", "speed"], ["mp", "speed"], ["hp", "defence"], ["crit"], ["heal"]]);
   });
 
   it("names the battle style after the highest trait, with its skills and unlock levels", () => {
