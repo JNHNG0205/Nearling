@@ -13,10 +13,10 @@ CONTRACT="$1"; shift
 ALLOWANCE="${ALLOWANCE:-1 NEAR}"   # gas budget per key; each key can only call the methods below
 
 for PK in "$@"; do
-  echo "Adding $PK -> $CONTRACT (charge, credit, sweep_credit, set_metadata)..."
+  echo "Adding $PK -> $CONTRACT (charge, credit, sweep_credit, set_metadata, record_battle)..."
   near account add-key "$BRAIN_ACCOUNT" grant-function-call-access \
     --allowance "$ALLOWANCE" --contract-account-id "$CONTRACT" \
-    --function-names 'charge, credit, sweep_credit, set_metadata' \
+    --function-names 'charge, credit, sweep_credit, set_metadata, record_battle' \
     use-manually-provided-public-key "$PK" \
     network-config testnet sign-with-legacy-keychain send
 done
