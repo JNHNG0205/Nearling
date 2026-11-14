@@ -156,7 +156,7 @@ export default async function Home() {
               <img src="/petto-device.webp" width={528} height={606} loading="lazy"
                 alt="The Petto device: a white 3D-printed egg-shaped case with a dragon on top, a colour screen showing the Petto egg, and three red buttons"
                 className="w-full max-w-[380px] drop-shadow-[0_24px_48px_rgba(214,170,90,0.25)]" />
-              <figcaption className="text-sm text-muted">Our Petto: 3D-printed case, ESP32-S3, colour screen, three buttons.</figcaption>
+             
             </figure>
             <ul className="flex flex-col gap-4 text-lg">
               <li><span className="font-display">Pat, rock, lights off.</span> Touch, motion and light sensors care for it offline, at no cost. Do all three and it grows wings.</li>
