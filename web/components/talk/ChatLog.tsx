@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { McpTaskCard } from "@petto/shared";
 import { BrainRequestError, brainUrl, errorCopy, requestVoice, type Turn } from "@/lib/brain";
 import { authHeaders } from "@/lib/session";
 import { FuelChip } from "./FuelChip";
@@ -20,7 +21,7 @@ const EMOTION_ICON: Record<string, string> = {
   happy: "♥", excited: "*", sleepy: "z", sad: "~", hungry: "!", curious: "?", silly: "@",
 };
 
-function ReplyBubble({ turn, name, petRef }: { turn: Turn; name: string; petRef?: string }) {
+function ReplyBubble({ turn, name, petRef, onTask }: { turn: Turn; name: string; petRef?: string; onTask?: TaskHandler }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [audioUrl, setAudioUrl] = useState(turn.audio_url);
   const [voiceBusy, setVoiceBusy] = useState(false);
@@ -70,12 +71,59 @@ function ReplyBubble({ turn, name, petRef }: { turn: Turn; name: string; petRef?
         {audioUrl && <audio ref={audioRef} src={brainUrl(audioUrl)} preload="none" />}
       </div>
       {voiceError && <p className="text-sm text-warn" role="status">{voiceError}</p>}
+      {turn.tasks.map((task) => <TaskCard key={task.id} task={task} name={name} onTask={onTask ? (d) => onTask(turn.turn_id, task, d) : undefined} />)}
+    </div>
+  );
+}
+
+export type TaskHandler = (turnId: string, task: McpTaskCard, decision: "approve" | "decline") => Promise<void>;
+
+const TASK_STATUS: Record<McpTaskCard["status"], string> = {
+  pending: "Waiting for you", approved: "Running...", done: "Done", failed: "Didn't work", declined: "Declined",
+};
+
+/** A tool call the pet proposed (web /mcp). It runs only when the owner presses Approve. */
+function TaskCard({ task, name, onTask }: { task: McpTaskCard; name: string; onTask?: (d: "approve" | "decline") => Promise<void> }) {
+  const [busy, setBusy] = useState<"approve" | "decline" | null>(null);
+  const args = Object.entries(task.args);
+  const decide = async (d: "approve" | "decline") => {
+    if (!onTask) return;
+    setBusy(d);
+    try {
+      await onTask(d);
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <div className="flex w-full max-w-[90%] flex-col gap-2 border-2 border-accent bg-surface p-3" role="group" aria-label={`Task: ${task.tool}`}>
+      <p className="flex flex-wrap items-center justify-between gap-2 text-sm">
+        <span><span className="font-display">{name} wants to use</span> <span className="font-mono text-accent">{task.tool}</span> <span className="text-muted">({task.server})</span></span>
+        <span className={`font-display text-xs ${task.status === "done" ? "text-fuel" : task.status === "failed" ? "text-warn" : "text-muted"}`}>{TASK_STATUS[task.status]}</span>
+      </p>
+      {args.length > 0 && (
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 font-mono text-xs">
+          {args.slice(0, 8).map(([k, v]) => (
+            <div key={k} className="contents"><dt className="text-muted">{k}</dt><dd className="break-words">{typeof v === "string" ? v : JSON.stringify(v)}</dd></div>
+          ))}
+        </dl>
+      )}
+      {task.status === "pending" && onTask && (
+        <div className="flex gap-2">
+          <button type="button" className="pixel-btn px-3 text-sm" disabled={busy !== null} onClick={() => void decide("approve")}>
+            {busy === "approve" ? "Running..." : "Approve"}
+          </button>
+          <button type="button" className="pixel-btn pixel-btn--secondary px-3 text-sm" disabled={busy !== null} onClick={() => void decide("decline")}>
+            Decline
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
 /** `petRef` turns on "Hear it" for the owner's saved replies. */
-export function ChatLog({ entries, name, readOnly, petRef }: { entries: ChatEntry[]; name: string; readOnly?: boolean; petRef?: string }) {
+export function ChatLog({ entries, name, readOnly, petRef, onTask }: { entries: ChatEntry[]; name: string; readOnly?: boolean; petRef?: string; onTask?: TaskHandler }) {
   if (entries.length === 0) {
     return (
       <p className="text-muted">
@@ -99,7 +147,7 @@ export function ChatLog({ entries, name, readOnly, petRef }: { entries: ChatEntr
             {e.user ?? <span className="text-muted">Voice message</span>}
           </p>
           {e.turn ? (
-            <ReplyBubble turn={e.turn} name={name} petRef={readOnly ? undefined : petRef} />
+            <ReplyBubble turn={e.turn} name={name} petRef={readOnly ? undefined : petRef} onTask={readOnly ? undefined : onTask} />
           ) : e.error ? (
             <p className="text-warn"><span aria-hidden>! </span>{e.error}</p>
           ) : (

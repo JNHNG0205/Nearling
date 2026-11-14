@@ -15,6 +15,8 @@ export interface ChatMessage {
 
 export interface ChatResult {
   text: string;
+  /** Tool calls the model proposed (only when `tools` were sent). Arguments are parsed JSON objects. */
+  toolCalls?: { name: string; arguments: Record<string, unknown> }[];
   model: string;
   /** Response `id`, used for `GET /signature/{chat_id}`. */
   chatId: string;
@@ -46,8 +48,14 @@ export class NearAiError extends Error {
   }
 }
 
+/** OpenAI-style function tool, sent to the model so it can propose a call (MCP tools, brain/src/mcp). */
+export interface ChatTool {
+  type: "function";
+  function: { name: string; description: string; parameters: Record<string, unknown> };
+}
+
 export interface NearAi {
-  chat(messages: ChatMessage[], opts?: { model?: string; maxTokens?: number; temperature?: number }): Promise<ChatResult>;
+  chat(messages: ChatMessage[], opts?: { model?: string; maxTokens?: number; temperature?: number; tools?: ChatTool[] }): Promise<ChatResult>;
   transcribe(audio: Uint8Array, mime: string): Promise<{ text: string; ms: number }>;
   modelPrices(): Promise<Map<string, ModelPrice>>;
   /** Price of the model, or null if unknown. Throws `not_verifiable` if the list marks it not verifiable. */
@@ -160,8 +168,10 @@ export function createNearAi(
       const rawRequest = JSON.stringify({
         model,
         messages,
-        max_tokens: o.maxTokens ?? 160,
+        // a tool call needs room for its JSON arguments
+        max_tokens: o.maxTokens ?? (o.tools?.length ? 500 : 160),
         temperature: o.temperature ?? 0.8,
+        ...(o.tools?.length ? { tools: o.tools } : {}),
         // Qwen3 thinks before answering unless told not to; a pet reply needs no reasoning, and
         // thinking made replies about 10x slower and could use the whole token budget (empty reply).
         ...(/^qwen\/qwen3/i.test(model) ? { chat_template_kwargs: { enable_thinking: false } } : {}),
@@ -181,7 +191,7 @@ export function createNearAi(
       let json: {
         id?: string;
         model?: string;
-        choices?: { message?: { content?: string | null } }[];
+        choices?: { message?: { content?: string | null; tool_calls?: { function?: { name?: string; arguments?: string } }[] } }[];
         usage?: { prompt_tokens?: number; completion_tokens?: number };
       };
       try {
@@ -189,10 +199,22 @@ export function createNearAi(
       } catch {
         throw new NearAiError("upstream", res.status);
       }
-      const text = json.choices?.[0]?.message?.content;
-      if (typeof text !== "string" || !text.trim() || !json.id) throw new NearAiError("upstream", res.status);
+      const msg = json.choices?.[0]?.message;
+      const toolCalls = (msg?.tool_calls ?? []).flatMap((c) => {
+        const name = c.function?.name;
+        if (!name) return [];
+        try {
+          const args: unknown = JSON.parse(c.function?.arguments || "{}");
+          return args && typeof args === "object" && !Array.isArray(args) ? [{ name, arguments: args as Record<string, unknown> }] : [];
+        } catch {
+          return []; // malformed arguments: drop the call, never guess
+        }
+      });
+      const text = typeof msg?.content === "string" ? msg.content : "";
+      if ((!text.trim() && toolCalls.length === 0) || !json.id) throw new NearAiError("upstream", res.status);
       return {
         text,
+        ...(toolCalls.length ? { toolCalls } : {}),
         model,
         chatId: json.id,
         inferenceId: res.headers.get("inference-id") ?? res.headers.get("x-inference-id"),

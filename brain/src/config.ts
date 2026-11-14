@@ -92,6 +92,11 @@ const Env = z.object({
   PINATA_JWT: z.string().optional(),
   /** Dedicated gateway host, e.g. "example.mypinata.cloud". Unset = https://ipfs.io. */
   PINATA_GATEWAY: z.string().optional(),
+  /** MCP tools: allow http and private addresses (tests and a local MCP server only). Off = https public hosts only. */
+  MCP_ALLOW_PRIVATE: z
+    .enum(["0", "1"])
+    .default("0")
+    .transform((v) => v === "1"),
   /** Tests only (CLAUDE.md rule 5): canned fake inference, never in the demo path. */
   MOCK_AI: z
     .string()

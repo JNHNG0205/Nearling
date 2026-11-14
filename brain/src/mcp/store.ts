@@ -1,0 +1,77 @@
+import type { McpTaskCard } from "@petto/shared";
+import type { ChatTool } from "../ai/nearai";
+import type { Deps } from "../deps";
+import type { McpTool } from "./client";
+
+/** Sealer context for an owner's MCP tokens (the sealer derives a key per context string). */
+export const tokenContext = (owner: string) => `mcp:${owner}`;
+
+export interface ServerRow {
+  id: number;
+  owner_account: string;
+  name: string;
+  url: string;
+  token_enc: Buffer | null;
+  tools_json: string;
+  created_at: number;
+  refreshed_at: number;
+}
+
+export interface TaskRow {
+  id: string;
+  turn_id: string;
+  pet_ref: string;
+  owner_account: string;
+  server_id: number;
+  tool: string;
+  args_enc: Buffer;
+  status: "pending" | "approved" | "done" | "failed" | "declined";
+  result_enc: Buffer | null;
+  error_code: string | null;
+  follow_turn_id: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export const servers = (deps: Deps, owner: string) =>
+  deps.db.prepare("SELECT * FROM mcp_server WHERE owner_account = ? ORDER BY id").all(owner) as ServerRow[];
+
+export const server = (deps: Deps, owner: string, id: number) =>
+  deps.db.prepare("SELECT * FROM mcp_server WHERE id = ? AND owner_account = ?").get(id, owner) as ServerRow | undefined;
+
+/** The model sees each tool as `s<serverId>_<tool>` (OpenAI names: letters, digits, _ and -, at most 64). */
+const fnName = (serverId: number, tool: string) => `s${serverId}_${tool.replace(/[^A-Za-z0-9_-]/g, "_")}`.slice(0, 64);
+
+export interface OwnerTools {
+  specs: ChatTool[];
+  byName: Map<string, { serverId: number; tool: string; serverName: string }>;
+}
+
+/** Every tool the owner connected, as chat tools (at most 32 in total). Null when there are none. */
+export function ownerTools(deps: Deps, owner: string): OwnerTools | null {
+  const specs: ChatTool[] = [];
+  const byName: OwnerTools["byName"] = new Map();
+  for (const s of servers(deps, owner)) {
+    for (const t of JSON.parse(s.tools_json) as McpTool[]) {
+      if (specs.length >= 32) break;
+      const name = fnName(s.id, t.name);
+      byName.set(name, { serverId: s.id, tool: t.name, serverName: s.name });
+      specs.push({ type: "function", function: { name, description: `${s.name}: ${t.description}`.slice(0, 400), parameters: t.input_schema } });
+    }
+  }
+  return specs.length ? { specs, byName } : null;
+}
+
+export function taskCard(deps: Deps, row: TaskRow): McpTaskCard {
+  const srv = deps.db.prepare("SELECT name FROM mcp_server WHERE id = ?").get(row.server_id) as { name: string } | undefined;
+  let args: Record<string, unknown> = {};
+  try {
+    args = JSON.parse(deps.sealer.open(row.pet_ref, row.args_enc)) as Record<string, unknown>;
+  } catch {
+    args = {};
+  }
+  return { id: row.id, server: srv?.name ?? "removed tool", tool: row.tool, args, status: row.status, follow_turn_id: row.follow_turn_id };
+}
+
+export const tasksForTurn = (deps: Deps, turnId: string) =>
+  (deps.db.prepare("SELECT * FROM mcp_task WHERE turn_id = ? ORDER BY created_at").all(turnId) as TaskRow[]).map((r) => taskCard(deps, r));

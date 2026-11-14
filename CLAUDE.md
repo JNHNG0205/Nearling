@@ -410,6 +410,7 @@ Node 22 + Hono, TypeScript. Holds the `brain` NEAR account key and the NEAR AI s
 | Care, Closet, inbox | `POST /pets/:petRef/care`, `GET /pets/:petRef/closet`, `POST .../closet/equip`, `GET /pets/:petRef/inbox` | session or device |
 | Wallet approvals | `POST /approvals`, `/approvals/:id/approve`, `/reject`, `/submitted` | device / session |
 | Race | `POST /race/rooms`, `POST /race/rooms/:code/join`, `GET /race/ws` (WebSocket), `GET /race/matches/:id` | public, race token or device |
+| MCP tools [2026-11-14] | `GET/POST /me/mcp`, `POST /me/mcp/:id/refresh`, `DELETE /me/mcp/:id` (owner connects Streamable HTTP MCP servers; public https only, tokens sealed); the talk route offers the owner's tools to the model, and a proposed call waits as a task (`TalkResponse.tasks`) until `POST /pets/:petRef/tasks/:id/approve` or `/decline`; approve runs the tool on the brain, then a follow-up turn reports the result (1 fuel). Web page `/mcp`, nav link MCP | session (owner); approve also device |
 
 ### 8.3 Chat flow
 1. `get_pet`. Starving or Dormant (no fuel) → canned "Low Fuel" reply, no charge; device care still works.

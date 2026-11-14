@@ -1,4 +1,4 @@
-import type { BrainErrorCode, Emotion, PetState, TalkResponse } from "@petto/shared";
+import type { BrainErrorCode, Emotion, McpTaskCard, PetState, TalkResponse } from "@petto/shared";
 
 export const BRAIN_URL = process.env.NEXT_PUBLIC_BRAIN_URL ?? "http://localhost:8787";
 /** The live demo pet on `pets-demo` (demo speed) shown on the landing page. */
@@ -79,6 +79,8 @@ export interface Turn {
   audio_url: string | null;
   fuel: { status: "pending" | "settled" | "failed" | "none"; tx: string | null; source: FuelSource | null };
   verification: VerifyStatus;
+  /** MCP tool calls the pet proposed in this turn (web /mcp) */
+  tasks: McpTaskCard[];
 }
 
 const EMOTIONS: Emotion[] = ["happy", "excited", "sleepy", "sad", "hungry", "curious", "silly"];
@@ -121,6 +123,7 @@ export function normalizeTurn(raw: unknown): Turn | null {
       source: (str(fuel.source) as FuelSource | null) ?? null,
     },
     verification: asVerify(typeof v === "string" ? v : obj(v).status),
+    tasks: Array.isArray(r.tasks) ? (r.tasks as McpTaskCard[]) : [],
   };
 }
 
