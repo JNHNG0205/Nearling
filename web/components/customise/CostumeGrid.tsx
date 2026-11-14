@@ -35,18 +35,20 @@ export function CostumeGrid({
       {keys.map((key) => {
         const token = owned?.get(key);
         return (
-          <li key={key} className={`pixel-panel flex flex-col items-center gap-2 p-3 ${trying === key ? "border-accent" : ""}`}>
-            <button className="flex flex-col items-center gap-1" onClick={() => onTry(key)} aria-label={`Try on ${costumeLabel(key)}`}>
+          <li key={key} className={`pixel-panel pixel-panel--pick relative flex flex-col items-center gap-2 p-3 ${trying === key ? "pixel-panel--selected" : ""}`}>
+            {/* the whole card tries the costume on; the price / wear button sits above it */}
+            <button className="flex cursor-pointer flex-col items-center gap-1 outline-none after:absolute after:inset-0 after:content-['']"
+              onClick={() => onTry(key)} aria-pressed={trying === key} aria-label={`Try on ${costumeLabel(key)}`}>
               <PetSprite traits={model.traits} stageIndex={model.stageIndex} winged={model.winged} costume={key}
                 state="happy" scale={2} label={`${model.name} in ${costumeLabel(key)}`} />
               <span className="font-display text-sm">{costumeLabel(key)}</span>
             </button>
             {token && onWear ? (
-              <button className="pixel-btn pixel-btn--secondary w-full text-sm" disabled={disabled} onClick={() => onWear(token)}>
+              <button className="pixel-btn pixel-btn--secondary relative z-10 w-full text-sm" disabled={disabled} onClick={() => onWear(token)}>
                 Owned · Wear
               </button>
             ) : (
-              <button className="pixel-btn w-full text-sm" disabled={disabled || !onBuy} onClick={() => onBuy?.(key)}
+              <button className="pixel-btn relative z-10 w-full text-sm" disabled={disabled || !onBuy} onClick={() => onBuy?.(key)}
                 aria-label={`Buy ${costumeLabel(key)} for ${formatNear(COSTUME_PRICE)} NEAR`}>
                 {busyKey === key ? "Check your wallet..." : `${formatNear(COSTUME_PRICE)} NEAR`}
               </button>
