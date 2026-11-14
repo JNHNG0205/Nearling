@@ -24,7 +24,7 @@ const CLAIM_DEPOSIT: NearToken = NearToken::from_millinear(10);
 const COSTUME_PRICE: NearToken = NearToken::from_millinear(50);
 
 /// Costume keys the sprites draw (packages/sprites costumes); one NFT per purchase.
-const COSTUMES: [&str; 36] = [
+const COSTUMES: [&str; 38] = [
     "cap",
     "sunglasses",
     "fire",
@@ -61,6 +61,8 @@ const COSTUMES: [&str; 36] = [
     "party_hat",
     "sweater",
     "ice_crystal",
+    "ceo",
+    "spy",
 ];
 
 /// `costumes()` view: the catalog and the flat price.
@@ -306,9 +308,11 @@ mod tests {
     }
 
     #[test]
-    fn the_catalog_lists_all_36_costumes_and_the_price() {
+    fn the_catalog_lists_all_38_costumes_and_the_price() {
         let c = setup().costumes();
-        assert_eq!(c.costumes.len(), 36);
+        assert_eq!(c.costumes.len(), 38);
+        assert!(c.costumes.contains(&"ceo".to_string()));
+        assert!(c.costumes.contains(&"spy".to_string()));
         assert_eq!(c.price, U128(COSTUME_PRICE.as_yoctonear()));
         assert!(c.costumes.contains(&"ghost".to_string()));
     }

@@ -22,14 +22,15 @@ describe("costumes", () => {
     }
   });
 
-  it("all 36 costumes look different from each other", () => {
+  it("all 38 costumes look different from each other", () => {
     const seen = new Set<string>();
     for (const costume of COSTUME_KEYS) {
       const l = clip("idle", { stage: "teen", winged: false, costume }).costume![0]!;
       seen.add(key(l.back) + "|" + key(l.front));
     }
-    expect(COSTUME_KEYS.length).toBe(36);
-    expect(seen.size).toBe(36);
+    expect(COSTUME_KEYS.length).toBe(38);
+    expect(COSTUME_KEYS).toEqual(expect.arrayContaining(["ceo", "spy"]));
+    expect(seen.size).toBe(38);
   });
 
   it("is off without a costume, for an unknown key and on an egg", () => {
