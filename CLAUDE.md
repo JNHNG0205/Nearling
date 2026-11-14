@@ -7,7 +7,7 @@ Spec status legend:
 - **[VERIFY]**: based on docs but not yet tested; confirm with a spike, then update this file.
 - **[TBD]**: open; pick the simplest option, record the choice here.
 
-"Nearling" is a working name (no collision found in a quick search). Check the GitHub org, `.testnet`/`.near` account and domain before committing. "Nibble" was dropped: already used by other apps.
+**Renamed to Petto (2026-11-14):** the repo is `JNHNG0205/Petto` and the product, web and brain copy say Petto. On chain the NFT collections are "Petto" (`PETTO`) and "Petto Shirts" (`PSHIRT`); the testnet accounts (`*.nearling.testnet`), the event standard `nearling`, the crate names and this file's section names keep "Nearling" (changing them would break deployed contracts and client indexers). "Nibble" was dropped: already used by other apps.
 
 ---
 
@@ -256,7 +256,7 @@ Start from **near-contract-standards**: NEP-171 (core), NEP-177 (metadata), NEP-
 
 **Demo speed [FIXED, M4b]:** the same wasm is also deployed as `pets-demo-v9.nearling.testnet` (`pets-demo` before v9; the script names it `pets-demo-v$PETS_VERSION`) with `config.demo_speed = true` and about 100× faster rates (metabolism, mood decay, energy gain, dormant after about 43 min), so judges can watch hungry to starving to dormant in minutes. Web and README label it "demo speed" (rule 5). Deployed 2026-11-09 with `DEMO_SPEED=1 ./scripts/deploy-testnet.sh`: metabolism, mood decay and energy gain ×100 (metabolism $0.10/day, mood -1 per 18 s, energy +1 per 4.5 s), dormant after 43.2 min, and `starter_food` 0.005 NEAR so a fresh demo pet starves in about 14 min (mint price there: 0.105 NEAR). 0.1 NEAR of food buys about 4.8 h.
 
-**Redeploys [FIXED]:** no migration code. Any breaking state change deploys to a fresh account `pets-vN.<team>.testnet` via `deploy-testnet.sh`, then `seed-demo.sh`. Brain, web and firmware read the contract id from config / `.env`.
+**Redeploys [FIXED]:** no migration code. Any breaking state change deploys to a fresh account `pets-vN.<team>.testnet` via `deploy-testnet.sh`, then `seed-demo.sh`. A code-only change with the same state layout is deployed in place with `near contract deploy <account> use-file <wasm> without-init-call` (done 2026-11-14 for the Petto names on `pets-v9`, `pets-demo-v9` and `shirts`: txs `AkxCaAT7PSN5QNj3MgcZ8NK1PzobWW55JkKm3kQMJ6qq`, `6MXicCBC9cW4e7YSVXeNrXyBeiCiU3k5FmuD9eLMWsK2`, `79FegYRGVHicCA5bzf9LE1THx2gUoPPCJAXJJd9dqzJf`; supplies, pets and config unchanged, `feed` works). Brain, web and firmware read the contract id from config / `.env`.
 
 ### 7.1 State
 ```

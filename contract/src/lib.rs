@@ -447,6 +447,13 @@ mod tests {
     }
 
     #[test]
+    fn the_collection_is_named_petto() {
+        use near_contract_standards::non_fungible_token::metadata::NonFungibleTokenMetadataProvider;
+        let m = setup().nft_metadata();
+        assert_eq!((m.name.as_str(), m.symbol.as_str()), ("Petto", "PETTO"));
+    }
+
+    #[test]
     fn mint_ids_increment() {
         let (mut contract, _) = minted();
         assert_eq!(contract.nft_mint_pet("Bao".into(), None), "1");

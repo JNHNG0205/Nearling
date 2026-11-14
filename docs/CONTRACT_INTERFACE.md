@@ -4,6 +4,8 @@ Quick reference for the brain, web and device. Full rules: `CLAUDE.md` 6 and 7. 
 
 **Live on testnet:** `pets-v9.nearling.testnet` (current, `PETS_CONTRACT`), `pets-demo-v9.nearling.testnet` (same code, about 100× speed, `config.demo_speed = true`, label it "demo speed", `DEMO_PETS_CONTRACT`), `shirts.nearling.testnet` (`SHIRTS_CONTRACT`). Seeded by `scripts/seed-demo.sh`: `pets-v9` #1 Happy, #2 Hungry, #3 Starving, #4 Happy and self-sustaining (owner `nearling-seed.testnet`; #0 is the v9 smoke-test pet); `pets-demo-v9` #0 Blink (starving about 14 min after the seed, dormant about 43 min later). `pets-v8` and `pets-demo` still run the older code until clients switch; do not use them for new pets.
 
+**Names (2026-11-14):** the pets collection is "Petto" (`PETTO`), the shirts collection "Petto Shirts" (`PSHIRT`); the code was redeployed in place, so ids, pets and state are unchanged. The event standard stays `nearling` and the accounts keep `nearling.testnet`.
+
 **pets-v9 changes** (`docs/CONTRACT_CHANGES_V9.md`): `unstake` takes the pool's unstake deposit, `set_metadata` syncs the NFT with the pet, and the pantry lets the device feed.
 
 **Wire format:** u128 amounts and u64 timestamps are JSON strings; micro-USD fields are JSON numbers (1 USD = 1_000_000). Errors are panics starting with a stable code, `E_CODE: message`; map on the code.
@@ -69,7 +71,7 @@ The brain signs these with function-call keys on `brain.nearling.testnet` (recei
 |---|---|---|---|---|
 | `claim()` | anyone, once per account | 0.01 NEAR (excess refunded) | 30 Tgas | Returns the token id. `nft_mint`. `E_CLAIMED`, `E_DEPOSIT` |
 | `nft_transfer(receiver_id, token_id)` | owner | 1 yocto | 30 Tgas | Ownership follows the wallet; re-check `nft_tokens_for_owner` when the Closet syncs |
-| `nft_tokens_for_owner(account_id)` and other NEP-171 / 181 views | anyone | | | Token metadata title "Nearling Shirt" |
+| `nft_tokens_for_owner(account_id)` and other NEP-171 / 181 views | anyone | | | Collection "Petto Shirts" (`PSHIRT`); new tokens titled "Petto Shirt" (the first 3 claims keep "Nearling Shirt") |
 
 ## Events
 
