@@ -55,7 +55,7 @@ const Env = z.object({
   TTS_VOICE_ID: z.string().optional(),
   /** Fish Audio only: API key (fish.audio, API keys) and model (sent as the `model` header). TTS_VOICE_ID is the voice model id. */
   FISH_AUDIO_API_KEY: z.string().optional(),
-  FISH_AUDIO_MODEL: z.string().default("s1"),
+  FISH_AUDIO_MODEL: z.string().default("s2.1-pro-free"),
   /** Kokoro only: OpenAI-compatible base URL of the self-hosted container. */
   TTS_BASE_URL: z.string().default("http://localhost:8880/v1"),
   BRAIN_ACCOUNT_ID: z.string().default("brain.nearling.testnet"),

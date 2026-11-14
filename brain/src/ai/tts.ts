@@ -91,7 +91,7 @@ export function createTts(
   if (cfg.TTS_PROVIDER === "fishaudio") {
     if (!cfg.FISH_AUDIO_API_KEY) return null;
     const key = cfg.FISH_AUDIO_API_KEY;
-    const model = cfg.FISH_AUDIO_MODEL ?? "s1";
+    const model = cfg.FISH_AUDIO_MODEL ?? "s2.1-pro-free";
     return {
       name: "fishaudio",
       async synth(text, voice) {
