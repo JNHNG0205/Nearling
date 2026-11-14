@@ -33,9 +33,18 @@ import { useSignIn } from "@/lib/wallet";
 
 export default function StartPage() {
   return (
-    <Suspense fallback={<AppFrame title="Set up your Petto" back="/"><Spinner /></AppFrame>}>
+    <Suspense fallback={<Opening />}>
       <Wizard />
     </Suspense>
+  );
+}
+
+/** While /start decides between setup and Home: no setup screen, so returning owners never see it flash. */
+function Opening() {
+  return (
+    <main className="flex min-h-[60dvh] items-center justify-center">
+      <Spinner label="Opening Petto..." />
+    </main>
   );
 }
 
@@ -103,6 +112,12 @@ function Wizard() {
   const customised = state?.customised ?? false;
   const hasDeviceLink = !!urlToken || !!state?.pairingToken || connectIntent;
 
+  // Fast path: this browser already finished setup for this wallet, so go home without the pet lookup.
+  const finishedHere = !!state && state.account === account && petRef !== null && !setupInProgress({ petRef, customised });
+  useEffect(() => {
+    if (finishedHere && !hasDeviceLink && checkedFor !== account) router.replace("/my");
+  }, [finishedHere, hasDeviceLink, checkedFor, account, router]);
+
   // Existing owner (has pets, no QR, no setup in progress): go home instead (lib/flow.ts).
   useEffect(() => {
     if (!state || !account || !session || checkedFor === account) return;
@@ -134,12 +149,8 @@ function Wizard() {
     };
   }, [account, session, confirmed, stateAccount, update]);
 
-  if (!state || !wallet.ready || (account && session && checkedFor !== account)) {
-    return (
-      <AppFrame title="Set up your Petto" back="/">
-        <Spinner />
-      </AppFrame>
-    );
+  if (!state || !wallet.ready || (account && session && checkedFor !== account) || (finishedHere && !hasDeviceLink && checkedFor !== account)) {
+    return <Opening />;
   }
 
   const current = currentStep(state, facts);
