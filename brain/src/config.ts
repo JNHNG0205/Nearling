@@ -39,6 +39,10 @@ const Env = z.object({
   FEEDER_ACCOUNT_ID: z.string().default(""),
   FEEDER_KEY: z.string().default(""),
   FEEDER_DAILY_CAP_NEAR: z.coerce.number().positive().default(10),
+  /** Gas relay (NEP-366, relay/relay.ts): a funded account with a full access key; empty = relay off. */
+  RELAYER_ACCOUNT_ID: z.string().default(""),
+  RELAYER_KEY: z.string().default(""),
+  RELAY_DAILY_PER_ACCOUNT: z.coerce.number().int().positive().default(100),
   NEARON_POOL: z.string().default("mw-pool-1024.testnet"),
   /**
    * Testnet validator pool for Wallet staking (`get_account_staked_balance`). Checked 2026-11-11:

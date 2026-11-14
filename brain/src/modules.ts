@@ -17,6 +17,7 @@ import { walletModule } from "./wallet/wallet";
 import { chargeModule } from "./fuel/charge";
 import { metadataModule } from "./metadata";
 import { opsModule } from "./ops/ops";
+import { relayModule } from "./relay/relay";
 import { dueFollowUps } from "./talk/memory";
 import { generateProactive, talkModule } from "./talk/talk";
 import { voiceModule } from "./talk/voice-route";
@@ -43,4 +44,5 @@ export const MODULES: Module[] = [
   chargeModule,
   opsModule(),
   metadataModule(),
+  relayModule,
 ];

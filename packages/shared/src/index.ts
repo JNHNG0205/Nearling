@@ -277,7 +277,11 @@ export type BrainErrorCode =
   | "expired"
   | "conflict"
   | "upstream"
-  | "invalid";
+  | "invalid"
+  // gas relay (brain/src/relay): refusals before anything is sent; the web then signs normally
+  | "not_relayable"
+  | "relay_limit"
+  | "relay_off";
 
 export interface BrainError {
   error: { code: BrainErrorCode; message: string; retry_after_s?: number };

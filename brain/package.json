@@ -16,6 +16,7 @@
     "@nearling/shared": "workspace:*",
     "@nearling/sprites": "workspace:*",
     "better-sqlite3": "12.4.1",
+    "borsh": "2.0.0",
     "ethers": "6.15.0",
     "hono": "4.13.17",
     "jose": "6.1.0",

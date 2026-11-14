@@ -38,7 +38,7 @@ export function privyManifest(origin: string) {
       signInWithoutAddKey: true,
       signInAndSignMessage: true,
       signInWithFunctionCallKey: true,
-      signDelegateActions: false,
+      signDelegateActions: true, // the plugin signs NEP-366 delegates: gas relay (lib/relay.ts)
       mainnet: false,
       testnet: true,
     },

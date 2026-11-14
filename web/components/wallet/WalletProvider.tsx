@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { AccountWithSignedMessage, NearConnector, SignedMessage, WalletManifest } from "@hot-labs/near-connect";
 import { NETWORK, RPC_URL, type Outcome } from "@/lib/chain";
 import { privyEnabled, privyManifest } from "@/lib/privy";
+import { tryRelay } from "@/lib/relay";
 import { WalletContext, type WalletApi } from "@/lib/wallet";
 
 /**
@@ -95,6 +96,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       },
       async signAndSendTransaction(req) {
         const w = await need().wallet();
+        // gas relay first (lib/relay.ts); null = not eligible or refused before sending
+        const relayed = await tryRelay(w, req);
+        if (relayed) return relayed;
         return (await w.signAndSendTransaction({ network: NETWORK, ...req })) as Outcome;
       },
       async signAndSendTransactions(reqs) {

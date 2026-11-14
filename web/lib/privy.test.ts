@@ -18,6 +18,7 @@ describe("privy wallet manifest", () => {
     expect(m.features.signMessage).toBe(true);
     expect(m.features.signAndSendTransaction).toBe(true);
     expect(m.features.signAndSendTransactions).toBe(true);
+    expect(m.features.signDelegateActions).toBe(true); // gas relay
     expect(m.metadata.debug).toBe(false);
   });
 });
