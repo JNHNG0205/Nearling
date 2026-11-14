@@ -59,7 +59,8 @@ function toolAi() {
       seen.push({ tools: o.tools, messages });
       // the real model (Qwen) rejects a system message anywhere but first (HTTP 400)
       if (messages.slice(1).some((m) => m.role === "system")) throw new Error("system message after the first");
-      const fn = o.tools?.[0]?.function.name;
+      // planner: propose the tool for a new request; after an approved step the request is done (just_chat)
+      const fn = o.tools ? (messages.at(-1)!.content.includes("I approved") ? "just_chat" : o.tools[0]!.function.name) : undefined;
       const proposed = messages.at(-1)!.content.includes("waits for my approval");
       const text = fn ? "" : proposed ? "[excited] I will book that, please approve it below!" : "[happy] All done, it is on your calendar!";
       return {
@@ -240,5 +241,23 @@ describe("MCP via Zapier", () => {
     const withGoogle = { ...deps.cfg, GOOGLE_OAUTH_CLIENT_ID: "id", GOOGLE_OAUTH_CLIENT_SECRET: "secret" };
     expect(effectiveEntry(withGoogle, catalogEntry("gmail")!)).toMatchObject({ url: "https://gmailmcp.googleapis.com/mcp/v1", auth: { setup: "google" } });
     expect(effectiveEntry(withGoogle, catalogEntry("slack")!).url).toBe(ZAPIER_MCP_URL);
+  });
+});
+
+describe("after an approved step", () => {
+  it("a failed step makes the pet say it failed, and the agent continues the original request", async () => {
+    const { deps, talk, mcp, seen, post } = await setup();
+    await post(mcp, "/me/mcp", { name: "Calendar", url: mcpUrl });
+    const r = (await (await post(talk.app, "/pets/pets.petto.testnet:1/talk", { request_id: "req-mcp-fail1", text: "Book the dentist" })).json()) as TalkResponse;
+    deps.db.prepare("DELETE FROM mcp_server").run(); // the server vanished: the step cannot run
+    t += 1_000;
+    const out = (await (await post(talk.app, `/pets/pets.petto.testnet:1/tasks/${r.tasks![0]!.id}/approve`)).json()) as { task: McpTaskCard };
+    expect(out.task.status).toBe("failed");
+    const reply = seen.at(-1)!; // the pet's words about the outcome
+    expect(reply.messages[0]!.content).toContain("FAILED");
+    expect(reply.messages[0]!.content).toContain("Never say it worked");
+    const planner = seen.find((s) => s.tools && s.messages.at(-1)!.content.includes("My original request"));
+    expect(planner === undefined || planner.messages.at(-1)!.content.includes("Book the dentist")).toBe(true);
+    expect(JSON.stringify(deps.db.prepare("SELECT goal_enc FROM mcp_task").all())).not.toContain("dentist"); // goal is sealed
   });
 });

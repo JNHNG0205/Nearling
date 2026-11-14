@@ -49,7 +49,8 @@ describe("agent planner", () => {
     const s = scripted([{ name: "s1_discover", arguments: { app: "Calendar" } }]); // always the same pick
     const r = await plan(testDeps(), s.ai, base); // the look-up itself fails here (no server row): that is fine
     expect(r.looked).toEqual(["discover"]);
-    expect(s.calls()).toBe(2);
+    expect(s.calls()).toBe(3); // repeat -> one more decision with only actions offered
+    expect(s.offered[2]!.tools?.map((t) => t.function.name)).toEqual(["s1_execute_write", "just_chat"]);
     expect(r.chat).toBe(false);
   });
 });
