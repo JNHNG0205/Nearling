@@ -1,10 +1,8 @@
 "use client";
 
 import type Privy from "@privy-io/js-sdk-core";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { FaucetPanel } from "@/components/wallet/FaucetPanel";
 import { AppFrame, ErrorText, Panel, Spinner } from "@/components/wallet/ui";
 import {
   ensureNearWallet,
@@ -19,6 +17,8 @@ import { useSignIn } from "@/lib/wallet";
 
 // /login: social login (email code or Google) through Privy, then the same NEP-413 sign-in as a
 // wallet, through the "Email or Google" NEAR Connect wallet (it signs on the page, lib/privyHost.ts).
+// Once Privy knows you, the Petto sign-in runs by itself (auto-approved) and you land on `next`;
+// pages that need NEAR show the faucet panel there.
 
 export default function LoginPage() {
   return (
@@ -36,6 +36,7 @@ function safeNext(raw: string | null): string {
 type Phase = "loading" | "signed-out" | "code-sent" | "wallet" | "error";
 
 function Login() {
+  const router = useRouter();
   const params = useSearchParams();
   const next = safeNext(params.get("next"));
   const { wallet, session, busy, error: signInError, signIn, signOut } = useSignIn();
@@ -46,6 +47,7 @@ function Login() {
   const [account, setAccount] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
+  const [autoTried, setAutoTried] = useState(false);
 
   const afterLogin = useCallback(async (p: Privy) => {
     setAccount((await ensureNearWallet(p)).address);
@@ -79,6 +81,19 @@ function Login() {
     };
   }, [afterLogin, next]);
 
+  // Logged in to Privy: sign in to Petto with it (no click), then go on to `next`.
+  useEffect(() => {
+    if (phase !== "wallet" || !account || !wallet.ready || busy) return;
+    if (wallet.accountId === account && session) return router.replace(next);
+    if (wallet.accountId && wallet.accountId !== account) {
+      void wallet.disconnect().catch(() => undefined); // another wallet (e.g. Meteor) was connected
+      return;
+    }
+    if (autoTried) return;
+    setAutoTried(true);
+    void signIn({ walletId: PRIVY_WALLET_ID });
+  }, [phase, account, wallet, session, busy, autoTried, next, router, signIn]);
+
   async function step(run: () => Promise<void>) {
     setWorking(true);
     setError(null);
@@ -108,6 +123,7 @@ function Login() {
       await privyLogout();
       setAccount(null);
       setCode("");
+      setAutoTried(false);
       setPhase("signed-out");
     });
   const google = () =>
@@ -175,26 +191,16 @@ function Login() {
 
       {phase === "wallet" && account && (
         <Panel>
-          <p className="text-sm">Your NEAR testnet account:</p>
-          <p className="break-all font-mono text-sm">{account}</p>
-          {wallet.accountId === account && session ? (
-            <>
-              {/* a new account starts with 0 NEAR: the panel shows until it can hatch a pet */}
-              <FaucetPanel />
-              <Link href={next} className="pixel-btn text-center">
-                Continue
-              </Link>
-            </>
+          {!signInError ? (
+            <Spinner label={`Signing you in as ${account.slice(0, 8)}...`} />
           ) : (
-            <button
-              className="pixel-btn"
-              disabled={busy || !wallet.ready}
-              onClick={() => void signIn({ walletId: PRIVY_WALLET_ID })}
-            >
-              {busy ? "Check the popup..." : "Continue to Petto"}
-            </button>
+            <>
+              <ErrorText>{signInError}</ErrorText>
+              <button className="pixel-btn" disabled={busy || !wallet.ready} onClick={() => void signIn({ walletId: PRIVY_WALLET_ID })}>
+                Try again
+              </button>
+            </>
           )}
-          <ErrorText>{signInError}</ErrorText>
           <button className="self-start text-sm text-muted underline" disabled={working || busy} onClick={() => void switchAccount()}>
             Use a different account
           </button>
