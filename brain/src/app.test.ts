@@ -56,3 +56,16 @@ describe("care mood on /state", () => {
     expect(s.display_state).toBe("sad");
   });
 });
+
+describe("CORS", () => {
+  it("allows every origin listed in WEB_ORIGIN (comma separated) and no other", async () => {
+    const deps = testDeps();
+    deps.cfg = { ...deps.cfg, WEB_ORIGIN: "https://mypetto.xyz, https://petto-umber.vercel.app" };
+    const app = createApp(deps);
+    const allowed = async (origin: string) =>
+      (await app.request("/health", { headers: { Origin: origin } })).headers.get("access-control-allow-origin");
+    expect(await allowed("https://mypetto.xyz")).toBe("https://mypetto.xyz");
+    expect(await allowed("https://petto-umber.vercel.app")).toBe("https://petto-umber.vercel.app");
+    expect(await allowed("https://evil.example")).toBeNull();
+  });
+});

@@ -298,6 +298,14 @@ export type BrainErrorCode =
   | "conflict"
   | "upstream"
   | "invalid"
+  // battle rooms (brain/src/battle)
+  | "same_owner"
+  | "same_pet"
+  | "other_contract"
+  | "pet_busy"
+  | "full"
+  | "daily_limit"
+  | "pet_unavailable"
   // gas relay (brain/src/relay): refusals before anything is sent; the web then signs normally
   | "not_relayable"
   | "relay_limit"

@@ -41,7 +41,7 @@ export function inSetup(path: string): boolean {
 }
 
 /** App pages that need a pet of your own. Public pages, setup, pet and feed pages stay open to anyone. */
-const NEEDS_PET = ["/my", "/shop", "/race", "/wallet"];
+const NEEDS_PET = ["/my", "/shop", "/battle", "/wallet"];
 
 /**
  * Where a connected wallet with no pet goes instead of an app page (setup), or null to stay.

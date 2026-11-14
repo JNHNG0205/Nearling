@@ -161,7 +161,7 @@ export default async function Home() {
             <ul className="flex flex-col gap-4 text-lg">
               <li><span className="font-display">Pat, rock, lights off.</span> Touch, motion and light sensors care for it offline, at no cost. Do all three and it grows wings.</li>
               <li><span className="font-display">Hold to talk.</span> It listens through the mic and answers on its screen.</li>
-              <li><span className="font-display">Race a friend.</span> Petto Run, two lanes, one button.</li>
+              <li><span className="font-display">Battle a friend.</span> Turn-based, Fight or Run; battle levels are saved on NEAR.</li>
               <li><span className="font-display">Hold Approve.</span> Wallet actions wait for a press on the device before you sign.</li>
             </ul>
           </div>

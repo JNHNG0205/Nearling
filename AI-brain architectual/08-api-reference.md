@@ -146,14 +146,17 @@ charge. `played`, `device_*`, `action_*` and `item_bought` are left out.
 | `GET /approvals/:id` | S (must be `account_id`) or D | | `Approval` |
 | `POST /approvals/:id/submitted` | S | `{ tx_hash }` | `Approval` (brain checks the tx) |
 
-## Race
+## Battle (replaced Race, 2026-11-14)
 
-| Method, path | Auth | Returns |
-|---|---|---|
-| `POST /race/rooms` | D or P | `{ code }` |
-| `POST /race/rooms/:code/join` | P | `{ race_token, slot }` |
-| `GET /race/ws?code=` | D or `&race_token=` | WebSocket (06 section 3, additions below) |
-| `GET /race/matches/:id` | P | result |
+| Method, path | Auth | Body | Returns |
+|---|---|---|---|
+| `POST /battle/rooms` | S (owner of the pet) | `{ pet_ref }` | `{ code }` |
+| `POST /battle/rooms/:code/join` | S (owner of the pet) | `{ pet_ref }` | `{ ok: true }` |
+| `GET /battle/ws?code=&token=` | S (session token in the query) | | WebSocket |
+
+Errors: 404 `not_found`; 409 `full`, `same_owner`, `same_pet`, `other_contract` (pets on different contracts), `daily_limit` (3 battles per pair of pets per day), `pet_busy` (the pet is fighting in another battle; joining or starting a room otherwise drops the pet's other waiting room); 422 `pet_unavailable` (starving or dormant); 429 `rate_limited`. The socket upgrade answers 401 before joining.
+
+Messages (types in `packages/battle/src/protocol.ts`). Client: `ready`, `move { move: { kind: "attack" } | { kind: "skill", skill } | { kind: "run" } }`. Server: `room { you, code, pets, ready }`, `start { state, turnEndsAt }`, `turn { events, state, turnEndsAt }`, `end { winner, reason: ko|run|turns|forfeit, battleId, xp, levels }` (`xp` with the daily cap applied, `levels` = [before, after] per pet; resent on reconnect), `saved { tx }`, `save_failed`, `error { code: illegal_move|already_moved|bad_message|not_started }`. Turns last 20 s (a missing move becomes Attack); a player gone for 30 s forfeits. The result is queued as one `record_battle` job (table `battle_job`, retried with backoff, 8 attempts).
 
 ## Brain signing keys (config)
 
@@ -162,37 +165,6 @@ A function-call key works for one receiver contract, so the brain has one key se
 ### Pet metadata on IPFS (module `brain/src/metadata/`)
 
 Bus events `evolved`, `hatched` and `closet_equipped` (new, from `POST /pets/:petRef/closet/equip`, `{ equipped }`), plus a 60 s check of each known pet's look (name, Soul version, stage, form, shirt, traits), trigger a re-pin, debounced per pet to one run per 60 s. The PNG and the JSON are pinned only when their sha256 changed; each new JSON is a new row in `pet_metadata` (migration 700). If the pets contract has `set_metadata` (pets-v9; detected with a free view call, missing method = skip and log once, rechecked every 10 min), the brain signer calls it with `media`, `media_hash`, `reference`, `reference_hash` (base64 sha256). The brain function-call key needs `set_metadata` in its method list.
-
-### Race WebSocket as built (additions to 06 section 3)
-
-Upgrade: `GET /race/ws?code=ABC123&race_token=...` (browser) or `GET /race/ws?code=ABC123` with `Authorization: Device <token>` (device). Before the upgrade the brain answers plain HTTP errors: 401 `unauthorized` (no token, or join first), 404 `not_found` (no such room), 409 `conflict` (room full or already started). Messages are JSON text frames up to 64 KB; send `hello` first.
-
-Client to server: `hello { rules_version, name?, pet_ref? }`, `ready`, `ping { t_client }`, `lane { tick, lane: 0|1 }`, `crash { tick | null, inputs: number[] }` (`tick: null` = still alive, used to answer `request_inputs`).
-
-Server to client (new or changed fields in bold):
-
-| Message | Fields | When |
-|---|---|---|
-| `room` | `code`, `state` (`lobby`, `running`, `finished`, `interrupted`), `you` (your slot), `players[]` (`slot`, `kind`, `name`, `pet_ref`, `traits`, `stage`, `ready`, `connected`, `crashed`) | any change |
-| `start` | `seed`, `start_at`, `rules_version`, **`match_id`** | both ready; again after a reconnect + `hello` |
-| `opp_lane` | `slot`, `tick`, `lane` | opponent switched lanes (render only) |
-| **`opp_crash`** | `slot`, `tick` (`null` = survived) | the opponent's result is known; also resent after a reconnect |
-| **`request_inputs`** | | the opponent crashed 2 s of race clock ago (or 120 s ran out) and you have not reported: reply with `crash` (your crash tick or `null`) and all your lane-switch ticks. No reply within the wait: the brain replays the inputs it relayed and marks your report invalid |
-| `result` | **`match_id`**, `winner_slot` (or `null`), `draw`, `crash_ticks` `[c0, c1]`, **`valid`** `[bool, bool]`, `reason` (`crash`, `time`, `same_tick`) | both results known; resent on reconnect |
-| `interrupted` | `reason` (`disconnect`) | a player without a result was gone for more than 5 s |
-| `pong` | `t_client`, `t_server` | reply to `ping` |
-| **`error`** | `code`, `message`, `rules_version?` | `bad_message` (not JSON, unknown type, too big, crash without tick/inputs), `hello_first`, `rules_version` (then closed with 4001) |
-
-Close codes from the server:
-
-| Code | Reason | Client should |
-|---|---|---|
-| 4001 | `rules_version`: client rules differ from the room's | update firmware / reload the page |
-| 4004 | `gone`: the room or slot no longer exists | go back to the lobby |
-| 4009 | `replaced`: the same slot connected again elsewhere | stop reconnecting from this connection |
-| 4010 | `room closed`: room expired (10 min after creation, never mid-race) | create a new room |
-
-A dropped connection may reconnect to the same slot: re-send `hello`, then the brain resends `room`, `start` (if running), `opp_crash` (if known) or the final `result`.
 
 ## Ops (team only, basic auth)
 

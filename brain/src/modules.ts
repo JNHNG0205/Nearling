@@ -7,7 +7,7 @@ import { hatchModule } from "./identity/hatch";
 import { receiptsModule } from "./receipts/receipts";
 import { inboxModule } from "./proactive/inbox";
 import { createProactiveModule } from "./proactive/scheduler";
-import { raceModule } from "./race/routes";
+import { battleModule } from "./battle/routes";
 import { petsModule } from "./routes/pets";
 import { streamModule } from "./stream/stream";
 import { timelineModule } from "./timeline/timeline";
@@ -40,7 +40,7 @@ export const MODULES: Module[] = [
   ordersModule(),
   gardenModule(),
   walletModule(),
-  raceModule,
+  battleModule,
   talkModule,
   voiceModule,
   chargeModule,

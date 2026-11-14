@@ -12,7 +12,7 @@ import { authHeaders, useSession } from "@/lib/session";
 import { useWallet } from "@/lib/wallet";
 
 /**
- * App header (W10): wordmark, Home, Shop, Race, wallet; setup screens (lib/flow.ts inSetup) get no nav. The landing page gets a light, static one
+ * App header (W10): wordmark, Home, Shop, Battle, wallet; setup screens (lib/flow.ts inSetup) get no nav. The landing page gets a light, static one
  * (same for everyone): wordmark and "Open app" to /start, which routes by what the account owns.
  */
 export function SiteHeader() {
@@ -40,7 +40,7 @@ export function SiteHeader() {
           <nav aria-label="Main" className="flex flex-1 gap-3 font-display text-sm md:gap-6">
             <Link href="/my" className="hover:text-accent">Home</Link>
             <Link href="/shop" className="hover:text-accent">Shop</Link>
-            <Link href="/race" className="hover:text-accent">Race</Link>
+            <Link href="/battle" className="hover:text-accent">Battle</Link>
             <Link href="/mcp" className="hover:text-accent">MCP</Link>
           </nav>
         )}
@@ -101,7 +101,7 @@ const hasPet = new Set<string>();
 
 /**
  * Setup guard (lib/flow.ts setupGate): a connected wallet with no pet is sent from the app pages
- * (Home, Shop, Race, Wallet) to setup. A failed pet lookup leaves the page alone.
+ * (Home, Shop, Battle, Wallet) to setup. A failed pet lookup leaves the page alone.
  */
 function useSetupGate() {
   const path = usePathname();

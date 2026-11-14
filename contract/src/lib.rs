@@ -1,6 +1,7 @@
 //! Nearling pets contract. Spec: CLAUDE.md sections 6 and 7.
 
 mod approvals;
+mod battle;
 mod budget;
 mod device;
 mod events;
@@ -164,6 +165,9 @@ enum StorageKey {
     Enumeration,
     Pets,
     Actions,
+    // pet battles (battle.rs); appended so earlier prefixes never move
+    Battles,
+    BattleIds,
 }
 
 /// `get_pet` result: the pet settled to the current block time. Big numbers are strings.
@@ -559,6 +563,114 @@ mod tests {
                 pattern: 3,
             }),
         );
+    }
+
+    /// Two pets of different owners, minted on day 1; returns (contract, a, b).
+    fn two_pets() -> (Contract, TokenId, TokenId) {
+        let (mut contract, a) = minted();
+        ctx(accounts(4), MINT, DAY);
+        let b = contract.nft_mint_pet("Bao".into(), None, None);
+        (contract, a, b)
+    }
+
+    fn battle(
+        c: &mut Contract,
+        w: &TokenId,
+        l: &TokenId,
+        draw: bool,
+        ran: bool,
+        id: &str,
+        ts: u64,
+    ) {
+        ctx(accounts(1), NearToken::from_yoctonear(0), ts);
+        c.record_battle(w.clone(), l.clone(), draw, ran, id.into());
+    }
+
+    #[test]
+    #[should_panic(expected = "E_NOT_BRAIN: Only brain")]
+    fn record_battle_is_brain_only() {
+        let (mut c, a, b) = two_pets();
+        ctx(accounts(3), NearToken::from_yoctonear(0), DAY);
+        c.record_battle(a, b, false, false, "b1".into());
+    }
+
+    #[test]
+    #[should_panic(expected = "E_UNKNOWN_PET: Unknown pet")]
+    fn record_battle_rejects_unknown_pets() {
+        let (mut c, a, _) = two_pets();
+        battle(&mut c, &a, &"99".to_string(), false, false, "b1", DAY);
+    }
+
+    #[test]
+    #[should_panic(expected = "E_BATTLE: A pet cannot battle itself")]
+    fn record_battle_rejects_the_same_pet() {
+        let (mut c, a, _) = two_pets();
+        battle(&mut c, &a, &a, false, false, "b1", DAY);
+    }
+
+    #[test]
+    fn a_fresh_pet_has_a_level_1_battle_record() {
+        let (c, a, _) = two_pets();
+        let r = c.get_battle(a);
+        assert_eq!((r.level, r.xp, r.wins, r.losses, r.draws), (1, 0, 0, 0, 0));
+    }
+
+    #[test]
+    fn a_win_and_a_loss_score_per_spec_and_emit_an_event() {
+        let (mut c, a, b) = two_pets();
+        battle(&mut c, &a, &b, false, false, "b1", DAY);
+        let (w, l) = (c.get_battle(a), c.get_battle(b));
+        assert_eq!((w.level, w.xp, w.wins), (2, 0, 1)); // 20 xp at level 1 = level 2
+        assert_eq!((l.level, l.xp, l.losses), (1, 8, 1));
+        let log = events()
+            .into_iter()
+            .find(|e| e.contains("\"battle\""))
+            .unwrap();
+        assert!(
+            log.contains("\"xp\":[20,8]") && log.contains("\"battle_id\":\"b1\""),
+            "{log}"
+        );
+        assert!(events().iter().any(|e| e.contains("battle_level_up")));
+    }
+
+    #[test]
+    fn draws_give_10_each_and_running_away_gives_the_runner_0() {
+        let (mut c, a, b) = two_pets();
+        battle(&mut c, &a, &b, true, false, "d1", DAY);
+        assert_eq!(
+            (c.get_battle(a.clone()).xp, c.get_battle(b.clone()).draws),
+            (10, 1)
+        );
+        battle(&mut c, &a, &b, false, true, "r1", DAY);
+        assert_eq!(c.get_battle(b).xp, 10); // still 10: the runner got 0
+    }
+
+    #[test]
+    fn a_repeated_battle_id_changes_nothing() {
+        let (mut c, a, b) = two_pets();
+        battle(&mut c, &a, &b, false, false, "same", DAY);
+        battle(&mut c, &a, &b, false, false, "same", DAY);
+        assert_eq!(c.get_battle(a).wins, 1);
+        assert!(!events().iter().any(|e| e.contains("\"battle\"")));
+    }
+
+    #[test]
+    fn battle_xp_is_capped_at_100_a_day_and_resets_the_next_day() {
+        let (mut c, a, b) = two_pets();
+        // 20 wins in one day: far more than 100 xp, so the cap must stop it
+        for i in 0..20 {
+            battle(&mut c, &a, &b, false, false, &format!("w{i}"), DAY);
+        }
+        assert_eq!(c.get_battle(a.clone()).xp_today, 100);
+        let before = c.get_battle(a.clone());
+        battle(&mut c, &a, &b, false, false, "next-day", 2 * DAY);
+        let after = c.get_battle(a);
+        assert!(
+            (10..=40).contains(&after.xp_today),
+            "a new day starts from 0: {}",
+            after.xp_today
+        );
+        assert_ne!((after.level, after.xp), (before.level, before.xp));
     }
 
     #[test]

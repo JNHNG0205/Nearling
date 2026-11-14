@@ -45,7 +45,7 @@ Where they disagreed, the team chose a hybrid: **the Build Spec's product and ha
 | **Fuel = the pet's on-chain budget** (5.1). One chat = one `charge` of `config.fuel_price_micro`; idempotent `usage_ref` gives the brain's reserve / debit / retry | Hardware, offline pat / rock / shake / sleep (Build Spec 4), winged evolution | On-device key signing, `stake_from_food`, the on-chain approval flow (7.3, M5) |
 | **Feed the Brain:** NEAR Intents checkout settles to the project account, then the brain calls `feed(pet)` with that NEAR | **Soul:** public, versioned personality prompt on chain (7.2, new) | On-chain care stats driven by `play` (mood, energy); care is device-local |
 | **Brain Garden = NEARON stake** (6), already working | **Shirt NFT** for the Closet (replaces `buy_item`) | `buy_item` |
-| Pet NFT, transfer rules, events, `E_` codes, demo-speed deployment | Nearling Run, voice replies (TTS), Wi-Fi setup portal (no contract impact) | Wallet send and validator staking (only if time allows) |
+| Pet NFT, transfer rules, events, `E_` codes, demo-speed deployment | Pet battles (were Nearling Run), voice replies (TTS), Wi-Fi setup portal (no contract impact) | Wallet send and validator staking (only if time allows) |
 | | Approvals for Wallet actions and pet transfer: backend approval request, hold-to-approve on the device, **Meteor signs on the phone** | |
 
 **Update 2026-11-11 (team):** the device signs with a limited device key again (pantry feeding, `stake_from_food`, on-chain approvals), and the NFT metadata is synced with the pet on IPFS. Contract side: `pets-v9`, `docs/CONTRACT_CHANGES_V9.md`. Where the table above or section 12 says on-device signing is not the demo path, this update wins.
@@ -119,10 +119,10 @@ nearling/
 | Role | People | Owns |
 |---|---|---|
 | 1. Contract | 1 | `contract/`, `shirts/`, `scripts/`, NEARON integration on chain, device key + on-chain approvals (kept in code) |
-| 2. Web + brain | 1 | **All server code:** `brain/` (talk, NEAR AI, receipts, fuel and charge queue, Feed the Brain, Garden sweep, pairing, care, Closet, wallet approvals, race server, proactive inbox), `web/`, `packages/` (`shared`, `race`, `sprites`), NEAR Connect login, deployment (`docs/DEPLOY.md`, CI) |
-| 3 + 4. Hardware | 2 | `firmware/` (C++, PlatformIO), 3D-printed case, soldering and wiring, screens, buttons and sensors, audio, Wi-Fi and pairing client, race C++ port (must match `packages/race` golden vectors), `docs/hardware/` |
+| 2. Web + brain | 1 | **All server code:** `brain/` (talk, NEAR AI, receipts, fuel and charge queue, Feed the Brain, Garden sweep, pairing, care, Closet, wallet approvals, battle rooms, proactive inbox), `web/`, `packages/` (`shared`, `battle`, `sprites`), NEAR Connect login, deployment (`docs/DEPLOY.md`, CI) |
+| 3 + 4. Hardware | 2 | `firmware/` (C++, PlatformIO), 3D-printed case, soldering and wiring, screens, buttons and sensors, audio, Wi-Fi and pairing client, battle C++ port when the device joins battles (must match `packages/battle` golden vectors), `docs/hardware/` |
 
-Roles 3 and 4 are one hardware team of two; the brain routes the device calls (pairing, talk, care, Closet, approvals, race) are built by Role 2 and documented in `AI-brain architectual/08-api-reference.md`. Pets are procedural sprites from `packages/sprites` (no separate art owner).
+Roles 3 and 4 are one hardware team of two; the brain routes the device calls (pairing, talk, care, Closet, approvals) are built by Role 2 and documented in `AI-brain architectual/08-api-reference.md`. Pets are procedural sprites from `packages/sprites` (no separate art owner).
 
 ---
 
@@ -142,17 +142,17 @@ Hybrid scope as built [updated 2026-11-11]:
       │ wallet tx    │                  │                    NEAR AI Cloud org (staging)
    Phone web app ──HTTPS, SSE──► Brain service (Node 22, Hono, SQLite) ──► private TEE chat,
    (Next.js, NEAR Connect,       talk + receipts, memory, inbox,            whisper, attestation
-    Meteor signs value tx)       pairing, care, Closet, approvals, race
+    Meteor signs value tx)       pairing, care, Closet, approvals, battles
                                      ▲            │
-                    HTTPS + race WS  │            └──► NEAR Intents 1Click (mainnet; dry quotes
+                  HTTPS + battle WS  │            └──► NEAR Intents 1Click (mainnet; dry quotes
                                      │                 unless a human enables live)
                   Nearling device (ESP32-S3, 240x240 screen, buttons, touch pad,
                   motion + light sensors, speaker): hold to talk, offline care,
-                  Closet, Nearling Run, hold-to-approve for wallet actions
+                  Closet, battles (later), hold-to-approve for wallet actions
 ```
 
 - **On-chain is the source of truth** for ownership, fuel (food + staking credit), stake, Soul, stage and xp. Care (mood, milestones, winged form) is brain and device state (1.1).
-- **Brain service** owns conversation, memory, receipts, billing, proactive messages, pairing, race rooms and approval requests. It is the only account allowed to call `charge` and `credit`; its feeder account calls `feed` for settled orders.
+- **Brain service** owns conversation, memory, receipts, billing, proactive messages, pairing, battle rooms and approval requests. It is the only account allowed to call `charge` and `credit`; its feeder account calls `feed` for settled orders.
 - **Web and device are clients.** Neither talks to NEAR AI directly. The device holds no chain key in the demo path: value actions are approved on the device, then signed in Meteor on the phone.
 
 ---
@@ -205,7 +205,7 @@ Precedence (first match wins): Dormant > Starving > Sleepy (also while asleep) >
 - Memory makes it personal: "You said your exam was today. How did it go?"
 
 ### 5.6 Play and items
-- **Game:** Nearling Run, the two-lane race (Build Spec 6), off chain.
+- **Game [2026-11-14]:** turn-based pet battles replace Nearling Run (spec `docs/superpowers/specs/2026-11-14-pet-battle-design.md`). Two owners' pets on the same contract; each turn both pick Fight (Attack or a skill) or Run (concede) blind and the brain referees with `packages/battle`. Battle level and XP live on chain (`record_battle`, brain only, 7.2).
 - **Closet:** a **shirt NFT** the owner claims; the device draws it as a sprite layer (Build Spec 5). Replaces the `buy_item` accessories, which stay in the contract unused. **Shirts contract [FIXED, M5b]** (`shirts/`, `shirts.petto.testnet`): NEP-171/177/181, `claim()` mints one shirt per account, ever (`E_CLAIMED`); the claimer attaches 0.01 NEAR for storage and the excess is refunded. Shirts transfer freely; the brain checks ownership with `nft_tokens_for_owner` when the Closet syncs. Kept separate so the pets contract's `nft_tokens` stay pets only. **Costume shop [2026-11-14]:** `buy(costume)` mints one of 38 costumes (36, plus `ceo` and `spy` added 2026-11-14, tx `78iTb7Ew…`) for exactly 0.05 NEAR (kept by the contract), key in `metadata.extra` as `{"costume":"<key>"}` (`E_COSTUME` for an unknown key); `costumes()` lists the catalog and price. Deployed in place on `shirts.nearling.testnet`. `packages/sprites/src/costumes.ts` draws each costume as back and front layers from the pet's geometry; the brain stores the worn costume key (`PetState.equipped_costume`) and the web Closet has try on, buy and wear. Firmware support is Role 3's (a header regeneration).
 
 ---
@@ -343,9 +343,10 @@ Device (signer is the pet's registered device key, checked with `env::signer_acc
 Brain only:
 - `charge(pet_id, cost_micro_usd: u64, usage_ref: String, trait_deltas: Option<[i8;5]>, xp_gain: u32, mood_delta: i8)`: settles, then spends credit first, then food (converted at `near_usd_rate_micro`); food spent goes to `treasury`. **Never panics for lack of funds or caps:** cost is clamped to the per-call cap ($0.005), the daily cap ($0.10 per pet) and what is left; if short, the pet becomes starving. Deltas are clamped: xp ≤ 5 per call and ≤ 50 per day (the check-in bonus is on top), mood ±10, traits ±2 per trait per day (0 to 100). Each chat also costs 3 energy (5.2). Emits `thought { pet_id, cost_micro, usage_ref, source }` with the amount actually charged and `source` = `credit` / `food` / `mixed` / `none` (C3, M4b). **Idempotent (C2, M4b):** a `usage_ref` already among the pet's last 32 charges is a no-op (no charge, no event), so the brain can retry blindly. Only thought spending goes to the treasury; food burnt by metabolism stays in the contract.
 - `credit(pet_id, micro_usd: u64, ref: String)`: capped correction only (credit normally accrues lazily). Above `credit_correction_max_micro` it panics (a correction that large is a bug, not a retry). Clears starving if the budget is now above 0. Emits `credited`.
+- `record_battle(winner, loser, draw, loser_ran, battle_id)` [2026-11-14]: scores one refereed battle for both pets (win 20 + 5 per level the opponent is above, 10 to 40; loss 8; draw 10; a loser who ran gets 0), 100 battle XP per pet per day, level up at 20 × level up to 20; a repeated `battle_id` is a no-op (the contract keeps 8 bytes of each id's sha256 forever, about 50 bytes of storage per battle paid from the contract balance); `E_BATTLE` for the same pet twice. Emits `battle` and `battle_level_up`. View `get_battle(pet_id) -> { level, xp, wins, losses, draws, xp_today, day }`.
 - `set_metadata(pet_id, media, media_hash, reference, reference_hash)` [FIXED, pets-v9]: points the NFT (NEP-177) at the pet's PNG and public JSON that the brain pinned on IPFS. Links start with `ipfs://` and are ≤ 256 bytes, hashes are 32-byte sha256 (base64 in JSON), else `E_METADATA`; one update per pet per 60 s (`E_COOLDOWN`). Sets `media`, `media_hash`, `reference`, `reference_hash`, `updated_at` and `description` (first 200 bytes of the Soul, cut on a char boundary; `set_soul` and mint also set it). Emits `metadata_updated { pet_id, media, reference }`. The brain's function-call keys list `charge, credit, sweep_credit, set_metadata` (`scripts/add-brain-keys.sh`).
 
-**Panic codes [FIXED, M4b] (C4):** every panic message starts with a stable code and a colon, e.g. `E_NOT_OWNER: Only the owner`, so the web can map it to a friendly line. Codes: `E_NOT_ADMIN`, `E_NOT_BRAIN`, `E_NOT_OWNER`, `E_NOT_DEVICE`, `E_UNKNOWN_PET`, `E_DEPOSIT`, `E_NAME`, `E_GAS`, `E_COOLDOWN`, `E_ASLEEP`, `E_MIN_STAKE`, `E_NO_STAKE`, `E_UNSTAKE_PENDING`, `E_NO_UNSTAKE`, `E_LOCKED`, `E_DEVICE_CAP`, `E_FOOD_RESERVE`, `E_STAKED`, `E_ITEM`, `E_CREDIT_CAP`, `E_STORAGE`, `E_APPROVAL_MODE`, `E_EXPIRED`, `E_SAME_KEY`, `E_NO_ACTION`, `E_TOO_MANY_ACTIONS`, `E_SOUL_SIZE`, `E_POOL_NOT_READY`, `E_POOL_READY`, `E_METADATA`, `E_PANTRY` (pets-v9), `E_HATCHED` (hatch, 2026-11-14), `E_LOOK` (mint look, 2026-11-14); shirts: `E_CLAIMED`, `E_DEPOSIT`, `E_COSTUME`.
+**Panic codes [FIXED, M4b] (C4):** every panic message starts with a stable code and a colon, e.g. `E_NOT_OWNER: Only the owner`, so the web can map it to a friendly line. Codes: `E_NOT_ADMIN`, `E_NOT_BRAIN`, `E_NOT_OWNER`, `E_NOT_DEVICE`, `E_UNKNOWN_PET`, `E_DEPOSIT`, `E_NAME`, `E_GAS`, `E_COOLDOWN`, `E_ASLEEP`, `E_MIN_STAKE`, `E_NO_STAKE`, `E_UNSTAKE_PENDING`, `E_NO_UNSTAKE`, `E_LOCKED`, `E_DEVICE_CAP`, `E_FOOD_RESERVE`, `E_STAKED`, `E_ITEM`, `E_CREDIT_CAP`, `E_STORAGE`, `E_APPROVAL_MODE`, `E_EXPIRED`, `E_SAME_KEY`, `E_NO_ACTION`, `E_TOO_MANY_ACTIONS`, `E_SOUL_SIZE`, `E_POOL_NOT_READY`, `E_POOL_READY`, `E_METADATA`, `E_PANTRY` (pets-v9), `E_HATCHED` (hatch, 2026-11-14), `E_LOOK` (mint look, 2026-11-14), `E_BATTLE` (record_battle, 2026-11-14); shirts: `E_CLAIMED`, `E_DEPOSIT`, `E_COSTUME`.
 
 **persona_hash (C5):** not stored on chain; the brain keeps the persona.
 
@@ -374,7 +375,7 @@ Key point: wallet and device keys both belong to the owner's account, so `predec
 - Limited access keys live on the old owner's account, so the contract checks `predecessor == current owner` for device methods; old keys simply stop working.
 
 ### 7.5 Events (NEP-297, standard `petto` since 2026-11-14, `nearling` on the earlier contracts, version `1.0.0`) + NEP-256 NFT events
-`fed`, `thought` (pet_id, cost, usage_ref), `credited`, `credit_swept`, `soul_updated`, `pool_registered`, `played`, `staked`, `staked_from_food`, `unstaked`, `unstake_withdrawn`, `item_bought`, `stage_up`, `dormant`, `revived`, `device_registered`, `device_cleared`, `action_proposed`, `action_approved`, `action_cancelled`; pets-v9: `metadata_updated`, `pantry_stocked`, `pantry_emptied`, `fed.source` (`wallet` / `pantry`), `unstaked.pending.deposit` and `unstake_withdrawn.deposit`.
+`fed`, `thought` (pet_id, cost, usage_ref), `credited`, `credit_swept`, `soul_updated`, `pool_registered`, `played`, `staked`, `staked_from_food`, `unstaked`, `unstake_withdrawn`, `item_bought`, `stage_up`, `dormant`, `revived`, `device_registered`, `device_cleared`, `action_proposed`, `action_approved`, `action_cancelled`; pets-v9: `metadata_updated`, `pantry_stocked`, `pantry_emptied`, `battle`, `battle_level_up` (2026-11-14), `fed.source` (`wallet` / `pantry`), `unstaked.pending.deposit` and `unstake_withdrawn.deposit`.
 
 ### 7.6 Invariants
 - Only `brain` can `charge` and `credit`; both are capped. Only `admin` can change config.
@@ -409,7 +410,7 @@ Node 22 + Hono, TypeScript. Holds the `brain` NEAR account key and the NEAR AI s
 | Device pairing | `POST /devices/hello`, `GET /devices/pairing`, `POST /devices/pairing/confirm` (headers `X-Device-Id`, `X-Device-Secret`); the web claims with `POST /pairings/:token/claim`. QR code with a 128-bit token, not a 6-digit code | device secret / session |
 | Care, Closet, inbox | `POST /pets/:petRef/care`, `GET /pets/:petRef/closet`, `POST .../closet/equip`, `GET /pets/:petRef/inbox` | session or device |
 | Wallet approvals | `POST /approvals`, `/approvals/:id/approve`, `/reject`, `/submitted` | device / session |
-| Race | `POST /race/rooms`, `POST /race/rooms/:code/join`, `GET /race/ws` (WebSocket), `GET /race/matches/:id` | public, race token or device |
+| Battle | `POST /battle/rooms`, `POST /battle/rooms/:code/join`, `GET /battle/ws?code&token` (WebSocket) | session (pet owner) |
 | MCP tools [2026-11-14] | Catalog `GET /mcp/catalog` (Gmail, Google Calendar, Slack, Notion, Canva, Firecrawl, Playwright info, open knowledge tools; `brain/src/mcp/catalog.ts`), `POST /me/mcp/connect {id, key?}` (open: connects; key: Firecrawl API key; OAuth: returns the provider sign-in link), `GET /mcp/oauth/callback` (finishes sign-in, back to web /mcp; setup in `docs/MCP_SETUP.md`); custom servers `GET/POST /me/mcp`, `POST /me/mcp/:id/refresh`, `DELETE /me/mcp/:id` (owner connects Streamable HTTP MCP servers; public https only, tokens sealed); the talk route offers the owner's tools to the model, and a proposed call waits as a task (`TalkResponse.tasks`) until `POST /pets/:petRef/tasks/:id/approve` or `/decline`; approve runs the tool on the brain, then a follow-up turn reports the result (1 fuel). Web page `/mcp`, nav link MCP | session (owner); approve also device |
 
 ### 8.3 Chat flow
@@ -452,7 +453,7 @@ Next.js (App Router), TypeScript. **Wallet: NEAR Connect** (`@hot-labs/near-conn
 | `/pet/[petRef]/garden` | Brain Garden: plant (stake), take out (unstake, withdraw), credit ticker, self-sustaining |
 | `/pet/[petRef]/device` | Paired device status, unpair |
 | `/approve/[approvalId]`, `/wallet` | Device-approved wallet actions signed in Meteor; balances and saved recipients (P1) |
-| `/race`, `/race/[code]` | Nearling Run rooms, browser racer |
+| `/battle`, `/battle/[code]` | Pick a pet, start or join a battle (code and QR), the battle and its result |
 | `/p/[petRef]` | Public pet page with timeline, published receipts, Feed this pet, OG image |
 | `/privacy` | What is verified and what is not |
 
@@ -506,10 +507,10 @@ Pixel art, 64×64 base sprite, 4 stages × about 12 states. One palette that rea
 2. Brain Garden: NEARON stake for a pet with CREDIT accrual shown (done, Option A).
 3. Brain: verified chat on a private model, voice, one `charge` per chat, Soul fetched from chain, memory, proactive messages.
 4. Web / phone: Hatch & Pair, Feed the Brain via NEAR Intents ending in `feed(pet)`, receipts, Closet claim, public pet page.
-5. Device (Build Spec): pairing, hold-to-talk, offline care, Closet, Nearling Run, approve-on-device for Wallet actions.
+5. Device (Build Spec): pairing, hold-to-talk, offline care, Closet, approve-on-device for Wallet actions.
 6. README with "do X, see Y" on testnet, demo video.
 
-**P1 (ship after must-haves work):** Wallet send and validator staking, approve pet transfer on the device, second physical racer.
+**P1 (ship after must-haves work):** Wallet send and validator staking, approve pet transfer on the device.
 
 **Kept in code, not in the demo:** on-device signing (`play`, `stake_from_food`, on-chain `approve_action`), `buy_item`, on-chain care stats.
 
@@ -586,6 +587,8 @@ pets-v9 on testnet (2026-11-11, `pets-v9` + `pets-demo-v9`, owner `nearling-seed
 | First-deposit fee | Back to 0.0055 NEAR (house 0.2 NEAR minted 0.1945 iNEAR); pet stakes are 1:1 either way |
 | Pantry | `stock_pantry` 0.5 NEAR; a function-call key with `feed_from_pantry` signed `feed_from_pantry` 0.1 NEAR: `fed` with `source: "pantry"` (tx `31GEvSBrkaGKZCy4KibDxWFNHNnYFVTuTzqn6TG8tjm6`); more than the pantry: `E_PANTRY`; the device key attaching a deposit: refused by the protocol |
 | `set_metadata` | Brain-signed with the two Pinata CIDs: `metadata_updated`, `nft_token` shows media, hashes, reference, `description` from the Soul, `updated_at` (tx `EaoRQV6TrH1tv6sHmKfDpzzzNokbd2R1JVxtxAvBMzSv`); again within 60 s: `E_COOLDOWN`; a stranger: `E_NOT_BRAIN`; a view call with `{}` fails on deserialize (not `MethodNotFound`), so the brain detects the method |
+
+Pet battles on testnet (2026-11-14): `record_battle` / `get_battle` (contract `battle.rs`, own storage prefixes `Battles`, `BattleIds`) deployed in place to `pets` (tx `7sBVVMFt…`) and `pets-demo` (tx `H8KwmnJQ…`); Sprout's state unchanged. The 8 brain public keys were deleted and re-added with `record_battle` in their method list (same private keys). A `record_battle` signed with a brain function-call key on `pets-demo` (#1 beat #0) emitted `battle` with `xp: [20, 8]` and `battle_level_up` to 2 (tx `CVoVbN6B3TS2Ypi1t7qmfjaLCwQjsNQkr9QK3CSKq6KX`). Design: `docs/superpowers/specs/2026-11-14-pet-battle-design.md`.
 
 Petto accounts on testnet (2026-11-14): `petto.testnet` created by the faucet and funded by deleting the unused `pets-demo.nearling.testnet` and `s6-spike.nearling.testnet` (their iNEAR stays in the pool, lost; `pets-v8` kept: its pre-v9 `unstake` cannot attach the deposit NEARON now requires). `deploy-testnet.sh` (normal and `DEMO_SPEED=1`) and `deploy-shirts.sh` deployed `pets`, `pets-demo` and `shirts` under it; the brain's 8 existing function-call public keys were added to `brain.petto.testnet` (4 per pets contract) and the relayer key to `relayer.petto.testnet`. `seed-demo.sh` seeded and hatched #0 Sunny, #1 Crumb, #2 Echo, #3 Sprout (2 NEAR staked, self-sustaining) and demo #0 Blink. A brain-signed `charge` emitted `{"standard":"petto","event":"thought",...}` (tx `CndDMwrmsz5B8xjg36UdSy4dZjzPy8HibRpwdtgZawoy`).
 

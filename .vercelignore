@@ -1,0 +1,23 @@
+# Vercel uploads the repo root (project root directory: web) because web imports packages/*.
+# Never upload secrets or local build output.
+.env
+.env.*
+!.env.example
+**/node_modules
+**/.next
+**/target
+**/data
+.git
+.playwright-mcp
+.claude
+contract
+shirts
+spikes
+firmware
+brain
+scripts
+docs
+art
+conceptual
+AI-brain architectual
+web-app architectual

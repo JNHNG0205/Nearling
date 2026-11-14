@@ -9,7 +9,7 @@ import type { Deps } from "./deps";
 import { applyDevSecrets } from "./devSecrets";
 import { log } from "./log";
 import { MODULES } from "./modules";
-import { attachWebSockets } from "./race/ws";
+import { attachWebSockets } from "./ws";
 import { splitKeys } from "./wallet/rpc";
 
 const fromDevFile = process.env.NODE_ENV === "production" ? [] : applyDevSecrets(process.env);

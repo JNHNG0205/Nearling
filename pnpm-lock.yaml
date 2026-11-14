@@ -19,9 +19,9 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: 1.17.5
         version: 1.17.5
-      '@petto/race':
+      '@petto/battle':
         specifier: workspace:*
-        version: link:../packages/race
+        version: link:../packages/battle
       '@petto/shared':
         specifier: workspace:*
         version: link:../packages/shared
@@ -66,6 +66,15 @@ importers:
         specifier: 3.2.4
         version: 3.2.4(@types/node@22.19.1)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.15)
 
+  packages/battle:
+    devDependencies:
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/node@22.19.1)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.15)
+
   packages/device:
     dependencies:
       '@noble/curves':
@@ -87,15 +96,6 @@ importers:
       tsx:
         specifier: 4.23.15
         version: 4.23.15
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-      vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/node@22.19.1)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.15)
-
-  packages/race:
-    devDependencies:
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -132,12 +132,12 @@ importers:
       '@hot-labs/near-connect':
         specifier: 0.12.0
         version: 0.12.0
+      '@petto/battle':
+        specifier: workspace:*
+        version: link:../packages/battle
       '@petto/device':
         specifier: workspace:*
         version: link:../packages/device
-      '@petto/race':
-        specifier: workspace:*
-        version: link:../packages/race
       '@petto/shared':
         specifier: workspace:*
         version: link:../packages/shared

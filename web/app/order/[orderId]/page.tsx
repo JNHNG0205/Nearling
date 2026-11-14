@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { RoomQr } from "@/components/race/RoomQr";
+import { RoomQr } from "@/components/battle/RoomQr";
 import { getOrder, toMs, type Order, type OrderStatus } from "@/components/wallet/brainApi";
 import { AppFrame, ErrorText, Panel, Spinner, TxLink } from "@/components/wallet/ui";
 import { BrainRequestError } from "@/lib/brain";

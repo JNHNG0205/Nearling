@@ -263,6 +263,28 @@
         }
       },
       {
+        "name": "get_battle",
+        "doc": " A pet's battle record; level 1 and zeros before its first battle.",
+        "kind": "view",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "pet_id",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "$ref": "#/definitions/BattleRecord"
+          }
+        }
+      },
+      {
         "name": "get_pending_actions",
         "kind": "view",
         "params": {
@@ -988,6 +1010,46 @@
         }
       },
       {
+        "name": "record_battle",
+        "doc": " Brain only. Scores one finished battle for both pets; a `battle_id` seen before is a no-op,\n so the brain can retry. `loser_ran`: the loser conceded (Run) and gets no XP.",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "winner",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "loser",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "draw",
+              "type_schema": {
+                "type": "boolean"
+              }
+            },
+            {
+              "name": "loser_ran",
+              "type_schema": {
+                "type": "boolean"
+              }
+            },
+            {
+              "name": "battle_id",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        }
+      },
+      {
         "name": "register_device",
         "doc": " Owner only. Replaces any previous device key for this pet. In approval mode, use\n `propose_action(RegisterDevice)` so a stolen wallet key cannot swap in its own device.\n The device's function-call key (receiver = this contract) lists the methods `play`,\n `stake_from_food`, `feed_from_pantry` and `approve_action`.",
         "kind": "call",
@@ -1402,6 +1464,56 @@
             "type": "integer",
             "format": "uint8",
             "minimum": 0.0
+          }
+        },
+        "BattleRecord": {
+          "type": "object",
+          "required": [
+            "day",
+            "draws",
+            "level",
+            "losses",
+            "wins",
+            "xp",
+            "xp_today"
+          ],
+          "properties": {
+            "day": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "draws": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "level": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0.0
+            },
+            "losses": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "wins": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "xp": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "xp_today": {
+              "description": "XP gained on `day` (UTC day index), capped at 100",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
           }
         },
         "Config": {

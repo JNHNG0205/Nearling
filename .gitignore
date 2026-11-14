@@ -24,3 +24,7 @@ web/playwright-report/
 
 # Playwright MCP snapshots and screenshots (local testing)
 .playwright-mcp/
+
+# Vercel CLI link (vercel link)
+.vercel
+.env*

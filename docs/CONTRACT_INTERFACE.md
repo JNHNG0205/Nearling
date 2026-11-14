@@ -58,6 +58,8 @@ The brain signs these with function-call keys on `brain.petto.testnet` (receiver
 
 ### Admin (`config.admin`)
 
+**Battles (2026-11-14, brain only):** `record_battle(winner, loser, draw, loser_ran, battle_id)` scores one finished battle for both pets: win `20 + 5 × (opponent level − own level)` clamped 10 to 40, loss 8, draw 10 each, `loser_ran` = loser 0; at most 100 battle XP per pet per UTC day; level up at `20 × L`, cap 20; a repeated `battle_id` is a no-op (8 bytes of its sha256 are kept forever: about 50 bytes of storage per battle, paid from the contract balance). Events `battle { battle_id, winner, loser, draw, xp: [w, l], level: [w, l] }` and `battle_level_up { pet_id, level }`. `E_NOT_BRAIN`, `E_UNKNOWN_PET`, `E_BATTLE` (same pet twice). View `get_battle(pet_id) -> { level, xp, wins, losses, draws, xp_today, day }` (level 1 and zeros before the first battle). Stored outside `Pet`, so it shipped as an in-place update.
+
 `admin_add_xp(pet_id, xp)`: testnet dev cheat, adds XP past the daily cap and grows the pet as usual (`stage_up`); run it with `scripts/dev-grow.sh <pet_id> <xp> [demo]`. `set_config(config)`, `register_pool()` (once at deploy, house deposit). `scripts/deploy-testnet.sh` does both and copies the pool's live `get_account(contract).unstake_deposit` into `pool_unstake_deposit`; re-check it after NEARON upgrades.
 
 ### Kept in code, not the demo path (hybrid 1.1)
