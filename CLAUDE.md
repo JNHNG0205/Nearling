@@ -612,6 +612,7 @@ cargo test
 cargo near build non-reproducible-wasm             # cargo-near 0.23; output in target/near/ [VERIFY on first deploy]
 ./scripts/deploy-testnet.sh                        # DEMO_SPEED=1 for pets-demo-vN; registers the NEARON pool, sets pool_unstake_deposit
 ./scripts/deploy-shirts.sh
+./scripts/dev-grow.sh <pet_id> <xp> [demo]         # dev cheat: admin adds XP past the daily cap (Teen 100, Adult 500)
 ./scripts/add-brain-keys.sh <contract> <pk>...       # brain function-call keys (public keys from the brain), once per pets contract
 ./scripts/seed-demo.sh                             # demo pets in each state (owner nearling-seed.testnet)
 

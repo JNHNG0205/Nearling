@@ -58,7 +58,7 @@ The brain signs these with function-call keys on `brain.nearling.testnet` (recei
 
 ### Admin (`config.admin`)
 
-`set_config(config)`, `register_pool()` (once at deploy, house deposit). `scripts/deploy-testnet.sh` does both and copies the pool's live `get_account(contract).unstake_deposit` into `pool_unstake_deposit`; re-check it after NEARON upgrades.
+`admin_add_xp(pet_id, xp)`: testnet dev cheat, adds XP past the daily cap and grows the pet as usual (`stage_up`); run it with `scripts/dev-grow.sh <pet_id> <xp> [demo]`. `set_config(config)`, `register_pool()` (once at deploy, house deposit). `scripts/deploy-testnet.sh` does both and copies the pool's live `get_account(contract).unstake_deposit` into `pool_unstake_deposit`; re-check it after NEARON upgrades.
 
 ### Kept in code, not the demo path (hybrid 1.1)
 

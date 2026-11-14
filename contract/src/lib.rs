@@ -302,6 +302,19 @@ impl Contract {
     pub fn config(&self) -> Config {
         self.config.clone()
     }
+
+    /// Admin only, testnet dev cheat (scripts/dev-grow.sh): adds XP without the daily cap; the
+    /// stage moves exactly as in normal growth (Baby 10, Teen 100, Adult 500) and emits `stage_up`.
+    pub fn admin_add_xp(&mut self, pet_id: TokenId, xp: u32) {
+        require!(
+            env::predecessor_account_id() == self.config.admin,
+            "E_NOT_ADMIN: Only admin"
+        );
+        let mut pet = self.load_pet(&pet_id);
+        let stage_up = pet.add_xp(xp);
+        self.save_pet(&pet_id, pet);
+        self.emit_stage_up(&pet_id, stage_up);
+    }
 }
 
 impl Contract {
@@ -2213,6 +2226,26 @@ mod tests {
         );
         let view = contract.get_pet(id);
         assert_eq!((view.owner, view.pantry_yocto.0), (accounts(4), 0));
+    }
+
+    #[test]
+    fn the_admin_dev_cheat_adds_xp_past_the_daily_cap_and_grows_the_pet() {
+        let (mut contract, id) = minted();
+        ctx(accounts(0), NearToken::from_yoctonear(0), DAY);
+        contract.admin_add_xp(id.clone(), 120);
+        let view = contract.get_pet(id);
+        assert_eq!((view.xp, view.stage), (120, 2));
+        assert!(events()
+            .iter()
+            .any(|e| e.contains("\"event\":\"stage_up\"") && e.contains("\"stage\":2")));
+    }
+
+    #[test]
+    #[should_panic(expected = "E_NOT_ADMIN")]
+    fn only_the_admin_can_cheat_xp() {
+        let (mut contract, id) = minted();
+        ctx(accounts(3), NearToken::from_yoctonear(0), DAY);
+        contract.admin_add_xp(id, 500);
     }
 
     #[test]
